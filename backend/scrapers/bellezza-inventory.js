@@ -31,7 +31,25 @@ import { appendLog, addJobError } from './base.js';
 
 const BASE = 'https://bellezzaceramica.com';
 const STOCK_PATH = '/stock-check/';
-const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
+
+// The host added a WAF rule (Sept 2026) that 403s bare-UA requests site-wide.
+// A full modern-Chrome header set (UA + Client-Hints + Sec-Fetch) passes it, so
+// every request below sends these. Keeping them in one place so the UA/version
+// only has to be bumped once if the block tightens again.
+const BROWSER_HEADERS = {
+  'User-Agent': UA,
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'sec-ch-ua': '"Chromium";v="128", "Not(A:Brand";v="24"',
+  'sec-ch-ua-mobile': '?0',
+  'sec-ch-ua-platform': '"Windows"',
+  'Sec-Fetch-Dest': 'document',
+  'Sec-Fetch-Mode': 'navigate',
+  'Sec-Fetch-Site': 'none',
+  'Sec-Fetch-User': '?1',
+  'Upgrade-Insecure-Requests': '1',
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Matching tables (validated against the Sept 2026 stock sheet)
@@ -183,7 +201,7 @@ function matchItem(item, byProduct) {
 
 async function fetchStockHtml(password) {
   // 1. GET the form to read post_id + action
-  const formResp = await fetch(BASE + STOCK_PATH + '?ppwp=1', { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(30000) });
+  const formResp = await fetch(BASE + STOCK_PATH + '?ppwp=1', { headers: { ...BROWSER_HEADERS }, signal: AbortSignal.timeout(30000) });
   const formHtml = await formResp.text();
   const postId = (/name="post_id"\s+value="(\d+)"/i.exec(formHtml) || [])[1] || '3602';
   let action = (/<form[^>]*action="([^"]*ppw_postpass[^"]*)"/i.exec(formHtml) || [])[1];
@@ -194,7 +212,7 @@ async function fetchStockHtml(password) {
   const body = new URLSearchParams({ post_password: password, Submit: 'Enter', post_id: postId });
   const postResp = await fetch(action, {
     method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(30000),
-    headers: { 'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': BASE + STOCK_PATH },
+    headers: { ...BROWSER_HEADERS, 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': BASE + STOCK_PATH, 'Sec-Fetch-Site': 'same-origin' },
     body,
   });
   const setCookie = postResp.headers.getSetCookie ? postResp.headers.getSetCookie() : [postResp.headers.get('set-cookie')].filter(Boolean);
@@ -202,7 +220,7 @@ async function fetchStockHtml(password) {
 
   // 3. GET the unlocked page with the cookie
   const pageResp = await fetch(BASE + STOCK_PATH, {
-    headers: { 'User-Agent': UA, Cookie: cookie }, signal: AbortSignal.timeout(30000),
+    headers: { ...BROWSER_HEADERS, 'Referer': BASE + STOCK_PATH, 'Sec-Fetch-Site': 'same-origin', Cookie: cookie }, signal: AbortSignal.timeout(30000),
   });
   const html = await pageResp.text();
   return html;
