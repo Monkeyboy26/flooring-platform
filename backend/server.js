@@ -17814,10 +17814,13 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
     if (!items || !items.length) return res.status(400).json({ error: 'At least one item is required' });
     if (items.length > 5) return res.status(400).json({ error: 'Maximum 5 items per sample request' });
 
-    // Check for duplicate product_ids
-    const productIds = items.map(i => i.product_id).filter(Boolean);
-    if (new Set(productIds).size !== productIds.length) {
-      return res.status(400).json({ error: 'Duplicate products are not allowed' });
+    // Block only true duplicates — the SAME variant added twice. Different SKUs
+    // of one product (e.g. Glossy vs Matte, or a mosaic vs field tile) are
+    // distinct swatches and must be allowed, so key on sku_id when present and
+    // fall back to product_id for bare products with no chosen variant.
+    const dedupeKeys = items.map(i => i.sku_id ? 'sku:' + i.sku_id : (i.product_id ? 'prod:' + i.product_id : null)).filter(Boolean);
+    if (new Set(dedupeKeys).size !== dedupeKeys.length) {
+      return res.status(400).json({ error: 'Duplicate samples are not allowed' });
     }
 
     await client.query('BEGIN');

@@ -12078,7 +12078,10 @@
 
       const addProduct = (r) => {
         if (items.length >= 5) return alert('Maximum 5 items per sample request');
-        if (items.find(i => i.product_id === r.product_id)) return alert('This product is already added');
+        // Dedupe on the specific variant (sku), not the product — different
+        // finishes/sizes of one product are distinct swatches. [[sample-variant-dedupe]]
+        const rKey = r.sku_id ? 'sku:' + r.sku_id : 'prod:' + r.product_id;
+        if (items.find(i => (i.sku_id ? 'sku:' + i.sku_id : 'prod:' + i.product_id) === rKey)) return alert('This sample is already added');
         setItems(prev => [...prev, {
           _key: Date.now(),
           product_id: r.product_id || null,
@@ -12638,7 +12641,9 @@
       const addItemToRequest = async (result) => {
         const activeCount = items.filter(i => i.status !== 'cancelled').length;
         if (activeCount >= 5) return alert('Maximum 5 active items per sample request');
-        if (items.find(i => i.product_id === result.product_id && i.status !== 'cancelled')) return alert('This product is already in the request');
+        // Dedupe on the specific variant (sku), not the product. [[sample-variant-dedupe]]
+        const rKey = result.sku_id ? 'sku:' + result.sku_id : 'prod:' + result.product_id;
+        if (items.find(i => i.status !== 'cancelled' && (i.sku_id ? 'sku:' + i.sku_id : 'prod:' + i.product_id) === rKey)) return alert('This sample is already in the request');
         setAddingItem(true);
         try {
           const data = await repFetch('/api/rep/sample-requests/' + editId + '/add-items', {
