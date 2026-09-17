@@ -7990,6 +7990,7 @@ async function getLabelData(skuIds) {
   const { rows } = await pool.query(`
     SELECT
       s.id AS sku_id, s.internal_sku, s.variant_name, s.variant_type, s.accessory_label, s.product_id,
+      pk.sqft_per_box, pk.pieces_per_box,
       p.name AS product_name, p.collection, c.name AS category_name,
       COALESCE(br.name, v.name) AS vendor_name,
       (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code,
@@ -8046,6 +8047,7 @@ async function getLabelData(skuIds) {
        ) accs WHERE lbl IS NOT NULL AND lbl <> '') AS accessories
     FROM skus s
     JOIN products p ON p.id = s.product_id
+    LEFT JOIN packaging pk ON pk.sku_id = s.id
     LEFT JOIN categories c ON c.id = p.category_id
     LEFT JOIN vendors v ON v.id = p.vendor_id
     LEFT JOIN brands br ON br.id = p.brand_id
@@ -8090,6 +8092,16 @@ async function buildLabels(rows) {
       // identifies the supplier — strip the first token on this customer-facing tag
       // so only the part number prints. Staff recover the full SKU via the QR link.
       internalSku: String(r.internal_sku || '').replace(/^[A-Za-z0-9]{1,12}-(?=.)/, ''),
+      // Carton quantity for the representative SKU: coverage and/or piece count per
+      // box, whichever the packaging row carries. Trailing zeros trimmed off sqft.
+      boxQty: (() => {
+        const parts = [];
+        const sqft = r.sqft_per_box != null ? parseFloat(r.sqft_per_box) : null;
+        const pcs = r.pieces_per_box != null ? parseInt(r.pieces_per_box, 10) : null;
+        if (sqft != null && !Number.isNaN(sqft) && sqft > 0) parts.push(`${(+sqft.toFixed(2))} sqft`);
+        if (pcs != null && !Number.isNaN(pcs) && pcs > 0) parts.push(`${pcs} pcs`);
+        return parts.join(' · ');
+      })(),
       qrDataUri
     };
   }));

@@ -2477,6 +2477,7 @@ export function generateLabelSheetHtml(labels) {
           <div class="l-title">${esc(title)}</div>
           ${variant ? `<div class="l-variant">${variant}</div>` : ''}
           ${availBody.length ? `<div class="l-rule"></div><div class="l-availk">Available</div>${availBody.join('')}` : ''}
+          ${l.boxQty ? `<div class="l-box"><span class="l-boxk">Box</span> ${esc(l.boxQty)}</div>` : ''}
         </div>
         <div class="l-qr">
           <div class="l-qrbox"><img src="${l.qrDataUri}" alt="Scan for product details" /></div>
@@ -2516,6 +2517,8 @@ export function generateLabelSheetHtml(labels) {
   .l-availk { font-size: 6.3pt; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: #a87935; margin-bottom: 2px; }
   .l-availv { font-size: 7pt; line-height: 1.32; color: #57534e; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .l-availacc { color: #8a817a; margin-top: 1px; }
+  .l-box { font-size: 7pt; color: #57534e; margin-top: 3px; }
+  .l-boxk { font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #a87935; font-size: 6.3pt; }
   .l-qr { width: 0.98in; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
   .l-qrbox { padding: 3.5px; border: 0.75px solid #ddd6c9; background: #fff; }
   .l-qr img { width: 0.78in; height: 0.78in; display: block; }
@@ -2574,6 +2577,7 @@ export function generateLabelRollHtml(labels, { orientation = 'landscape' } = {}
           <div class="rl-title" style="font-size:${titleSize}">${esc(title)}</div>
           ${variant ? `<div class="rl-variant">${variant}</div>` : ''}
           ${availBody.length ? `<div class="rl-rule"></div><div class="rl-availk">Available</div>${availBody.join('')}` : ''}
+          ${l.boxQty ? `<div class="rl-box"><span class="rl-boxk">Box</span> ${esc(l.boxQty)}</div>` : ''}
         </div>
         <div class="rl-qr">
           <div class="rl-qrbox"><img src="${l.qrDataUri}" alt="Scan for product details" /></div>
@@ -2608,6 +2612,8 @@ export function generateLabelRollHtml(labels, { orientation = 'landscape' } = {}
   .rl-availk { font-size: 6.3pt; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #000; margin-bottom: 2px; }
   .rl-availv { font-size: 7pt; line-height: 1.32; color: #222; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .rl-availacc { color: #444; margin-top: 1px; }
+  .rl-box { font-size: 7pt; color: #222; margin-top: 3px; }
+  .rl-boxk { font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #000; font-size: 6.3pt; }
   .rl-qr { width: 1.02in; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
   .rl-qrbox { padding: 3px; border: 1px solid #000; background: #fff; }
   .rl-qr img { width: 0.84in; height: 0.84in; display: block; }
