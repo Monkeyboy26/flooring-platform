@@ -195,6 +195,17 @@ function extractTrailingFinish(name) {
 }
 
 /**
+ * Per-SKU finish overrides (keyed by WPT vendor_sku). Use ONLY when the vendor's
+ * own spec sheet is wrong and confirmed against reality — the override wins over
+ * both the spec-derived and name-derived finish so a re-scrape can't revert it.
+ *   00524 Mystical Charm Crema: spec sheet says "Polished" but the tile is
+ *   matte-only (owner-confirmed 2026-09-16).
+ */
+const FINISH_OVERRIDE = {
+  '00524': 'Matte',
+};
+
+/**
  * Derive the color name from a product name and its collection.
  * "Sabik Miel" with collection "Sabik" → "Miel"
  * "Dorne Beige 24 x 47" with collection "Dorne" → "Beige"
@@ -482,6 +493,7 @@ export async function run(pool, opts = {}) {
             if (!productAttrs.finish) productAttrs.finish = nameFinish;
             productName = cleanName;
           }
+          if (FINISH_OVERRIDE[fullProduct.sku]) productAttrs.finish = FINISH_OVERRIDE[fullProduct.sku];
 
           const color = deriveColor(productName, collectionName);
           const sellBy = determineSellBy(productName, topCatName);
@@ -598,6 +610,7 @@ export async function run(pool, opts = {}) {
             if (!productAttrs.finish) productAttrs.finish = nameFinish;
             productName = cleanName;
           }
+          if (FINISH_OVERRIDE[fullProduct.sku]) productAttrs.finish = FINISH_OVERRIDE[fullProduct.sku];
 
           const sellBy = determineSellBy(productName, topCatName);
           const descText = (fullProduct.description || '')
