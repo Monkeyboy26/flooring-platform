@@ -17,7 +17,7 @@ export function generateSampleShippingPaymentHTML(data) {
   const cta = checkout_url ? ctaButton({
     href: checkout_url,
     label: `Pay shipping &middot; ${amt} &rarr;`,
-    note: 'Secure checkout &middot; this link expires in 72 hours'
+    note: 'Secure checkout &middot; this link expires in 24 hours'
   }) : '';
 
   const noteBlock = section(warmCard(`

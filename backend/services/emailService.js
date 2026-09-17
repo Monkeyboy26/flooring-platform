@@ -1357,7 +1357,7 @@ export async function sendOrderInvoiceEmail({ order, items, balance, checkout_ur
       <tr><td style="padding:24px 40px;text-align:center;background:#fefce8;border-top:1px solid #fde68a;">
         <p style="margin:0 0 12px;font-size:15px;font-weight:500;color:#92400e;">Payment of $${balanceDue.toFixed(2)} is due</p>
         <a href="${checkout_url}" style="display:inline-block;background:#1c1917;color:#fff;padding:14px 40px;text-decoration:none;font-size:15px;font-weight:500;">Pay Now</a>
-        <p style="margin:12px 0 0;font-size:12px;color:#a16207;">This payment link expires in 72 hours.</p>
+        <p style="margin:12px 0 0;font-size:12px;color:#a16207;">This payment link expires in 24 hours.</p>
       </td></tr>` : '';
 
     const msgSection = message ? `
