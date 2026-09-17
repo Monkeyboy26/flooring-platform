@@ -478,6 +478,14 @@ function tidyEmserTileName(raw) {
     .replace(/\b(matte|satin|polished|glossy|gloss|honed|semigloss|lappato|brushed|flamed|tumbled|rectified|sbn)(?:por|cer)\b/gi, '$1')
     .replace(/\bpor\b/gi, '');
 
+  // Drop junk DCOF/slip spec codes the EDI feed bakes into names ("Catx Dcs")
+  // and expand "Sbn" → "Single Bullnose" (a real trim type, kept so the
+  // reclassifyEmserStray() still routes it to trim-accessories via "bullnose").
+  n = n
+    .replace(/\bcatx\b/gi, '')
+    .replace(/\bdcs\b/gi, '')
+    .replace(/\bsbn\b/gi, 'Single Bullnose');
+
   // Collapse whitespace and tidy dangling separators.
   n = n
     .replace(/\s+On$/i, '')
