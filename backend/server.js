@@ -42,6 +42,7 @@ import { docUpload, mediaUpload, importUpload, pricelistUpload, receiptUpload } 
 import createCartRoutes from './routes/cart.js';
 import createCustomerRoutes from './routes/customer.js';
 import createAnalyticsRoutes from './routes/analytics.js';
+import createBrandRoutes from './routes/brands.js';
 
 const { staffAuth, staffDocAuth, repAuth, tradeAuth, optionalTradeAuth, customerAuth, optionalCustomerAuth, requireRole, requireRepManager, hashPassword, verifyPassword, validatePassword, hashToken, logAudit } = createAuthMiddleware(pool);
 const { findOrCreateCustomer } = createCustomerHelpers(hashPassword, sendWelcomeSetPassword);
@@ -957,6 +958,8 @@ app.get('/api/categories', async (req, res) => {
 
 // Analytics routes — extracted to routes/analytics.js
 app.use(createAnalyticsRoutes({ pool }));
+// Brand landing-page routes — extracted to routes/brands.js
+app.use(createBrandRoutes({ pool }));
 
 // ==================== Featured Products (best-sellers) ====================
 
@@ -34610,7 +34613,17 @@ app.get('/api/sitemap.xml', async (req, res) => {
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
 
     // Static pages
-    const staticPages = ['/', '/shop', '/collections', '/trade', '/installation', '/custom-accessories', '/custom-area-rugs', '/cabinets', '/guides', '/privacy', '/terms'];
+    const staticPages = ['/', '/shop', '/collections', '/brands', '/trade', '/installation', '/custom-accessories', '/custom-area-rugs', '/cabinets', '/guides', '/privacy', '/terms'];
+
+    // Brand landing pages — public brand universe (COALESCE brand/vendor), excludes hidden.
+    const brandsResult = await pool.query(`
+      SELECT COALESCE(br.name, v.name) AS brand_name
+      FROM products p JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
+      WHERE p.status = 'active'
+        AND NOT (COALESCE(br.hide_public_name,false) OR COALESCE(v.hide_public_name,false))
+      GROUP BY 1 HAVING count(DISTINCT p.id) > 0
+    `).catch(() => ({ rows: [] }));
     for (const page of staticPages) {
       xml += `  <url><loc>${baseUrl}${page}</loc><lastmod>${today}</lastmod><changefreq>weekly</changefreq><priority>${page === '/' ? '1.0' : '0.8'}</priority></url>\n`;
     }
@@ -34624,6 +34637,13 @@ app.get('/api/sitemap.xml', async (req, res) => {
     for (const row of collectionsResult.rows) {
       const slug = generateSlugBackend(row.name);
       xml += `  <url><loc>${baseUrl}/collections/${encodeURIComponent(slug)}</loc><lastmod>${today}</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>\n`;
+    }
+
+    // Brand landing pages
+    for (const row of brandsResult.rows) {
+      const slug = generateSlugBackend(row.brand_name);
+      if (!slug) continue;
+      xml += `  <url><loc>${baseUrl}/brands/${encodeURIComponent(slug)}</loc><lastmod>${today}</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>\n`;
     }
 
     // Product pages (one URL per product, using slug-based paths)

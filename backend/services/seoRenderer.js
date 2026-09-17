@@ -82,6 +82,11 @@ function parsePath(reqPath, query) {
   // /collections index
   if (path === '/collections') return { type: 'collections-index' };
 
+  // /brands index + /brands/:slug — brand landing pages
+  if (path === '/brands') return { type: 'brands-index' };
+  const brandMatch = path.match(/^\/brands\/([a-z0-9-]+)$/);
+  if (brandMatch) return { type: 'brand', slug: brandMatch[1] };
+
   // /shop with ?category=X
   if (path === '/shop' && query && query.category) return { type: 'category', slug: query.category };
 
@@ -1883,6 +1888,172 @@ function renderGuidesIndex(guides) {
 
 // ==================== Router ====================
 
+// ==================== Brands ====================
+
+// Public brand universe = COALESCE(brand.name, vendor.name) over active products,
+// excluding white-labeled names. Kept in sync with routes/brands.js.
+async function fetchBrandsIndex(pool) {
+  const universe = await pool.query(`
+    SELECT COALESCE(br.name, v.name) AS brand_name, count(DISTINCT p.id)::int AS product_count
+    FROM products p JOIN vendors v ON v.id = p.vendor_id
+    LEFT JOIN brands br ON br.id = p.brand_id
+    WHERE p.status = 'active'
+      AND NOT (COALESCE(br.hide_public_name,false) OR COALESCE(v.hide_public_name,false))
+    GROUP BY 1 HAVING count(DISTINCT p.id) > 0
+  `);
+  let pages = new Map();
+  try {
+    const bp = await pool.query(`SELECT slug, brand_name FROM brand_pages WHERE is_active = true`);
+    pages = new Map(bp.rows.map(r => [r.brand_name, r.slug]));
+  } catch { /* table may not exist yet */ }
+  return universe.rows
+    .map(r => ({ brand_name: r.brand_name, product_count: r.product_count, slug: pages.get(r.brand_name) || slugify(r.brand_name) }))
+    .sort((a, b) => a.brand_name.localeCompare(b.brand_name));
+}
+
+async function fetchBrandData(pool, slug) {
+  let page = null;
+  try {
+    const bp = await pool.query(`SELECT * FROM brand_pages WHERE slug = $1 AND is_active = true`, [slug]);
+    page = bp.rows[0] || null;
+  } catch { /* table may not exist */ }
+
+  // Resolve brand_name (from the page row, else by slug-matching the live universe).
+  const universe = await pool.query(`
+    SELECT DISTINCT COALESCE(br.name, v.name) AS brand_name
+    FROM products p JOIN vendors v ON v.id = p.vendor_id
+    LEFT JOIN brands br ON br.id = p.brand_id
+    WHERE p.status = 'active'
+      AND NOT (COALESCE(br.hide_public_name,false) OR COALESCE(v.hide_public_name,false))
+  `);
+  let brandName = page ? page.brand_name : null;
+  if (!brandName) {
+    const match = universe.rows.find(r => slugify(r.brand_name) === slug);
+    if (!match) return null;
+    brandName = match.brand_name;
+  } else if (!universe.rows.some(r => r.brand_name === brandName)) {
+    return null; // brand no longer has public active products
+  }
+
+  const result = await pool.query(`
+    SELECT * FROM (
+      SELECT DISTINCT ON (p.id) p.id, p.name as product_name,
+        p.slug as product_slug, c.slug as category_slug,
+        pr.retail_price, s.sell_by, s.id as sku_id,
+        (COALESCE(br.hide_public_name,false) OR COALESCE(v.hide_public_name,false)) AS brand_hidden,
+        (SELECT ma.url FROM media_assets ma
+         WHERE ma.product_id = p.id AND ma.asset_type != 'spec_pdf'
+         ORDER BY CASE WHEN ma.sku_id IS NOT NULL THEN 0 ELSE 1 END,
+           CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 ELSE 2 END,
+           ma.sort_order LIMIT 1) as image
+      FROM products p
+      JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
+        AND COALESCE(s.variant_type, '') != 'accessory'
+      JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      WHERE p.status = 'active' AND COALESCE(br.name, v.name) = $1
+      ORDER BY p.id, pr.retail_price ASC NULLS LAST
+    ) sub ORDER BY product_name
+    LIMIT 24
+  `, [brandName]);
+
+  const countResult = await pool.query(`
+    SELECT COUNT(DISTINCT p.id)::int as product_count
+    FROM products p JOIN vendors v ON v.id = p.vendor_id
+    LEFT JOIN brands br ON br.id = p.brand_id
+    WHERE p.status = 'active' AND COALESCE(br.name, v.name) = $1
+  `, [brandName]);
+
+  return {
+    brand_name: brandName,
+    slug: page ? page.slug : slugify(brandName),
+    meta_title: page?.meta_title || null,
+    meta_description: page?.meta_description || null,
+    intro_html: page?.intro_html || null,
+    footer_html: page?.footer_html || null,
+    product_count: countResult.rows[0].product_count,
+    products: stripHiddenVendorPrices(result.rows),
+    image: result.rows.length ? result.rows[0].image : null,
+  };
+}
+
+function renderBrandsIndex(brands) {
+  const title = 'Shop by Brand | Roma Flooring Designs';
+  const description = 'Browse flooring, tile, stone, and hardware by brand at Roma Flooring Designs — every brand we carry, in one place.';
+  const canonicalUrl = `${SITE_URL}/brands`;
+
+  const jsonLd = [
+    { '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'Shop by Brand', description, url: canonicalUrl },
+    { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
+      { '@type': 'ListItem', position: 2, name: 'Brands', item: canonicalUrl }
+    ] }
+  ];
+
+  const linksHtml = brands.map(b =>
+    `<li><a href="/brands/${escapeHtml(b.slug)}">${escapeHtml(b.brand_name)}</a> <span>(${b.product_count})</span></li>`
+  ).join('');
+
+  const bodyContent = `
+    <nav class="breadcrumb" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li>Brands</li></ol></nav>
+    <h1>Shop by Brand</h1>
+    <p>${brands.length} brands available at Roma Flooring Designs.</p>
+    <ul class="brand-index">${linksHtml}</ul>`;
+
+  return { title, description, canonicalUrl, jsonLd, bodyContent };
+}
+
+function renderBrandPage(data) {
+  const title = (data.meta_title && data.meta_title.trim())
+    ? data.meta_title.trim()
+    : `${data.brand_name} | Roma Flooring Designs`;
+  const description = (data.meta_description && data.meta_description.trim())
+    ? data.meta_description.trim()
+    : `Shop ${data.brand_name} at Roma Flooring Designs — browse the full ${data.brand_name} range and request samples or a quote.`;
+  const canonicalUrl = `${SITE_URL}/brands/${data.slug}`;
+
+  const jsonLd = [
+    { '@context': 'https://schema.org', '@type': 'CollectionPage', name: data.brand_name, description, url: canonicalUrl },
+    { '@context': 'https://schema.org', '@type': 'Brand', name: data.brand_name, url: canonicalUrl },
+    { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
+      { '@type': 'ListItem', position: 2, name: 'Brands', item: SITE_URL + '/brands' },
+      { '@type': 'ListItem', position: 3, name: data.brand_name, item: canonicalUrl }
+    ] }
+  ];
+
+  // intro_html / footer_html are authored by our own content engine (not user input) → raw.
+  const introHtml = (data.intro_html && data.intro_html.trim())
+    ? `<section class="brand-intro">${data.intro_html}</section>` : '';
+  const footerHtml = (data.footer_html && data.footer_html.trim())
+    ? `<section class="brand-footer">${data.footer_html}</section>` : '';
+
+  const productsHtml = data.products.map(p => {
+    const price = p.retail_price ? parseFloat(p.retail_price).toFixed(2) : null;
+    const unit = p.sell_by === 'unit' ? '/ea' : '/sqft';
+    const href = (p.product_slug && p.category_slug)
+      ? `/shop/${p.category_slug}/${p.product_slug}`
+      : `/shop/sku/${p.sku_id}/${slugify(p.product_name)}`;
+    return `<div class="product-card"><a href="${href}">
+      ${p.image ? `<img src="${escapeHtml(p.image)}" alt="${escapeHtml(p.product_name)}" width="240" height="200" loading="lazy">` : ''}
+      <h3>${escapeHtml(p.product_name)}</h3>
+      ${price ? `<div class="price">$${price}${unit}</div>` : ''}
+    </a></div>`;
+  }).join('');
+
+  const bodyContent = `
+    <nav class="breadcrumb" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a href="/brands">Brands</a></li><li>${escapeHtml(data.brand_name)}</li></ol></nav>
+    <h1>${escapeHtml(data.brand_name)}</h1>
+    ${introHtml}
+    <p>${data.product_count} products</p>
+    <div class="product-grid">${productsHtml}</div>
+    ${footerHtml}`;
+
+  return { title, description: description.substring(0, 320), canonicalUrl, ogImage: data.image, jsonLd, bodyContent };
+}
+
 export default function createSeoRouter(pool) {
   const router = Router();
 
@@ -1964,6 +2135,21 @@ export default function createSeoRouter(pool) {
       case 'collections-index': {
         const collections = await fetchCollectionsIndex(pool);
         pageData = renderCollectionsIndex(collections);
+        break;
+      }
+      case 'brands-index': {
+        const brands = await fetchBrandsIndex(pool);
+        pageData = renderBrandsIndex(brands);
+        break;
+      }
+      case 'brand': {
+        const brand = await fetchBrandData(pool, parsed.slug);
+        if (!brand) {
+          pageData = render404Page('Brand not found.');
+          statusCode = 404;
+        } else {
+          pageData = renderBrandPage(brand);
+        }
         break;
       }
       case 'landing': {
@@ -2054,6 +2240,8 @@ export default function createSeoRouter(pool) {
       : parsed.type === 'collection' ? `collection:${parsed.slug}`
       : parsed.type === 'category' ? `category:${parsed.slug}`
       : parsed.type === 'collections-index' ? 'collections-index'
+      : parsed.type === 'brands-index' ? 'brands-index'
+      : parsed.type === 'brand' ? `brand:${parsed.slug}`
       : parsed.type === 'landing' ? `landing:${parsed.slug}`
       : parsed.type === 'local' ? `local:${parsed.slug}`
       : parsed.type === 'local_material' ? `localmat:${parsed.citySlug}/${parsed.materialSlug}`

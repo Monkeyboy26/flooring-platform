@@ -2437,6 +2437,7 @@
     const [guideSlug, setGuideSlug] = useState(null);
     const [accountSection, setAccountSection] = useState("overview");
     const [selectedSkuId, setSelectedSkuId] = useState(null);
+    const [selectedBrandSlug, setSelectedBrandSlug] = useState(null);
     const [skus, setSkus] = useState([]);
     const [totalSkus, setTotalSkus] = useState(0);
     const pendingSearchTrack = useRef(null);
@@ -3112,6 +3113,17 @@
         goBulkOrder();
         return;
       }
+      if (path === "/brands") {
+        setSelectedBrandSlug(null);
+        setView("brands");
+        history.pushState({ view: "brands" }, "", "/brands");
+        window.scrollTo(0, 0);
+        return;
+      }
+      if (path.startsWith("/brands/")) {
+        goBrand(path.replace("/brands/", "").split("?")[0].split("/")[0]);
+        return;
+      }
       if (path === "/inspiration") {
         goInspiration();
         return;
@@ -3181,21 +3193,16 @@
       pushShopUrl(null, collectionName, "", {}, false, [], null, null, []);
       window.scrollTo(0, 0);
     };
+    const goBrand = (brandSlug) => {
+      if (!brandSlug) return;
+      setSelectedBrandSlug(brandSlug);
+      setView("brand");
+      history.pushState({ view: "brand", brandSlug }, "", "/brands/" + brandSlug);
+      window.scrollTo(0, 0);
+    };
     const handleBrandClick = (brandName) => {
       if (!brandName) return;
-      setSelectedCategory(null);
-      setSelectedCollection(null);
-      setSearchQuery("");
-      setFilters({});
-      setVendorFilters([brandName]);
-      setTagFilters([]);
-      setUserPriceRange({ min: null, max: null });
-      setCurrentPage(1);
-      setView("browse");
-      fetchSkus({ cat: null, coll: null, activeFilters: {}, vendors: [brandName], priceMin: null, priceMax: null, tags: [], page: 1 });
-      fetchFacets({ cat: null, coll: null, activeFilters: {}, vendors: [brandName], priceMin: null, priceMax: null, tags: [] });
-      pushShopUrl(null, null, "", {}, false, [brandName], null, null, []);
-      window.scrollTo(0, 0);
+      goBrand(generateSlug(brandName));
     };
     const goBrowse = () => {
       setView("browse");
@@ -3555,6 +3562,12 @@
           setView("wishlist");
         } else if (path === "/collections" || path === "/shop/collections") {
           setView("collections");
+        } else if (path === "/brands") {
+          setView("brands");
+        } else if (path.startsWith("/brands/")) {
+          const bslug = path.replace("/brands/", "").split("?")[0].split("/")[0];
+          setSelectedBrandSlug(bslug);
+          setView("brand");
         } else if (path.startsWith("/collections/")) {
           const slug = path.replace("/collections/", "").split("?")[0];
           const cv = new URLSearchParams(path.split("?")[1] || "").get("collection_vendor");
@@ -4089,7 +4102,19 @@
         goHome,
         onLogout: handleCustomerLogout
       }
-    ) : /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "4rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, marginBottom: "1rem" } }, "Sign In Required"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", marginBottom: "1.5rem" } }, "Please sign in to view your account."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: () => navigate("/signin") }, "Sign In"))), view === "wishlist" && /* @__PURE__ */ React.createElement(WishlistPage, { wishlist, toggleWishlist: toggleWishlist2, onSkuClick: goSkuDetail, goBrowse, recentlyViewed, goHome }), view === "collections" && /* @__PURE__ */ React.createElement(CollectionsPage, { onCollectionClick: handleCollectionClick, goHome }), view === "trade" && /* @__PURE__ */ React.createElement(TradePage, { goHome, goTradeApply, goTradeDashboard, onLogin: () => {
+    ) : /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "4rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, marginBottom: "1rem" } }, "Sign In Required"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", marginBottom: "1.5rem" } }, "Please sign in to view your account."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: () => navigate("/signin") }, "Sign In"))), view === "wishlist" && /* @__PURE__ */ React.createElement(WishlistPage, { wishlist, toggleWishlist: toggleWishlist2, onSkuClick: goSkuDetail, goBrowse, recentlyViewed, goHome }), view === "collections" && /* @__PURE__ */ React.createElement(CollectionsPage, { onCollectionClick: handleCollectionClick, goHome }), view === "brands" && /* @__PURE__ */ React.createElement(BrandsIndex, { onBrandClick: goBrand, goHome }), view === "brand" && /* @__PURE__ */ React.createElement(
+      BrandDetailView,
+      {
+        slug: selectedBrandSlug,
+        onSkuClick: goSkuDetail,
+        wishlist,
+        toggleWishlist: toggleWishlist2,
+        setQuickViewSku,
+        goHome,
+        goBrands: () => navigate("/brands"),
+        navigate
+      }
+    ), view === "trade" && /* @__PURE__ */ React.createElement(TradePage, { goHome, goTradeApply, goTradeDashboard, onLogin: () => {
       setTradeModalMode("login");
       setShowTradeModal(true);
     }, tradeCustomer }), view === "trade-apply" && (tradeCustomer ? /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "4rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, marginBottom: "1rem" } }, "You're already a Roma trade pro"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", marginBottom: "1.5rem" } }, "Your account is active \u2014 head to your dashboard."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: goTradeDashboard }, "Go to Dashboard")) : customer && customer.has_trade_pricing ? /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 620, margin: "4rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("div", { style: { font: "500 11px/1 ui-monospace, monospace", letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--roma-accent, #9a7b4f)", marginBottom: 14 } }, "\u25CF Trade pricing active"), /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, marginBottom: "0.75rem" } }, "You already have trade pricing."), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", marginBottom: "1.5rem" } }, "Your ", /* @__PURE__ */ React.createElement("strong", null, customer.trade_tier_name || "Trade"), " tier", customer.trade_discount_percent ? ` (${customer.trade_discount_percent}% off list)` : "", " is applied automatically whenever you're signed in \u2014 shop as usual and trade prices show throughout."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: goBrowse }, "Shop with trade pricing")) : customer && customer.trade_status === "pending" ? /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 1080, margin: "4.5rem auto 6rem", padding: "0 1.5rem" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "clamp(2.5rem, 6vw, 5.5rem)", alignItems: "start" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { font: "500 11px/1 ui-monospace, monospace", letterSpacing: "0.22em", textTransform: "uppercase", color: "var(--roma-accent, #9a7b4f)", marginBottom: 24, display: "flex", alignItems: "center", gap: 9 } }, /* @__PURE__ */ React.createElement("span", { style: { width: 6, height: 6, borderRadius: "50%", background: "var(--roma-accent, #9a7b4f)" } }), "Application received"), /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, fontSize: "clamp(2.6rem, 6.5vw, 4.5rem)", lineHeight: 0.98, letterSpacing: "-0.025em", margin: 0 } }, "Trade", /* @__PURE__ */ React.createElement("br", null), "application."), /* @__PURE__ */ React.createElement("div", { style: { width: 56, height: 2, background: "var(--roma-accent, #9a7b4f)", margin: "1.85rem 0" } }), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", fontSize: "1.0625rem", lineHeight: 1.68, margin: "0 0 2.1rem", maxWidth: 440 } }, "We'll email ", /* @__PURE__ */ React.createElement("strong", { style: { color: "var(--stone-800)" } }, customer.email), " once you're approved \u2014 usually within two business days. Trade pricing then turns on automatically for this same login. Nothing else to do."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 24, alignItems: "center", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: goBrowse }, "Keep browsing"), /* @__PURE__ */ React.createElement("button", { onClick: goAccount, style: { background: "none", border: "none", cursor: "pointer", color: "var(--stone-700)", font: "500 12px/1 var(--roma-sans, inherit)", letterSpacing: "0.08em", textTransform: "uppercase", borderBottom: "1px solid var(--stone-400)", padding: "4px 0 5px" } }, "View your account"))), /* @__PURE__ */ React.createElement("div", { style: { paddingTop: 4 } }, [
@@ -4586,6 +4611,7 @@
     }, "aria-label": "Clear search" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("line", { x1: "18", y1: "6", x2: "6", y2: "18" }), /* @__PURE__ */ React.createElement("line", { x1: "6", y1: "6", x2: "18", y2: "18" }))), !searchInput && !searchOpen && /* @__PURE__ */ React.createElement("span", { className: "header-search-kbd" }, navigator.platform.indexOf("Mac") > -1 ? "\u2318K" : "Ctrl+K"));
     const NAV_ITEMS = [
       { id: "shop", label: "Shop", hasPanel: true, onClick: () => goBrowse() },
+      { id: "brands", label: "Brands", hasPanel: false, onClick: () => navigate("/brands") },
       { id: "services", label: "Services", hasPanel: true, onClick: () => navigate("/cabinets") },
       { id: "trade", label: "Trade", hasPanel: false, onClick: () => onTradeClick() },
       { id: "about", label: "About", hasPanel: false, onClick: () => navigate("/about") }
@@ -10726,6 +10752,105 @@
       if (e.target.files[0]) uploadCert(e.target.files[0]);
       e.target.value = "";
     } })), /* @__PURE__ */ React.createElement("button", { className: "tacct-edit", onClick: () => setShowCertForm(true) }, certDone ? "Update" : "Fill out"))), showCertForm ? /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "acct-input-field" }, /* @__PURE__ */ React.createElement("label", { className: "acct-input-label" }, "CA seller's permit number"), /* @__PURE__ */ React.createElement("input", { className: "acct-input", value: certForm.sellers_permit, onChange: (e) => setCertForm({ ...certForm, sellers_permit: formatSellersPermit(e.target.value) }), placeholder: "SR AA 000000" })), /* @__PURE__ */ React.createElement("div", { className: "acct-input-field" }, /* @__PURE__ */ React.createElement("label", { className: "acct-input-label" }, "Type of business"), /* @__PURE__ */ React.createElement("input", { className: "acct-input", value: certForm.business_type, onChange: (e) => setCertForm({ ...certForm, business_type: e.target.value }), placeholder: "e.g. interior design" })), /* @__PURE__ */ React.createElement("div", { className: "acct-input-field" }, /* @__PURE__ */ React.createElement("label", { className: "acct-input-label" }, "Property purchased for resale"), /* @__PURE__ */ React.createElement("input", { className: "acct-input", value: certForm.property_description, onChange: (e) => setCertForm({ ...certForm, property_description: e.target.value }) })), /* @__PURE__ */ React.createElement("div", { className: "acct-input-field" }, /* @__PURE__ */ React.createElement("label", { className: "acct-input-label" }, "Your title"), /* @__PURE__ */ React.createElement("input", { className: "acct-input", value: certForm.signer_title, onChange: (e) => setCertForm({ ...certForm, signer_title: e.target.value }), placeholder: "Owner" })), /* @__PURE__ */ React.createElement("div", { className: "acct-input-field" }, /* @__PURE__ */ React.createElement("label", { className: "acct-input-label" }, "Signature \u2014 type your full legal name"), /* @__PURE__ */ React.createElement("input", { className: "acct-input", value: certForm.signature, onChange: (e) => setCertForm({ ...certForm, signature: e.target.value }), placeholder: "Full legal name", style: { fontStyle: "italic" } })), /* @__PURE__ */ React.createElement("label", { style: { display: "flex", gap: "0.5rem", alignItems: "flex-start", margin: "0.25rem 0 0.5rem", fontSize: "0.75rem", lineHeight: 1.5, cursor: "pointer" } }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: certForm.certified, onChange: (e) => setCertForm({ ...certForm, certified: e.target.checked }), style: { marginTop: "0.15rem", flexShrink: 0 } }), /* @__PURE__ */ React.createElement("span", null, "I certify under penalty of perjury under the laws of the State of California that I hold a valid seller's permit, that the property described will be purchased for resale, and that the statements above are true and correct.")), /* @__PURE__ */ React.createElement("div", { className: "tacct-btn-row" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "acct-btn acct-btn--outline", onClick: () => setShowCertForm(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "acct-btn", onClick: submitCert, disabled: certBusy || !certForm.sellers_permit.trim() || !certForm.signature.trim() || !certForm.certified }, certBusy ? "Generating\u2026" : "Sign & generate certificate"))) : /* @__PURE__ */ React.createElement("div", { className: "tacct-info" }, /* @__PURE__ */ React.createElement("div", null, certDone ? "A resale certificate is on file with your account." : "Optional \u2014 file a CDTFA-230 so materials you buy for resale are billed without sales tax.")), /* @__PURE__ */ React.createElement("p", { className: "tacct-note" }, "Typing your name and certifying applies a legally binding electronic signature; we generate the signed CDTFA-230 PDF from these details, using your company name and address on file.")), /* @__PURE__ */ React.createElement("div", { className: "acct-profile-section" }, /* @__PURE__ */ React.createElement("h3", { className: "acct-profile-title" }, "Trade tier"), /* @__PURE__ */ React.createElement("div", { className: "tacct-info" }, /* @__PURE__ */ React.createElement("div", null, "Tier: ", /* @__PURE__ */ React.createElement("span", { className: "trade-tier-badge" }, account.tier_name || curTierName)), /* @__PURE__ */ React.createElement("div", null, "Discount: ", parseFloat(account.discount_percent || 0), "% off list"), /* @__PURE__ */ React.createElement("div", null, "Spend (last 12 mo): $", parseFloat(account.total_spend || 0).toLocaleString()), membership && membership.next_tier && membership.amount_to_next_tier != null && /* @__PURE__ */ React.createElement("div", null, "$", parseFloat(membership.amount_to_next_tier).toLocaleString(), " more to reach ", /* @__PURE__ */ React.createElement("strong", null, membership.next_tier.name), " (", parseFloat(membership.next_tier.discount_percent), "% off)")), /* @__PURE__ */ React.createElement("p", { className: "tacct-note" }, "Your tier is based on product spend over the trailing 12 months and updates automatically.")), rep && /* @__PURE__ */ React.createElement("div", { className: "acct-profile-section", style: { display: "flex", gap: "1rem", alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", { className: "acct-avatar", style: { width: 48, height: 48, flex: "none" } }, (rep.first_name || "R").charAt(0), (rep.last_name || "").charAt(0)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "acct-eyebrow", style: { marginBottom: "0.15rem" } }, "Your trade rep"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600 } }, rep.first_name, " ", rep.last_name), rep.email && /* @__PURE__ */ React.createElement("div", { className: "acct-order-date" }, rep.email), rep.phone && /* @__PURE__ */ React.createElement("div", { className: "acct-order-date" }, rep.phone))), /* @__PURE__ */ React.createElement("div", { className: "acct-profile-section" }, /* @__PURE__ */ React.createElement("div", { className: "tacct-card-head", style: { marginBottom: "1.25rem" } }, /* @__PURE__ */ React.createElement("h3", { className: "acct-profile-title", style: { margin: 0 } }, "Security"), !showPwForm && /* @__PURE__ */ React.createElement("button", { className: "tacct-edit", onClick: () => setShowPwForm(true) }, "Change password")), showPwForm && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "acct-input-field" }, /* @__PURE__ */ React.createElement("label", { className: "acct-input-label" }, "Current password"), /* @__PURE__ */ React.createElement("input", { className: "acct-input", type: "password", value: passwordForm.current, onChange: (e) => setPasswordForm({ ...passwordForm, current: e.target.value }) })), /* @__PURE__ */ React.createElement("div", { className: "acct-input-field" }, /* @__PURE__ */ React.createElement("label", { className: "acct-input-label" }, "New password"), /* @__PURE__ */ React.createElement("input", { className: "acct-input", type: "password", value: passwordForm.new_password, onChange: (e) => setPasswordForm({ ...passwordForm, new_password: e.target.value }) })), /* @__PURE__ */ React.createElement("div", { className: "acct-input-field" }, /* @__PURE__ */ React.createElement("label", { className: "acct-input-label" }, "Confirm password"), /* @__PURE__ */ React.createElement("input", { className: "acct-input", type: "password", value: passwordForm.confirm, onChange: (e) => setPasswordForm({ ...passwordForm, confirm: e.target.value }) })), /* @__PURE__ */ React.createElement("div", { className: "tacct-btn-row" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "acct-btn acct-btn--outline", onClick: () => setShowPwForm(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "acct-btn", onClick: changePassword, disabled: !passwordForm.current || !passwordForm.new_password }, "Update password")))))))));
+  }
+  function BrandsIndex({ onBrandClick, goHome }) {
+    const [brands, setBrands] = useState([]);
+    const [loading, setLoading] = useState(true);
+    useEffect(() => {
+      updateSEO({ title: "Shop by Brand | Roma Flooring Designs", description: "Browse every flooring, tile, stone, and hardware brand we carry at Roma Flooring Designs \u2014 all in one place.", url: SITE_URL + "/brands", image: "" });
+      fetch(API + "/api/storefront/brands").then((r) => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      }).then((data) => {
+        setBrands(data.brands || []);
+        setLoading(false);
+      }).catch(() => setLoading(false));
+    }, []);
+    const groups = {};
+    brands.forEach((b) => {
+      const c = (b.brand_name || "").charAt(0).toUpperCase();
+      const key = /[A-Z]/.test(c) ? c : "#";
+      (groups[key] = groups[key] || []).push(b);
+    });
+    const letters = Object.keys(groups).sort();
+    return /* @__PURE__ */ React.createElement("div", { className: "collections-page brands-page" }, /* @__PURE__ */ React.createElement(Breadcrumbs, { items: [{ label: "Home", onClick: goHome }, { label: "Brands" }] }), /* @__PURE__ */ React.createElement("h1", null, "Shop by Brand"), /* @__PURE__ */ React.createElement("p", { className: "subtitle" }, "Browse every flooring, tile, stone, and hardware brand we carry."), loading ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "4rem", color: "var(--stone-500)" } }, /* @__PURE__ */ React.createElement("div", { className: "spinner", style: { margin: "0 auto" } })) : brands.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "4rem", color: "var(--stone-600)" } }, /* @__PURE__ */ React.createElement("p", null, "No brands available yet.")) : /* @__PURE__ */ React.createElement("div", { className: "brand-index" }, letters.map((letter) => /* @__PURE__ */ React.createElement("section", { key: letter, className: "brand-index-group" }, /* @__PURE__ */ React.createElement("h2", { className: "brand-index-letter" }, letter), /* @__PURE__ */ React.createElement("ul", { className: "brand-index-list" }, groups[letter].map((b) => /* @__PURE__ */ React.createElement("li", { key: b.slug }, /* @__PURE__ */ React.createElement("a", { href: "/brands/" + b.slug, onClick: (e) => {
+      e.preventDefault();
+      onBrandClick(b.slug);
+    } }, /* @__PURE__ */ React.createElement("span", { className: "brand-index-name" }, b.brand_name), /* @__PURE__ */ React.createElement("span", { className: "brand-index-count" }, b.product_count)))))))));
+  }
+  function BrandDetailView({ slug, onSkuClick, wishlist, toggleWishlist: toggleWishlist2, setQuickViewSku, goHome, goBrands, navigate }) {
+    const [brand, setBrand] = useState(null);
+    const [skus, setSkus] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [notFound, setNotFound] = useState(false);
+    useEffect(() => {
+      let cancelled = false;
+      setLoading(true);
+      setNotFound(false);
+      setBrand(null);
+      setSkus([]);
+      fetch(API + "/api/storefront/brands/" + encodeURIComponent(slug)).then((r) => {
+        if (r.status === 404) {
+          setNotFound(true);
+          return null;
+        }
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      }).then((data) => {
+        if (cancelled || !data) {
+          if (!cancelled) setLoading(false);
+          return null;
+        }
+        const b = data.brand;
+        setBrand(b);
+        updateSEO({ title: b.meta_title || b.brand_name + " | Roma Flooring Designs", description: b.meta_description || "Shop " + b.brand_name + " at Roma Flooring Designs \u2014 browse the full range and request samples or a quote.", url: SITE_URL + "/brands/" + b.slug, image: "" });
+        return fetch(API + "/api/storefront/skus?brand=" + encodeURIComponent(b.brand_name) + "&limit=48");
+      }).then((r) => r && r.ok ? r.json() : null).then((data) => {
+        if (!cancelled) {
+          if (data) setSkus(data.skus || []);
+          setLoading(false);
+        }
+      }).catch(() => {
+        if (!cancelled) setLoading(false);
+      });
+      window.scrollTo(0, 0);
+      return () => {
+        cancelled = true;
+      };
+    }, [slug]);
+    if (notFound) {
+      return /* @__PURE__ */ React.createElement("div", { className: "collections-page brand-detail" }, /* @__PURE__ */ React.createElement(Breadcrumbs, { items: [{ label: "Home", onClick: goHome }, { label: "Brands", onClick: goBrands }, { label: "Not found" }] }), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "4rem", color: "var(--stone-600)" } }, /* @__PURE__ */ React.createElement("h1", null, "Brand not found"), /* @__PURE__ */ React.createElement("p", null, "We couldn\u2019t find that brand. ", /* @__PURE__ */ React.createElement("a", { href: "/brands", onClick: (e) => {
+        e.preventDefault();
+        goBrands();
+      } }, "Browse all brands"), ".")));
+    }
+    return /* @__PURE__ */ React.createElement("div", { className: "collections-page brand-detail" }, /* @__PURE__ */ React.createElement(Breadcrumbs, { items: [{ label: "Home", onClick: goHome }, { label: "Brands", onClick: goBrands }, { label: brand ? brand.brand_name : "" }] }), brand && /* @__PURE__ */ React.createElement("h1", null, brand.brand_name), brand && brand.intro_html && /* @__PURE__ */ React.createElement("div", { className: "brand-intro", dangerouslySetInnerHTML: { __html: brand.intro_html } }), brand && /* @__PURE__ */ React.createElement("p", { className: "subtitle" }, brand.product_count, " product", brand.product_count !== 1 ? "s" : ""), loading ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "4rem", color: "var(--stone-500)" } }, /* @__PURE__ */ React.createElement("div", { className: "spinner", style: { margin: "0 auto" } })) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sku-grid" }, skus.map((sku, idx) => /* @__PURE__ */ React.createElement(
+      SkuCard,
+      {
+        key: sku.sku_id,
+        sku,
+        index: idx,
+        onClick: () => onSkuClick(sku.sku_id, sku.product_name || sku.collection),
+        isWished: wishlist.includes(sku.sku_id),
+        onToggleWishlist: () => toggleWishlist2(sku.sku_id),
+        onQuickView: setQuickViewSku ? () => setQuickViewSku(sku) : null
+      }
+    ))), brand && brand.product_count > skus.length && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", margin: "2.5rem 0" } }, /* @__PURE__ */ React.createElement(
+      "a",
+      {
+        className: "btn btn-outline",
+        href: "/shop?vendor=" + encodeURIComponent(brand.brand_name),
+        onClick: (e) => {
+          e.preventDefault();
+          navigate("/shop?vendor=" + encodeURIComponent(brand.brand_name));
+        }
+      },
+      "View all ",
+      brand.product_count,
+      " ",
+      brand.brand_name,
+      " products"
+    )), brand && brand.footer_html && /* @__PURE__ */ React.createElement("div", { className: "brand-footer", dangerouslySetInnerHTML: { __html: brand.footer_html } })));
   }
   function CollectionsPage({ onCollectionClick, goHome }) {
     const [collections, setCollections] = useState([]);

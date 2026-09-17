@@ -2742,6 +2742,7 @@
       const [guideSlug, setGuideSlug] = useState(null); // /guides/{slug} pillar guide
       const [accountSection, setAccountSection] = useState('overview');
       const [selectedSkuId, setSelectedSkuId] = useState(null);
+      const [selectedBrandSlug, setSelectedBrandSlug] = useState(null); // /brands/{slug} brand landing page
 
       // SKU browse state
       const [skus, setSkus] = useState([]);
@@ -3436,6 +3437,17 @@
           goBulkOrder();
           return;
         }
+        if (path === '/brands') {
+          setSelectedBrandSlug(null);
+          setView('brands');
+          history.pushState({ view: 'brands' }, '', '/brands');
+          window.scrollTo(0, 0);
+          return;
+        }
+        if (path.startsWith('/brands/')) {
+          goBrand(path.replace('/brands/', '').split('?')[0].split('/')[0]);
+          return;
+        }
         if (path === '/inspiration') {
           goInspiration();
           return;
@@ -3510,23 +3522,19 @@
         window.scrollTo(0, 0);
       };
 
-      // Browse everything from a brand (customer-facing brand = COALESCE(brand, vendor),
-      // applied via the vendorFilters → `brand=` query param).
+      // Navigate to a brand landing page (/brands/{slug}). The page itself loads
+      // the brand's products via the `brand=` filter, so this replaces the old
+      // "apply vendor filter in browse" behavior with a real, indexable brand page.
+      const goBrand = (brandSlug) => {
+        if (!brandSlug) return;
+        setSelectedBrandSlug(brandSlug);
+        setView('brand');
+        history.pushState({ view: 'brand', brandSlug }, '', '/brands/' + brandSlug);
+        window.scrollTo(0, 0);
+      };
       const handleBrandClick = (brandName) => {
         if (!brandName) return;
-        setSelectedCategory(null);
-        setSelectedCollection(null);
-        setSearchQuery('');
-        setFilters({});
-        setVendorFilters([brandName]);
-        setTagFilters([]);
-        setUserPriceRange({ min: null, max: null });
-        setCurrentPage(1);
-        setView('browse');
-        fetchSkus({ cat: null, coll: null, activeFilters: {}, vendors: [brandName], priceMin: null, priceMax: null, tags: [], page: 1 });
-        fetchFacets({ cat: null, coll: null, activeFilters: {}, vendors: [brandName], priceMin: null, priceMax: null, tags: [] });
-        pushShopUrl(null, null, '', {}, false, [brandName], null, null, []);
-        window.scrollTo(0, 0);
+        goBrand(generateSlug(brandName));
       };
 
       // ---- Navigation ----
@@ -3934,6 +3942,12 @@
           setView('wishlist');
         } else if (path === '/collections' || path === '/shop/collections') {
           setView('collections');
+        } else if (path === '/brands') {
+          setView('brands');
+        } else if (path.startsWith('/brands/')) {
+          const bslug = path.replace('/brands/', '').split('?')[0].split('/')[0];
+          setSelectedBrandSlug(bslug);
+          setView('brand');
         } else if (path.startsWith('/collections/')) {
           const slug = path.replace('/collections/', '').split('?')[0];
           const cv = new URLSearchParams(path.split('?')[1] || '').get('collection_vendor');
@@ -4456,6 +4470,20 @@
 
           {view === 'collections' && (
             <CollectionsPage onCollectionClick={handleCollectionClick} goHome={goHome} />
+          )}
+
+          {view === 'brands' && (
+            <BrandsIndex onBrandClick={goBrand} goHome={goHome} />
+          )}
+
+          {view === 'brand' && (
+            <BrandDetailView
+              slug={selectedBrandSlug}
+              onSkuClick={goSkuDetail}
+              wishlist={wishlist} toggleWishlist={toggleWishlist}
+              setQuickViewSku={setQuickViewSku}
+              goHome={goHome} goBrands={() => navigate('/brands')} navigate={navigate}
+            />
           )}
 
           {view === 'trade' && (
@@ -5274,6 +5302,7 @@
 
       const NAV_ITEMS = [
         { id: 'shop', label: 'Shop', hasPanel: true, onClick: () => goBrowse() },
+        { id: 'brands', label: 'Brands', hasPanel: false, onClick: () => navigate('/brands') },
         { id: 'services', label: 'Services', hasPanel: true, onClick: () => navigate('/cabinets') },
         { id: 'trade', label: 'Trade', hasPanel: false, onClick: () => onTradeClick() },
         { id: 'about', label: 'About', hasPanel: false, onClick: () => navigate('/about') },
@@ -15861,6 +15890,136 @@
     }
 
     // ==================== Collections Page ====================
+
+    // ==================== Brands ====================
+
+    // /brands — A–Z index of every public brand (COALESCE(brand, vendor)).
+    function BrandsIndex({ onBrandClick, goHome }) {
+      const [brands, setBrands] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      useEffect(() => {
+        updateSEO({ title: 'Shop by Brand | Roma Flooring Designs', description: 'Browse every flooring, tile, stone, and hardware brand we carry at Roma Flooring Designs — all in one place.', url: SITE_URL + '/brands', image: '' });
+        fetch(API + '/api/storefront/brands')
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(data => { setBrands(data.brands || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      }, []);
+
+      // Group A–Z; non-alphabetic leading char buckets under '#'.
+      const groups = {};
+      brands.forEach(b => {
+        const c = (b.brand_name || '').charAt(0).toUpperCase();
+        const key = /[A-Z]/.test(c) ? c : '#';
+        (groups[key] = groups[key] || []).push(b);
+      });
+      const letters = Object.keys(groups).sort();
+
+      return (
+        <div className="collections-page brands-page">
+          <Breadcrumbs items={[{ label: 'Home', onClick: goHome }, { label: 'Brands' }]} />
+          <h1>Shop by Brand</h1>
+          <p className="subtitle">Browse every flooring, tile, stone, and hardware brand we carry.</p>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--stone-500)' }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
+          ) : brands.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--stone-600)' }}><p>No brands available yet.</p></div>
+          ) : (
+            <div className="brand-index">
+              {letters.map(letter => (
+                <section key={letter} className="brand-index-group">
+                  <h2 className="brand-index-letter">{letter}</h2>
+                  <ul className="brand-index-list">
+                    {groups[letter].map(b => (
+                      <li key={b.slug}>
+                        <a href={'/brands/' + b.slug} onClick={(e) => { e.preventDefault(); onBrandClick(b.slug); }}>
+                          <span className="brand-index-name">{b.brand_name}</span>
+                          <span className="brand-index-count">{b.product_count}</span>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // /brands/:slug — one brand's landing page: intro copy + product grid.
+    function BrandDetailView({ slug, onSkuClick, wishlist, toggleWishlist, setQuickViewSku, goHome, goBrands, navigate }) {
+      const [brand, setBrand] = useState(null);
+      const [skus, setSkus] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [notFound, setNotFound] = useState(false);
+
+      useEffect(() => {
+        let cancelled = false;
+        setLoading(true); setNotFound(false); setBrand(null); setSkus([]);
+        fetch(API + '/api/storefront/brands/' + encodeURIComponent(slug))
+          .then(r => { if (r.status === 404) { setNotFound(true); return null; } if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(data => {
+            if (cancelled || !data) { if (!cancelled) setLoading(false); return null; }
+            const b = data.brand;
+            setBrand(b);
+            updateSEO({ title: b.meta_title || (b.brand_name + ' | Roma Flooring Designs'), description: b.meta_description || ('Shop ' + b.brand_name + ' at Roma Flooring Designs — browse the full range and request samples or a quote.'), url: SITE_URL + '/brands/' + b.slug, image: '' });
+            return fetch(API + '/api/storefront/skus?brand=' + encodeURIComponent(b.brand_name) + '&limit=48');
+          })
+          .then(r => (r && r.ok) ? r.json() : null)
+          .then(data => { if (!cancelled) { if (data) setSkus(data.skus || []); setLoading(false); } })
+          .catch(() => { if (!cancelled) setLoading(false); });
+        window.scrollTo(0, 0);
+        return () => { cancelled = true; };
+      }, [slug]);
+
+      if (notFound) {
+        return (
+          <div className="collections-page brand-detail">
+            <Breadcrumbs items={[{ label: 'Home', onClick: goHome }, { label: 'Brands', onClick: goBrands }, { label: 'Not found' }]} />
+            <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--stone-600)' }}>
+              <h1>Brand not found</h1>
+              <p>We couldn&rsquo;t find that brand. <a href="/brands" onClick={(e) => { e.preventDefault(); goBrands(); }}>Browse all brands</a>.</p>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="collections-page brand-detail">
+          <Breadcrumbs items={[{ label: 'Home', onClick: goHome }, { label: 'Brands', onClick: goBrands }, { label: brand ? brand.brand_name : '' }]} />
+          {brand && <h1>{brand.brand_name}</h1>}
+          {brand && brand.intro_html && (
+            <div className="brand-intro" dangerouslySetInnerHTML={{ __html: brand.intro_html }} />
+          )}
+          {brand && <p className="subtitle">{brand.product_count} product{brand.product_count !== 1 ? 's' : ''}</p>}
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--stone-500)' }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
+          ) : (
+            <>
+              <div className="sku-grid">
+                {skus.map((sku, idx) => (
+                  <SkuCard key={sku.sku_id} sku={sku} index={idx} onClick={() => onSkuClick(sku.sku_id, sku.product_name || sku.collection)}
+                    isWished={wishlist.includes(sku.sku_id)} onToggleWishlist={() => toggleWishlist(sku.sku_id)}
+                    onQuickView={setQuickViewSku ? () => setQuickViewSku(sku) : null} />
+                ))}
+              </div>
+              {brand && brand.product_count > skus.length && (
+                <div style={{ textAlign: 'center', margin: '2.5rem 0' }}>
+                  <a className="btn btn-outline" href={'/shop?vendor=' + encodeURIComponent(brand.brand_name)}
+                     onClick={(e) => { e.preventDefault(); navigate('/shop?vendor=' + encodeURIComponent(brand.brand_name)); }}>
+                    View all {brand.product_count} {brand.brand_name} products
+                  </a>
+                </div>
+              )}
+              {brand && brand.footer_html && (
+                <div className="brand-footer" dangerouslySetInnerHTML={{ __html: brand.footer_html }} />
+              )}
+            </>
+          )}
+        </div>
+      );
+    }
 
     function CollectionsPage({ onCollectionClick, goHome }) {
       const [collections, setCollections] = useState([]);
