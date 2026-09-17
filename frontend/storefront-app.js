@@ -1747,6 +1747,17 @@
         orderedVariant = null;
       }
     }
+    {
+      const finishA = (sku.attributes || []).find((a) => a.slug === "finish");
+      const finishV = finishA && finishA.value ? String(finishA.value).trim() : "";
+      if (finishV && orderedVariant) {
+        const fLow = finishV.toLowerCase();
+        if (orderedName.toLowerCase().endsWith(" " + fLow) && !orderedVariant.toLowerCase().includes(fLow)) {
+          orderedName = orderedName.slice(0, orderedName.length - finishV.length).replace(/[\s\-–—]+$/, "");
+          orderedVariant = orderedVariant + " " + finishV;
+        }
+      }
+    }
     const result = [brand, showCollection, productLine, orderedName, orderedVariant, subLineNumeral].filter(Boolean).join(" ");
     return appendTypeSuffix(result, sku.category_name);
   }

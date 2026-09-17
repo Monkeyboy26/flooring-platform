@@ -563,6 +563,26 @@ export function fullProductName(sku) {
       orderedVariant = null;
     }
   }
+  // Finish baked at the head of the name — right after the collection, with
+  // nothing else following it (Emser splits finishes into separate products:
+  // "Sterlina II Matte") — reads awkwardly once a color/size variant is
+  // appended: "Sterlina II Matte White 24x47". Move the finish to AFTER the
+  // variant so it trails the size, matching the color→size→finish convention the
+  // attribute path already produces ("Alluro Manor Cream 9x9 Polished"). Only
+  // fires when the finish attribute value is the actual trailing token of the
+  // name and isn't already carried by the variant.
+  {
+    const finishA = (sku.attributes || []).find(a => a.slug === 'finish');
+    const finishV = finishA && finishA.value ? String(finishA.value).trim() : '';
+    if (finishV && orderedVariant) {
+      const fLow = finishV.toLowerCase();
+      if (orderedName.toLowerCase().endsWith(' ' + fLow)
+          && !orderedVariant.toLowerCase().includes(fLow)) {
+        orderedName = orderedName.slice(0, orderedName.length - finishV.length).replace(/[\s\-–—]+$/, '');
+        orderedVariant = orderedVariant + ' ' + finishV;
+      }
+    }
+  }
   const result = [brand, showCollection, productLine, orderedName, orderedVariant, subLineNumeral].filter(Boolean).join(' ');
   return appendTypeSuffix(result, sku.category_name);
 }
