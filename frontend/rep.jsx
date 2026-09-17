@@ -13213,9 +13213,24 @@
                 </div>
               )}
 
-              {/* Requested timestamp — under the sample items */}
-              <div style={{ marginTop: 14, font: '500 10px/1.4 ui-monospace, monospace', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--rod-muted)' }}>
-                Requested {fmtTs(sr.created_at)}
+              {/* Timeline — under the sample items */}
+              <div className="qw-card" style={{ marginTop: 14 }}>
+                <div className="qw-card-head">
+                  <h3>Timeline</h3>
+                </div>
+                <div className="qw-card-body">
+                  {[
+                    ['Created', sr.created_at, 'var(--rod-ink)'],
+                    ['Shipped', sr.shipped_at, 'var(--rod-green)'],
+                    ['Delivered', sr.delivered_at, 'var(--rod-green)'],
+                    ['Cancelled', sr.cancelled_at, 'var(--rod-red)'],
+                  ].filter(([, d]) => d).map(([l, d, c], i, arr) => (
+                    <div key={l} style={{ padding: '9px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: i < arr.length - 1 ? '0.5px solid rgba(28,25,23,0.06)' : 'none' }}>
+                      <span style={{ ...sdMono, color: c }}>● {l}</span>
+                      <span style={{ font: '400 12.5px/1.3 Inter, sans-serif', color: 'rgba(28,25,23,0.7)' }}>{fmtTs(d)}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -13327,48 +13342,6 @@
                 })}
               </div>
 
-              {/* Tasks */}
-              <div className="qw-rail-card">
-                <h3>Tasks</h3>
-                {sampleTasks.length === 0 ? (
-                  <div style={{ font: '400 12px/1.5 Inter, sans-serif', color: 'var(--rod-muted)' }}>No tasks yet.</div>
-                ) : (
-                  sampleTasks.map(t => {
-                    const done = t.status === 'completed';
-                    const due = t.due_date ? new Date(String(t.due_date).split('T')[0] + 'T12:00:00') : null;
-                    const overdue = !done && due && due < new Date(new Date().toDateString());
-                    return (
-                      <div key={t.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '7px 0', borderBottom: '0.5px solid var(--rod-border)' }}>
-                        <button onClick={() => toggleTaskDone(t)} title={done ? 'Reopen' : 'Complete'}
-                          style={{ width: 16, height: 16, marginTop: 1, borderRadius: '50%', flexShrink: 0, cursor: 'pointer', padding: 0, border: '1.5px solid ' + (done ? 'var(--rod-green)' : 'var(--rod-border)'), background: done ? 'var(--rod-green)' : 'transparent', color: '#fff', font: '700 9px/1 Inter, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {done ? '✓' : ''}
-                        </button>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ font: '400 12.5px/1.35 Inter, sans-serif', color: done ? 'var(--rod-muted)' : 'var(--rod-ink)', textDecoration: done ? 'line-through' : 'none' }}>{t.title}</div>
-                          {t.due_date && <div style={{ font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.04em', marginTop: 2, color: overdue ? 'var(--rod-red)' : 'var(--rod-muted)' }}>{overdue ? 'Overdue · ' : 'Due '}{due.toLocaleDateString()}</div>}
-                        </div>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', marginTop: 6, flexShrink: 0, background: t.priority === 'high' ? 'var(--rod-red)' : t.priority === 'low' ? 'var(--rod-border)' : 'var(--rod-accent)' }} />
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              {/* Timeline */}
-              <div className="qw-rail-card">
-                <h3>Timeline</h3>
-                {[
-                  ['Created', sr.created_at, 'var(--rod-ink)'],
-                  ['Shipped', sr.shipped_at, 'var(--rod-green)'],
-                  ['Delivered', sr.delivered_at, 'var(--rod-green)'],
-                  ['Cancelled', sr.cancelled_at, 'var(--rod-red)'],
-                ].filter(([, d]) => d).map(([l, d, c], i, arr) => (
-                  <div key={l} style={{ padding: '9px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: i < arr.length - 1 ? '0.5px solid rgba(28,25,23,0.06)' : 'none' }}>
-                    <span style={{ ...sdMono, color: c }}>● {l}</span>
-                    <span style={{ font: '400 12.5px/1.3 Inter, sans-serif', color: 'rgba(28,25,23,0.7)' }}>{fmtTs(d)}</span>
-                  </div>
-                ))}
-              </div>
 
               {/* Internal notes — same multi-entry widget as the quote workspace */}
               <InternalNotesCard basePath={'/api/rep/sample-requests/' + editId} bg="#f5f0e8" />
