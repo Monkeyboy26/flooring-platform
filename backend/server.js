@@ -34252,14 +34252,25 @@ app.post('/api/installation-inquiries', async (req, res) => {
 
     let product_name = null;
     let collection = null;
+    let product_display = null;
     if (product_id) {
       const prodResult = await pool.query(
-        'SELECT p.name, p.collection FROM products p WHERE p.id = $1',
+        `SELECT p.name, p.collection, c.name AS category_name
+           FROM products p LEFT JOIN categories c ON c.id = p.category_id
+          WHERE p.id = $1`,
         [product_id]
       );
       if (prodResult.rows.length > 0) {
         product_name = prodResult.rows[0].name;
         collection = prodResult.rows[0].collection;
+        // Canonical, storefront-consistent title (dedupes the collection prefix
+        // and appends the category suffix) so emails/alerts don't read
+        // "Moonlight Lux Moonlight Lux White". See [[product-title-finish-order]].
+        product_display = fullProductName({
+          product_name,
+          collection,
+          category_name: prodResult.rows[0].category_name,
+        });
       }
     }
 
@@ -34280,7 +34291,8 @@ app.post('/api/installation-inquiries', async (req, res) => {
       message,
       product_id,
       product_name,
-      collection
+      collection,
+      product_display
     };
 
     // Fire-and-forget emails
@@ -34298,7 +34310,7 @@ app.post('/api/installation-inquiries', async (req, res) => {
     // Fire-and-forget: route the alert to the assigned rep (personal email +
     // in-app); if there are no active reps at all, broadcast to everyone.
     const inqDetails = [];
-    if (product_name) inqDetails.push(product_name + (collection ? ' (' + collection + ')' : ''));
+    if (product_display || product_name) inqDetails.push(product_display || product_name);
     const inqSqft = parseFloat(estimated_sqft);
     if (!isNaN(inqSqft) && inqSqft > 0) inqDetails.push(inqSqft.toFixed(0) + ' sqft');
     if (zip_code) inqDetails.push('zip ' + zip_code);
@@ -35341,6 +35353,7 @@ const EMAIL_PREVIEW_TEMPLATES = {
     estimated_sqft: '850',
     product_name: 'European White Oak',
     collection: 'Heritage Collection',
+    product_display: 'Heritage European White Oak',
     message: 'We are remodeling our kitchen and living room. Looking for installation in about 3 weeks. The subfloor is concrete slab.'
   }),
 
@@ -35348,6 +35361,7 @@ const EMAIL_PREVIEW_TEMPLATES = {
     customer_name: 'Angela Martinez',
     product_name: 'European White Oak',
     collection: 'Heritage Collection',
+    product_display: 'Heritage European White Oak',
     zip_code: '92801',
     estimated_sqft: '850',
     message: 'We are remodeling our kitchen and living room. Looking for installation in about 3 weeks.'

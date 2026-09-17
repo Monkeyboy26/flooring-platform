@@ -5,7 +5,7 @@ export function generateInstallationInquiryStaffHTML(inquiry) {
   const productSection = inquiry.product_name ? `
     <div style="background:#f5f5f4;border-left:3px solid #b8860b;padding:16px 20px;margin:0 0 24px;">
       <p style="margin:0 0 4px;font-weight:500;color:#1c1917;">Product Reference</p>
-      <p style="margin:0;color:#57534e;line-height:1.6;">${inquiry.collection ? `${esc(inquiry.collection)} ` : ''}${esc(inquiry.product_name)}</p>
+      <p style="margin:0;color:#57534e;line-height:1.6;">${esc(inquiry.product_display || inquiry.product_name)}</p>
     </div>` : '';
 
   const messageSection = inquiry.message ? `

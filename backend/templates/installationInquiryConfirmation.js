@@ -3,7 +3,7 @@ function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&
 
 export function generateInstallationInquiryConfirmationHTML(inquiry) {
   const productLine = inquiry.product_name
-    ? `<p style="color:#57534e;line-height:1.6;margin:0 0 8px;"><strong>Product:</strong> ${inquiry.collection ? `${esc(inquiry.collection)} ` : ''}${esc(inquiry.product_name)}</p>`
+    ? `<p style="color:#57534e;line-height:1.6;margin:0 0 8px;"><strong>Product:</strong> ${esc(inquiry.product_display || inquiry.product_name)}</p>`
     : '';
 
   return `<!DOCTYPE html>
