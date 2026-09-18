@@ -19,7 +19,10 @@ import { parseX12, parse855, parse856, parse810, identifyDocumentType } from '..
 import { generate997 } from '../services/ediGenerator.js';
 import { createRepNotification } from '../lib/notifications.js';
 
-const EDI_EXTENSIONS = ['edi', 'x12', 'txt', 'dat', '810', '855', '856'];
+// Include '997' so a standalone functional-acknowledgment file (e.g. AK123.997)
+// isn't filtered out of the outbox listing. Vendors that bundle the 997 into a
+// generic .edi/.txt interchange are already covered by processRawEdi's per-set loop.
+const EDI_EXTENSIONS = ['edi', 'x12', 'txt', 'dat', '810', '855', '856', '997'];
 
 /**
  * Create a transport adapter that normalizes SFTP and FTP APIs.
