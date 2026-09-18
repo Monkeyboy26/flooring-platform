@@ -6072,6 +6072,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     // its true material+binding+fabrication cost for commission — see below)
     const cartResult = await client.query(`
       SELECT ci.*, COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id,
+        p.id as resolved_product_id,
         COALESCE(pr.cut_cost, pr.cost) as material_cost_per_sqyd, pk.roll_width_ft, v.code as vendor_code
       FROM cart_items ci
       LEFT JOIN skus s ON s.id = ci.sku_id
@@ -6393,7 +6394,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
           sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, price_tier,
           is_custom_rug, custom_width_ft, custom_length_ft, cost)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
-      `, [order.id, item.product_id || null, item.sku_id || null,
+      `, [order.id, item.resolved_product_id || item.product_id || null, item.sku_id || null,
           item.product_name || null, item.collection || null,
           item.parent_collection || null, item.parent_color || null, rugDesc,
           item.sqft_needed || null, item.num_boxes,
