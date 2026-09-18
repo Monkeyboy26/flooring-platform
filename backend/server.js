@@ -30602,8 +30602,20 @@ app.get('/api/admin/purchase-orders/:poId/detail', staffAuth, async (req, res) =
     `, [poId]);
     if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
 
-    const items = await pool.query(
-      'SELECT * FROM purchase_order_items WHERE purchase_order_id = $1 ORDER BY created_at',
+    // Join the SKU so the line name composes exactly like the order line
+    // (variant/accessory label + color/size). Without this the PO view fell back
+    // to the bare snapshotted product_name and diverged from the order.
+    const items = await pool.query(`
+      SELECT poi.*, s.variant_name, s.accessory_label, s.variant_type, s.internal_sku,
+        sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection
+      FROM purchase_order_items poi
+      LEFT JOIN skus s ON s.id = poi.sku_id
+      LEFT JOIN products p ON p.id = s.product_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = poi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = poi.sku_id
+        AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
+      WHERE poi.purchase_order_id = $1 ORDER BY poi.created_at`,
       [poId]
     );
 
