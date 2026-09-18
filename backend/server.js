@@ -10976,7 +10976,25 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
     const itemResult = await client.query('SELECT * FROM order_items WHERE id = $1 AND order_id = $2', [itemId, id]);
     if (!itemResult.rows.length) return res.status(404).json({ error: 'Order item not found' });
 
+    // Block removal if this line is on an ACTIVE (non-void) material release — the
+    // goods have already been released to the customer, so the release must be voided
+    // first. Without this guard the FK below throws a bare 500. [[material-releases]]
+    const activeRelease = await client.query(`
+      SELECT mr.release_number FROM release_items ri
+      JOIN material_releases mr ON mr.id = ri.release_id
+      WHERE ri.order_item_id = $1 AND mr.status <> 'void'
+      LIMIT 1`, [itemId]);
+    if (activeRelease.rows.length) {
+      return res.status(400).json({ error: `Can't remove this item — it's on release ${activeRelease.rows[0].release_number}. Void that release first, then remove the item.` });
+    }
+
     await client.query('BEGIN');
+
+    // Clean up release_items left behind by VOIDED releases — they still hold an
+    // order_item_id FK that would otherwise block the delete below.
+    await client.query(`
+      DELETE FROM release_items ri USING material_releases mr
+      WHERE ri.release_id = mr.id AND ri.order_item_id = $1 AND mr.status = 'void'`, [itemId]);
 
     // Delete linked PO items first (FK constraint), then recalculate affected PO subtotals
     const linkedPOItems = await client.query(
@@ -21482,7 +21500,25 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
     const itemResult = await client.query('SELECT * FROM order_items WHERE id = $1 AND order_id = $2', [itemId, id]);
     if (!itemResult.rows.length) return res.status(404).json({ error: 'Order item not found' });
 
+    // Block removal if this line is on an ACTIVE (non-void) material release — the
+    // goods have already been released to the customer, so the release must be voided
+    // first. Without this guard the FK below throws a bare 500. [[material-releases]]
+    const activeRelease = await client.query(`
+      SELECT mr.release_number FROM release_items ri
+      JOIN material_releases mr ON mr.id = ri.release_id
+      WHERE ri.order_item_id = $1 AND mr.status <> 'void'
+      LIMIT 1`, [itemId]);
+    if (activeRelease.rows.length) {
+      return res.status(400).json({ error: `Can't remove this item — it's on release ${activeRelease.rows[0].release_number}. Void that release first, then remove the item.` });
+    }
+
     await client.query('BEGIN');
+
+    // Clean up release_items left behind by VOIDED releases — they still hold an
+    // order_item_id FK that would otherwise block the delete below.
+    await client.query(`
+      DELETE FROM release_items ri USING material_releases mr
+      WHERE ri.release_id = mr.id AND ri.order_item_id = $1 AND mr.status = 'void'`, [itemId]);
 
     // Delete linked PO items first (FK constraint), then recalculate affected PO subtotals
     const linkedPOItems = await client.query(
