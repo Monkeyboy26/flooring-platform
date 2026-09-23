@@ -5907,6 +5907,29 @@ async function generatePurchaseOrders(orderId, client) {
   return createdPOs;
 }
 
+// Flow a change to an order line's COST or PRICE onto every still-DRAFT vendor PO that
+// covers it, so the PO + PDF stay in sync. generatePurchaseOrders is idempotent and
+// reads the live order-line cost (oi.cost) and price (oi.unit_price), applying the
+// correct per-basis conversion, so a full rebuild carries both. Preserves each draft's
+// PO number + any set notes/recipient across the rebuild. Already-SENT POs are left
+// untouched — they've gone to the vendor; edit the PO line directly to change those.
+// Runs inside the caller's transaction (pass the txn client).
+async function rebuildDraftPosForOrderItem(client, orderId, itemId) {
+  const draftPOs = await client.query(
+    "SELECT DISTINCT po.id, po.vendor_id, po.po_number, po.notes, po.recipient_email, po.cc_emails FROM purchase_orders po JOIN purchase_order_items poi ON poi.purchase_order_id = po.id WHERE poi.order_item_id = $1 AND po.status = 'draft'", [itemId]);
+  if (!draftPOs.rows.length) return;
+  for (const d of draftPOs.rows) {
+    await client.query('DELETE FROM purchase_orders WHERE id = $1', [d.id]);
+  }
+  await generatePurchaseOrders(orderId, client);
+  // Keep each draft's original PO number + any set notes/recipient across the rebuild.
+  for (const d of draftPOs.rows) {
+    await client.query(
+      "UPDATE purchase_orders SET po_number = $2, notes = COALESCE($3, notes), recipient_email = COALESCE($4, recipient_email), cc_emails = COALESCE($5, cc_emails) WHERE order_id = $1 AND vendor_id = $6 AND status = 'draft'",
+      [orderId, d.po_number, d.notes || null, d.recipient_email || null, Array.isArray(d.cc_emails) && d.cc_emails.length ? d.cc_emails : null, d.vendor_id]);
+  }
+}
+
 // Resolve each cart sample line's product data (name/collection/variant/image)
 // and insert it as a sample_request_item. Shared by the mixed-cart order path
 // and the sample-only path so the two never drift. Returns the enriched rows.
@@ -20982,6 +21005,10 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
     await logOrderActivity(client, id, 'price_adjusted', req.rep.id, priceRepName,
       { product_name: current.product_name, previous_price: prevPrice.toFixed(2), new_price: newPrice.toFixed(2), reason: reason || null });
 
+    // Flow the new price onto any still-DRAFT vendor PO covering this line so its
+    // retail_price reference stays in sync (cost is untouched — see helper).
+    await rebuildDraftPosForOrderItem(client, id, itemId);
+
     await client.query('COMMIT');
 
     // Notify assigned rep if different from the one making the change
@@ -21119,25 +21146,8 @@ app.put('/api/rep/orders/:id/items/:itemId/cost', repAuth, async (req, res) => {
     await logOrderActivity(client, id, 'cost_updated', req.rep.id, repName,
       { product_name: it.rows[0].product_name, previous_cost: it.rows[0].cost, new_cost: cost != null ? cost.toFixed(2) : null });
 
-    // Flow the new cost onto any still-DRAFT vendor PO that covers this line, so the
-    // PO + PDF reflect it. Rebuild the draft (generatePurchaseOrders is idempotent
-    // and honors the order-line cost, applying the correct per-basis conversion),
-    // preserving any PO-level notes/recipient the rep set. Already-SENT POs are left
-    // untouched — they've gone to the vendor; edit the PO line directly to change those.
-    const draftPOs = await client.query(
-      "SELECT DISTINCT po.id, po.vendor_id, po.po_number, po.notes, po.recipient_email, po.cc_emails FROM purchase_orders po JOIN purchase_order_items poi ON poi.purchase_order_id = po.id WHERE poi.order_item_id = $1 AND po.status = 'draft'", [itemId]);
-    if (draftPOs.rows.length) {
-      for (const d of draftPOs.rows) {
-        await client.query('DELETE FROM purchase_orders WHERE id = $1', [d.id]);
-      }
-      await generatePurchaseOrders(id, client);
-      // Keep the draft's original PO number + any rep-set notes/recipient across the rebuild.
-      for (const d of draftPOs.rows) {
-        await client.query(
-          "UPDATE purchase_orders SET po_number = $2, notes = COALESCE($3, notes), recipient_email = COALESCE($4, recipient_email), cc_emails = COALESCE($5, cc_emails) WHERE order_id = $1 AND vendor_id = $6 AND status = 'draft'",
-          [id, d.po_number, d.notes || null, d.recipient_email || null, Array.isArray(d.cc_emails) && d.cc_emails.length ? d.cc_emails : null, d.vendor_id]);
-      }
-    }
+    // Flow the new cost onto any still-DRAFT vendor PO covering this line (see helper).
+    await rebuildDraftPosForOrderItem(client, id, itemId);
     await client.query('COMMIT');
     setImmediate(() => recalculateCommission(pool, id));
     const updatedItems = await pool.query(`
@@ -24319,6 +24329,9 @@ app.put('/api/staff/orders/:id/items/:itemId/cost', staffAuth, requireRole('admi
     const staffName = req.staff.first_name + ' ' + req.staff.last_name;
     await logOrderActivity(client, id, 'cost_updated', req.staff.id, staffName,
       { product_name: it.rows[0].product_name, previous_cost: it.rows[0].cost, new_cost: cost != null ? cost.toFixed(2) : null });
+
+    // Flow the new cost onto any still-DRAFT vendor PO covering this line (see helper).
+    await rebuildDraftPosForOrderItem(client, id, itemId);
     await client.query('COMMIT');
     setImmediate(() => recalculateCommission(pool, id));
     const updatedItems = await pool.query(`
