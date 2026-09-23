@@ -446,8 +446,8 @@ ON CONFLICT DO NOTHING;
 -- display/fallback (% off the 1.70x retail) for zero-cost rows. See lib/tierPrice.js.
 INSERT INTO margin_tiers (name, cost_multiplier, discount_percent, spend_threshold, tier_level) VALUES
 ('Silver', 1.500, 11.765, 0, 0),
-('Gold', 1.400, 17.647, 10000, 1),
-('Platinum', 1.320, 22.353, 20000, 2);
+('Gold', 1.400, 17.647, 25000, 1),
+('Platinum', 1.320, 22.353, 60000, 2);
 
 -- ==================== Extended Seed Data ====================
 -- 15 more products across multiple categories for richer filtering
