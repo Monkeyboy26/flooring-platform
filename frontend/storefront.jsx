@@ -18262,16 +18262,17 @@
           </div>
           <div data-tv2-2col style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 80, alignItems: 'end' }}>
             <div>
-              <Tv2Micro theme={theme} color={accent} style={{ marginBottom: 22, letterSpacing: '0.2em' }}>For designers, contractors, builders</Tv2Micro>
+              <Tv2Micro theme={theme} color={accent} style={{ marginBottom: 22, letterSpacing: '0.2em' }}>For designers, contractors &amp; builders</Tv2Micro>
               <h1 style={{ font: '300 clamp(52px, 8vw, 112px)/0.9 var(--roma-serif)', letterSpacing: '-0.024em', margin: 0, color: ink }}>
-                One yard.<br />One rep.<br /><em style={{ color: accent }}>Trade pricing</em>.
+                The margin<br />lives in<br /><em style={{ color: accent }}>the price</em>.
               </h1>
             </div>
             <div style={{ paddingBottom: 14 }}>
               <p style={{ font: '400 17px/1.55 var(--roma-sans)', color: `${ink}cc`, margin: 0, maxWidth: 460 }}>
-                The trade program for Orange County's design and build community. Pricing that's a
-                contracted margin baked into every line — not a coupon code — from a family-owned
-                Anaheim showroom, with one dedicated rep on every order you place.
+                Roma's trade program is a contracted margin — not a coupon code — baked into every
+                line and stepping up with your spend. Family-owned in Anaheim, one dedicated rep on
+                every order, and pricing kept honest by asking for payment up front instead of
+                chasing terms.
               </p>
               <div style={{ marginTop: 28, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
                 {tradeCustomer ? (
