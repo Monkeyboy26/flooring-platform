@@ -12216,7 +12216,7 @@
                         <div className="co-field-label">Phone</div>
                         <input type="tel" autoComplete="tel" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} placeholder="(555) 123-4567" />
                         <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 8, fontSize: 12, lineHeight: 1.5, color: 'var(--stone-500)', cursor: 'pointer' }}>
-                          <input type="checkbox" checked={smsConsent} onChange={e => setSmsConsent(e.target.checked)} style={{ marginTop: 2, flexShrink: 0 }} />
+                          <input type="checkbox" checked={smsConsent} onChange={e => setSmsConsent(e.target.checked)} style={{ width: 16, height: 16, marginTop: 2, flexShrink: 0 }} />
                           <span>Text me order updates &amp; a review request. By checking this box you agree to receive automated text messages from Roma Flooring Designs at the number above. Consent is not a condition of purchase. Msg &amp; data rates may apply. Reply STOP to opt out.</span>
                         </label>
                       </div>
