@@ -18290,7 +18290,7 @@
     function Tv2Stats({ theme }) {
       const { ink, muted } = theme;
       const stats = [
-        { v: '~13–22%', l: 'Contracted trade margin', s: 'Tiered by annual spend' },
+        { v: '~12–22%', l: 'Contracted trade margin', s: 'Tiered by annual spend' },
         { v: '$0', l: 'Membership fee', s: 'Free to apply and join' },
         { v: '2 days', l: 'Typical approval', s: '4 hours with a CSLB #' },
         { v: 'Since 1999', l: 'Family-owned in Anaheim', s: 'License #830966' },
@@ -18314,9 +18314,9 @@
     function Tv2Tiers({ theme }) {
       const { ink, accent, muted, warm } = theme;
       const tiers = [
-        { name: 'Silver', pct: '13%', spend: 'On approval', note: 'Every new trade account starts here — the margin applies from your very first order.', perks: ['Trade pricing on every SKU', 'A dedicated Roma rep', 'Bulk order + branded quotes'] },
-        { name: 'Gold', pct: '19%', spend: '$10,000+ / yr', note: 'Where most working studios land within their first year of ordering with us.', perks: ['Everything in Silver', 'Priority fulfillment', 'Automatic — no reapplying'], hot: true },
-        { name: 'Platinum', pct: '22%', spend: '$20,000+ / yr', note: 'Design-build firms and builders running several concurrent jobs at once.', perks: ['Everything in Gold', 'Custom quotes', 'Job-site delivery'] },
+        { name: 'Silver', pct: '12%', spend: 'On approval', note: 'Every new trade account starts here — the margin applies from your very first order.', perks: ['Trade pricing on every SKU', 'A dedicated Roma rep', 'Bulk order + branded quotes'] },
+        { name: 'Gold', pct: '18%', spend: '$25,000+ / yr', note: 'For studios and contractors placing steady orders with us through the year.', perks: ['Everything in Silver', 'Priority fulfillment', 'Automatic — no reapplying'], hot: true },
+        { name: 'Platinum', pct: '22%', spend: '$60,000+ / yr', note: 'Design-build firms and builders running several concurrent jobs at once.', perks: ['Everything in Gold', 'Custom quotes', 'Job-site delivery'] },
       ];
       return (
         <section style={{ padding: '80px 80px' }}>
@@ -18437,7 +18437,7 @@
         { q: 'What if I’m an individual designer, not a firm?', a: 'Apply as a sole proprietor. We verify your membership (ASID / IIDA / CCIDC) or a portfolio of real projects, plus your resale certificate.' },
         { q: 'Does Roma offer Net-30 or other terms?', a: 'No — every order is paid in full before shipment. We accept card, ACH, and Klarna, and you can keep a default payment method on file.' },
         { q: 'Does the discount stack with sales?', a: 'Yes. Trade pricing is a contracted margin, so sale prices apply on top of it. You see both deductions on the line item.' },
-        { q: 'How do the tiers move?', a: 'Automatically, on your trailing 12-month spend — 13% to start, 19% past $10,000, 22% past $20,000. Nothing to reapply for.' },
+        { q: 'How do the tiers move?', a: 'Automatically, on your trailing 12-month spend — 12% to start, 18% past $25,000, 22% past $60,000. Nothing to reapply for.' },
         { q: 'Do you ship outside Orange County?', a: 'Anywhere in California by LTL freight, with the trade margin still in effect. Ask your rep about accounts further out.' },
       ];
       return (
