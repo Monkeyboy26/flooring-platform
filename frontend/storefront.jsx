@@ -18264,7 +18264,7 @@
             <div>
               <Tv2Micro theme={theme} color={accent} style={{ marginBottom: 22, letterSpacing: '0.2em' }}>For designers, contractors &amp; builders</Tv2Micro>
               <h1 style={{ font: '300 clamp(52px, 8vw, 112px)/0.9 var(--roma-serif)', letterSpacing: '-0.024em', margin: 0, color: ink }}>
-                The margin<br />lives in<br /><em style={{ color: accent }}>the price</em>.
+                Priced for<br />the trade —<br /><em style={{ color: accent }}>every line</em>.
               </h1>
             </div>
             <div style={{ paddingBottom: 14 }}>
