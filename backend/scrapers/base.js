@@ -751,7 +751,43 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
   // regardless of skipKeystoneReprice.
   const RETAIL_MIN_MARGIN = 0.99;
   const isAreaCovering = price_basis === 'per_sqft' || price_basis === 'sqft';
-  const applyCoveringFloor = isAreaCovering || (price_basis === 'per_unit' && opts.coveringFloor === true);
+
+  // Category-scoped minimum gross margin (owner, 2026-09-22): tile must clear at
+  // least $1.50 of margin over cost, and a mosaic sheet at least $4.50 — raising the
+  // standard $0.99 covering margin for these categories. Category is the
+  // authoritative signal, resolved once from the sku's product, so it also catches a
+  // mosaic whose scraper never set opts.coveringFloor and applies the margin floor to
+  // it. Charm pricing still applies, so the retail lands on the next 9-ending at/above
+  // cost+margin. Like the $0.99 floor, it needs a real cost — a $0/unknown-cost row
+  // can't have a margin computed, so it's left alone. See [[category-margin-floors]].
+  const TILE_MIN_MARGIN = 1.50;
+  const MOSAIC_MIN_MARGIN = 4.50;
+  const TILE_FLOOR_SLUGS = new Set(['tile', 'backsplash-tile', 'ceramic-tile',
+    'commercial-tile', 'fluted-tile', 'large-format-tile', 'pool-tile',
+    'porcelain-tile', 'talavera-tile', 'terrazzo-tile', 'wood-look-tile']);
+  let catSlug = null;
+  try {
+    const cr = await pool.query(
+      'SELECT c.slug FROM skus s JOIN products p ON s.product_id = p.id JOIN categories c ON p.category_id = c.id WHERE s.id = $1',
+      [sku_id]);
+    catSlug = cr.rows.length ? cr.rows[0].slug : null;
+  } catch { /* no category yet → category margin simply doesn't apply */ }
+  const isMosaicCat = catSlug === 'mosaic-tile';
+  const isTileCat = TILE_FLOOR_SLUGS.has(catSlug);
+  // The $4.50 margin is a per-SHEET minimum (per_unit). A mosaic sold by area, and
+  // all other tile, take the $1.50 tile margin instead; everything else the $0.99.
+  const isPerSheetMosaic = isMosaicCat && price_basis === 'per_unit';
+  const minMargin = isPerSheetMosaic ? MOSAIC_MIN_MARGIN
+    : (isTileCat || isMosaicCat) ? TILE_MIN_MARGIN : RETAIL_MIN_MARGIN;
+
+  // Tile/mosaic are covering by category even when basis/flag wouldn't say so.
+  const applyCoveringFloor = isAreaCovering || (price_basis === 'per_unit' && opts.coveringFloor === true) || isMosaicCat || isTileCat;
+  // Effective floor for retail = cost + the category minimum margin (only when we
+  // have a real cost; no cost → no computable margin → no floor).
+  const floorMinFor = () => {
+    const cn = applyCoveringFloor ? (Number(cost != null ? cost : 0) || 0) : 0;
+    return cn > 0 ? cn + minMargin : 0;
+  };
   // Largest value ending in 9 (…X.09/X.19/…/X.99) that is ≤ v — round DOWN only,
   // never up. Integer cents avoid float drift; floored at $0.09 (min 9-ending).
   const nearestNine = (v) => {
@@ -763,8 +799,7 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
     if (price == null) return price;
     const rn = Number(price);
     if (!(rn > 0)) return price; // never invent a price on $0/unpriced
-    const cn = applyCoveringFloor ? (Number(cost != null ? cost : 0) || 0) : 0;
-    const floorMin = cn > 0 ? cn + RETAIL_MIN_MARGIN : 0;
+    const floorMin = floorMinFor();
     let nine = nearestNine(Math.max(rn, floorMin));
     if (floorMin > 0 && nine < floorMin - 1e-9) nine = Math.round((nine + 0.10) * 100) / 100;
     return nine;
@@ -772,15 +807,14 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
   const retailAdj = priceRetail(applyKeystone(cost, retail_price));
 
   // The covering floor also guards retail_locked (Home-Depot-matched) prices:
-  // they're preserved as-is EXCEPT they may never sit under cost+$0.99 (owner,
-  // 2026-08-16). coveringFloorValue = smallest 9-ending ≥ cost+$0.99; the UPDATE
-  // GREATEST()s it against the locked price so a cost increase lifts the price to
-  // floor. Only ever RAISES — never lowers a locked price and never overwrites it
-  // with the vendor's retail. Null for non-covering / cost-less upserts (locked
-  // price then fully preserved). See [[covering-margin-floor]].
-  const coveringFloorValue = (applyCoveringFloor && cost != null && Number(cost) > 0)
-    ? priceRetail(Number(cost) + RETAIL_MIN_MARGIN)
-    : null;
+  // they're preserved as-is EXCEPT they may never sit under the effective floor
+  // (cost+$0.99 and/or the tile/mosaic absolute floor; owner 2026-08-16, 2026-09-22).
+  // coveringFloorValue = smallest 9-ending ≥ that floor; the UPDATE GREATEST()s it
+  // against the locked price so a cost increase (or a below-floor tile/mosaic) lifts
+  // the price to floor. Only ever RAISES — never lowers a locked price and never
+  // overwrites it with the vendor's retail. Null when there is no applicable floor
+  // (locked price then fully preserved). See [[covering-margin-floor]].
+  const coveringFloorValue = floorMinFor() > 0 ? priceRetail(floorMinFor()) : null;
 
   // Carpet margin floor: carpet retail (cut_price / roll_price, per sq yd) must
   // clear at least $1 profit per sq ft — i.e. cost/sqyd + $9 (9 sqft per sqyd).
