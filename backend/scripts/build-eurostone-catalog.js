@@ -29,7 +29,7 @@ const STD_SQFT = 46.67;   // 56 x 120 / 144
 const JMB_SQFT = 55.13;   // 63 x 126 / 144
 const PORC_SQFT = 55.13;  // 63 x 126 / 144
 
-const keystone = (cost) => Math.round((cost * 1.6) / 0.05) * 0.05;
+const keystone = (cost) => Math.round((cost * 1.65) / 0.05) * 0.05;
 const money = (n) => Math.round(n * 100) / 100;
 
 const slugify = (s) => s.toLowerCase()

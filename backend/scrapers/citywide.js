@@ -713,8 +713,8 @@ async function importProducts(vendorId, edi832Map, dryRun = false) {
               ? ediData.retail_price : null)
             || Math.round(cost * 2 * 100) / 100;
           // Keystone reprice guard (mirrors base.js upsertPricing): rewrite a
-          // ~2x-of-cost retail to 1.6x cost so rescrapes don't revert the reprice.
-          if (cost > 0 && retail > 0 && retail / cost >= 1.95 && retail / cost <= 2.05) retail = Math.round(cost * 1.6 / 0.05) * 0.05;
+          // ~2x-of-cost retail to 1.65x cost so rescrapes don't revert the reprice.
+          if (cost > 0 && retail > 0 && retail / cost >= 1.95 && retail / cost <= 2.05) retail = Math.round(cost * 1.65 / 0.05) * 0.05;
           await pool.query(`
             INSERT INTO pricing (sku_id, cost, retail_price, map_price, price_basis)
             VALUES ($1, $2, $3, $4, $5)
@@ -843,8 +843,8 @@ async function importProducts(vendorId, edi832Map, dryRun = false) {
           const cost = item.cost || 0;
           let retail = item.map_price || item.retail_price || Math.round(cost * 2 * 100) / 100;
           // Keystone reprice guard (mirrors base.js upsertPricing): rewrite a
-          // ~2x-of-cost retail to 1.6x cost so rescrapes don't revert the reprice.
-          if (cost > 0 && retail > 0 && retail / cost >= 1.95 && retail / cost <= 2.05) retail = Math.round(cost * 1.6 / 0.05) * 0.05;
+          // ~2x-of-cost retail to 1.65x cost so rescrapes don't revert the reprice.
+          if (cost > 0 && retail > 0 && retail / cost >= 1.95 && retail / cost <= 2.05) retail = Math.round(cost * 1.65 / 0.05) * 0.05;
           await pool.query(`
             INSERT INTO pricing (sku_id, cost, retail_price, map_price, price_basis)
             VALUES ($1, $2, $3, $4, $5)

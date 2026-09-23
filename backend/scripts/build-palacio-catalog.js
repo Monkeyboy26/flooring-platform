@@ -32,7 +32,7 @@ const DATA = path.join(__dirname, '..', 'data', 'palacio');
 const slug = (s) => String(s).toLowerCase().replace(/['".]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const titleCase = (s) => String(s).replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
 const clean = (s) => (s || '').replace(/[”“]/g, '"').replace(/\s+/g, ' ').trim();
-const keystone = (cost) => parseFloat((Math.round(cost * 1.6 / 0.05) * 0.05).toFixed(2));
+const keystone = (cost) => parseFloat((Math.round(cost * 1.65 / 0.05) * 0.05).toFixed(2));
 
 const COLL_META = {
   Amora:              { brand: 'PAL', cat: 'engineered-hardwood', mat: 'Engineered Hardwood', family: 'Hardwood' },
@@ -157,7 +157,7 @@ const catalog = {
     { name: 'Palacio', code: 'PAL', website: 'https://www.themissioncollection.com' },
     { name: 'Audacity', code: 'AUD', website: 'https://www.galleherduffy.com' },
   ],
-  markup: 1.6, products, accessories,
+  markup: 1.65, products, accessories,
 };
 fs.writeFileSync(path.join(DATA, 'catalog.json'), JSON.stringify(catalog, null, 2));
 fs.writeFileSync(path.join(DATA, 'images.json'), JSON.stringify(images, null, 2));

@@ -40,7 +40,7 @@ const nineDown = (v) => {
 };
 const keystone = (cost) => {
   const floorMin = cost + 0.99;
-  let nine = nineDown(Math.max(cost * 1.6, floorMin));
+  let nine = nineDown(Math.max(cost * 1.65, floorMin));
   if (nine < floorMin - 1e-9) nine = Math.round((nine + 0.10) * 100) / 100;
   return nine;
 };

@@ -149,7 +149,7 @@ const catalog = {
       + 'into separate SKUs per owner request. Slabs sell_by unit.',
   },
   brands: Object.values(BRANDCFG).map((c) => ({ name: c.name, code: c.code, website: 'https://www.cosentino.com' })),
-  markup: 1.6,
+  markup: 1.65,
   products,
 };
 

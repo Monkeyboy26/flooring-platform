@@ -37,7 +37,7 @@ const ATTR = {
 const ACC_PRICES = { reducer: 74.00, stairNose: 109.00, threshold: 74.00, tMold: 74.00 };
 
 // Retail markup multiplier (cost × MARKUP = retail)
-const MARKUP = 1.6;
+const MARKUP = 1.65;
 
 // ── Collection definitions ──
 // Each collection: { name, cat, desc, size, colors: [[species, color, sku, sfCtn, boxPlt, lbsCtn, costSqft], ...] }

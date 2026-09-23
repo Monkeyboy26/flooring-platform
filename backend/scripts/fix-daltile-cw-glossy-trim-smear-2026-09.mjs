@@ -86,7 +86,7 @@ for (const s of unmatched) {
 }
 for (const s of reprice) {
   console.log(`  ${s.vendor_sku} → ${s.ediSku} "${s.feedName}" ` +
-    `cost $${s.cost} → $${s.newCost}/pc, retail $${s.retail_price} → ~$${r2(s.newCost * 1.6)} pre-nine` +
+    `cost $${s.cost} → $${s.newCost}/pc, retail $${s.retail_price} → ~$${r2(s.newCost * 1.65)} pre-nine` +
     `${s.retail_locked ? ' [retail_locked]' : ''}`);
 }
 
@@ -94,7 +94,7 @@ if (!APPLY) { console.log('\n(dry run — pass --apply to write)'); await pool.e
 
 for (const s of reprice) {
   await upsertPricing(pool, s.sku_id, {
-    cost: s.newCost, retail_price: r2(s.newCost * 1.6), price_basis: 'per_unit',
+    cost: s.newCost, retail_price: r2(s.newCost * 1.65), price_basis: 'per_unit',
   });
   // borrowed field-box packaging — the feed has no carton for PC trim
   await pool.query(`

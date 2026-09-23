@@ -102,7 +102,7 @@ async function main() {
   for (const f of FIX) {
     const c = cur.get(f.vendor_sku);
     if (!c) { console.log(`  ! vendor_sku ${f.vendor_sku} not found — skipped`); continue; }
-    plan.push({ ...f, cur: c, retail: r2(f.cost * 1.6) });
+    plan.push({ ...f, cur: c, retail: r2(f.cost * 1.65) });
     console.log(
       `  ${f.vendor_sku}  ${c.name} — ${c.variant_name}`.padEnd(62) +
       ` ${c.sell_by}/${c.price_basis ?? '∅'} $${c.cost ?? '∅'}` +

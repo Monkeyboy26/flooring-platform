@@ -560,7 +560,7 @@ const catalog = {
     notes: 'Trade tile distributor (Anaheim, CA). Imported porcelain / ceramic / quarry tile + trim. Price list = Roma cost; retail = cost x1.6 keystone. FOB Anaheim warehouse. info@florenzaceramic.com / PO to Order@florenzaceramic.com.',
   },
   brand: { name: 'Florenza Ceramic', code: 'FLZ', website: 'https://florenzaceramic.com' },
-  markup: 1.6,
+  markup: 1.65,
   products,
   accessoryProducts,
 };

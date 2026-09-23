@@ -48,7 +48,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const INSTOCK = path.join(__dirname, '..', 'data', 'triwest-instock.json');
 const IMAGES_PATH = path.join(__dirname, '..', 'data', 'pacifico', 'images.json');
 
-const RETAIL_MARKUP = 1.6;
+const RETAIL_MARKUP = 1.65;
 
 const CODE2COLOR = {
   AS: 'Andes Summit', BE: 'Bald Eagle', CS: 'Chest Springs', GV: 'Grandview',

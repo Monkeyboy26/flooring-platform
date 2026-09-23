@@ -26,7 +26,7 @@ const ATTR = {
   size:    'd50e8400-e29b-41d4-a716-446655440004',
 };
 
-const MARKUP = 1.6;
+const MARKUP = 1.65;
 
 // Accessory types and their prices per series
 // [endcap, overlapNosing, quarterRound, reducer, stairNose, tMolding]

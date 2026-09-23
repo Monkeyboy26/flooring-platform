@@ -42,7 +42,7 @@ try {
 } catch { console.warn('! images.json not found — importing without photos'); }
 
 // ---- Pricing (mirrors scrapers/base.js upsertPricing) ----
-const RETAIL_MARKUP = 1.6;
+const RETAIL_MARKUP = 1.65;
 const RETAIL_MIN_MARGIN = 0.99;
 const keystone = (cost) => Number(cost) * RETAIL_MARKUP;
 const nearestNine = (v) => {

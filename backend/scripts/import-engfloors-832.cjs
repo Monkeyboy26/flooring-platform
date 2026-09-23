@@ -1689,7 +1689,7 @@ async function importToDatabase(catalog) {
         const cost = item.cost || 0;
         const retail = (item.retail_price && item.retail_price !== item.cost)
           ? item.retail_price
-          : Math.round(cost * 1.6 / 0.05) * 0.05;
+          : Math.round(cost * 1.65 / 0.05) * 0.05;
         const cutPrice = item.cut_price || null;
         const cutCost = item.cut_cost || null;
         await pool.query(`

@@ -47,7 +47,7 @@ async function main() {
       sku_id: r.sku_id,
       cost,
       old_retail: parseFloat(r.retail_price),
-      new_retail: Math.round(cost * 1.6 * 100) / 100,
+      new_retail: Math.round(cost * 1.65 * 100) / 100,
       old_ratio: parseFloat(r.ratio),
     };
   });

@@ -134,7 +134,7 @@ async function main() {
   for (const f of FIX) {
     const cur = skuByVendor.get(f.vendor_sku);
     if (!cur) { console.log(`  ! vendor_sku ${f.vendor_sku} not found — skipped`); continue; }
-    const retail = r2(f.cost * 1.6); // keystone; upsertPricing nine-ends + floors it
+    const retail = r2(f.cost * 1.65); // keystone; upsertPricing nine-ends + floors it
     fixPlan.push({ ...f, cur, retail });
     console.log(
       `  ${f.vendor_sku}  ${cur.name} — ${cur.variant_name}`.padEnd(60) +

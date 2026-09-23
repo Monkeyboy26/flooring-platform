@@ -54,7 +54,7 @@ async function main() {
     const oldCost = parseFloat(r.cost);
     const newCost = r4(oldCost / Math.max(pieces, 1)); // per-carton dollars -> per-panel
     const shownBefore = r2(parseFloat(r.retail_price) * parseFloat(r.sqft_per_box)); // what a customer saw per box/panel
-    return { ...r, pieces, oldCost, newCost, newRetail: r2(newCost * 1.6), shownBefore };
+    return { ...r, pieces, oldCost, newCost, newRetail: r2(newCost * 1.65), shownBefore };
   });
 
   const byV = {};

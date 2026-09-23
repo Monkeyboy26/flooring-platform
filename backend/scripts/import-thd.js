@@ -71,7 +71,7 @@ const ATTR = {
   thickness: 'd50e8400-e29b-41d4-a716-446655440010',
 };
 
-const MARKUP = 1.6;
+const MARKUP = 1.65;
 const SHOPIFY_DOMAIN = 'thdistributors.com';
 const FETCH_DELAY_MS = 500;
 

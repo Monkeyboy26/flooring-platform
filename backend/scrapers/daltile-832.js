@@ -394,12 +394,12 @@ const MAC_CATEGORY_MAP = {
 };
 
 /**
- * Flat 1.6x keystone markup. Daltile 832 only provides wholesale cost (no
- * retail/MAP), so retail = cost × 1.6, matching every other vendor's keystone.
+ * Flat 1.65x keystone markup. Daltile 832 only provides wholesale cost (no
+ * retail/MAP), so retail = cost × 1.65, matching every other vendor's keystone.
  */
 function retailFromCost(cost) {
   if (!cost || cost <= 0) return 0;
-  return Math.round(cost * 1.6 * 100) / 100;
+  return Math.round(cost * 1.65 * 100) / 100;
 }
 
 function cleanProductName(raw) {

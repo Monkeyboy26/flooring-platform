@@ -447,7 +447,7 @@ const catalog = {
       + '(made in India & Spain). Priced from the SEPT 2026 price sheet (Roma cost; retail = cost x1.6). FOB Anaheim.',
   },
   brand: { name: 'Tile World', code: 'TWD', website: 'https://tileworldusa.com' },
-  markup: 1.6,
+  markup: 1.65,
   source: 'SEPT 2026 price sheet + tileworldusa.com',
   products: productList,
   accessoryProducts: [],

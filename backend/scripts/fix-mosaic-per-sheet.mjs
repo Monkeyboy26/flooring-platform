@@ -123,7 +123,7 @@ async function main() {
       else if (r.code === 'ICON') pkg = { sf: 10.0, pcs: 10 };
       else if (!r.sfbx) pkg = { sf: r4(d.sf), pcs: 1 };
     }
-    plan.push({ ...r, sheetSf: d.sf, how: d.how, newCost: cost, newRetail: r2(cost * 1.6), pkg });
+    plan.push({ ...r, sheetSf: d.sf, how: d.how, newCost: cost, newRetail: r2(cost * 1.65), pkg });
   }
 
   for (const p of plan) {

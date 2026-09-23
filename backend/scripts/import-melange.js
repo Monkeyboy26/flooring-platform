@@ -40,7 +40,7 @@ const pool = new pg.Pool({
   password: 'postgres',
 });
 
-const RETAIL_MARKUP = 1.6;
+const RETAIL_MARKUP = 1.65;
 const RETAIL_MIN_MARGIN = 0.99;
 // 2026 price book: "A surcharge of 5% will be applied to all items with the
 // exception of domestic products." Domestic = Made in USA (Shellstone, Quartz
