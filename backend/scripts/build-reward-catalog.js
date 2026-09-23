@@ -36,7 +36,7 @@ const raw = JSON.parse(fs.readFileSync(path.join(DATA, 'reward-public-raw.json')
 const slug = (s) => String(s).toLowerCase().replace(/['".]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const titleCase = (s) => s.replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
 const clean = (s) => (s || '').replace(/[”“]/g, '"').replace(/\s+/g, ' ').trim();
-const keystone = (cost) => parseFloat((Math.round(cost * 1.65 / 0.05) * 0.05).toFixed(2));
+const keystone = (cost) => parseFloat((Math.round(cost * 1.70 / 0.05) * 0.05).toFixed(2));
 
 // species phrases (multi-word first) used to strip species from a color label
 const SPECIES = ['european oak', 'euro oak', 'white oak', 'red oak', 'walnut', 'hickory', 'maple', 'arborea'];
@@ -238,7 +238,7 @@ for (const a of acc) {
 const catalog = {
   vendor: { name: 'Galleher Duffy', code: 'GALL', website: 'https://www.galleherduffy.com' },
   brand: { name: 'Reward Flooring', code: 'REWARD', website: 'https://rewardflooring.com' },
-  markup: 1.65, products, accessories,
+  markup: 1.70, products, accessories,
 };
 fs.writeFileSync(path.join(DATA, 'catalog.json'), JSON.stringify(catalog, null, 2));
 fs.writeFileSync(path.join(DATA, 'images.json'), JSON.stringify(images, null, 2));

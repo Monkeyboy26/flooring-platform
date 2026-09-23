@@ -29,7 +29,7 @@ const CAT = {
   sundries: '650e8400-e29b-41d4-a716-446655440110', // Installation & Sundries
 };
 
-const MARKUP = 1.65;
+const MARKUP = 1.70;
 const IMG = 'https://www.megaclicfloors.com/wp-content/uploads';
 
 // ============ MOLDING ACCESSORIES BY PRODUCT TYPE ============

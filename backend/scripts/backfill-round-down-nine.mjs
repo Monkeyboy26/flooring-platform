@@ -34,7 +34,7 @@ const pool = new pg.Pool({
   password: process.env.DB_PASSWORD || 'postgres',
 });
 
-const RETAIL_MARKUP = 1.65;
+const RETAIL_MARKUP = 1.70;
 const RETAIL_MIN_MARGIN = 0.99;
 
 // OLD rule: nearest value ending in 9, exact midpoints round down.

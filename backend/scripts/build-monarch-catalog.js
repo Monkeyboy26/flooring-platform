@@ -249,7 +249,7 @@ const catalog = {
     notes: 'Flooring distributor (Galleher + Tom Duffy + Trinity Hardwood). Roma dealer account 370815. Primary brand onboarded: Monarch Plank.',
   },
   brand: { name: 'Monarch Plank', code: 'MONARCH', website: 'https://monarchplank.com' },
-  markup: 1.65,
+  markup: 1.70,
   products,
   accessories,
 };

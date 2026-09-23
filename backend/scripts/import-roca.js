@@ -48,7 +48,7 @@ const ATTR = {
   shape:    '6af46612-5e54-4019-9972-13a3f0b4cb63',
 };
 
-const MARKUP = 1.65;
+const MARKUP = 1.70;
 
 // ─── Category classification: material + actual tile FORMAT ───
 // Category is derived from the material plus the product's real field sizes — NOT from the

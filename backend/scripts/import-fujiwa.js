@@ -353,7 +353,7 @@ async function main() {
       });
       if (sku.is_new) skusCreated++; else skusUpdated++;
 
-      const retailPrice = +(Math.round(cost * 1.65 / 0.05) * 0.05).toFixed(2);
+      const retailPrice = +(Math.round(cost * 1.70 / 0.05) * 0.05).toFixed(2);
       await upsertPricing(sku.id, { cost, retail_price: retailPrice, price_basis: priceBasis });
 
       // Packaging: sheet coverage for mosaics only. Field tiles sell by the
@@ -394,7 +394,7 @@ async function main() {
     });
     if (sku.is_new) skusCreated++; else skusUpdated++;
 
-    const retailPrice = +(Math.round(cost * 1.65 / 0.05) * 0.05).toFixed(2);
+    const retailPrice = +(Math.round(cost * 1.70 / 0.05) * 0.05).toFixed(2);
     await upsertPricing(sku.id, { cost, retail_price: retailPrice, price_basis: 'per_unit' });
     await setAttr(sku.id, 'brand', 'Fujiwa');
 
@@ -450,7 +450,7 @@ async function main() {
     });
     if (sku.is_new) skusCreated++; else skusUpdated++;
 
-    const retailPrice = +(Math.round(cost * 1.65 / 0.05) * 0.05).toFixed(2);
+    const retailPrice = +(Math.round(cost * 1.70 / 0.05) * 0.05).toFixed(2);
     await upsertPricing(sku.id, { cost, retail_price: retailPrice, price_basis: 'per_unit' });
     await setAttr(sku.id, 'brand', 'Fujiwa');
 
@@ -480,7 +480,7 @@ async function main() {
       });
       if (sku.is_new) skusCreated++; else skusUpdated++;
 
-      const retailPrice = +(Math.round(cost * 1.65 / 0.05) * 0.05).toFixed(2);
+      const retailPrice = +(Math.round(cost * 1.70 / 0.05) * 0.05).toFixed(2);
       await upsertPricing(sku.id, { cost, retail_price: retailPrice, price_basis: 'per_unit' });
 
       await setAttr(sku.id, 'size', size);

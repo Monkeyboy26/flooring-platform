@@ -10,7 +10,7 @@ import { upsertPricing, appendLog, addJobError } from './base.js';
  * catalog. Business rule (2026-07-27, rev 2 — the CSP is Roma's NET price:
  * per-account sheet, sits ~70% of street retail on identical items):
  *   cost   = sheet price
- *   retail = 1.65x cost, nickel-rounded (the store's standard markup)
+ *   retail = 1.70x cost, nickel-rounded (the store's standard markup)
  *
  * Matching: the Daltile EDI writes the manufacturer part code into the variant
  * name (e.g. "Walnut PBPG54125"). Sheet codes are either exact (TL10050T) or
@@ -25,7 +25,7 @@ import { upsertPricing, appendLog, addJobError } from './base.js';
  */
 
 const money = (n) => Math.round(n * 100) / 100;
-const STANDARD_MARKUP = 1.65;
+const STANDARD_MARKUP = 1.70;
 const nickel = (n) => Math.round(n * STANDARD_MARKUP / 0.05) * 0.05;
 
 function buildMatchers(sheetItems) {

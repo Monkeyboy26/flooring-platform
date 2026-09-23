@@ -41,7 +41,7 @@ const pool = new pg.Pool({
 });
 
 const DRY_RUN = process.env.DRY_RUN === '1';
-const RETAIL_MARKUP = 1.65;
+const RETAIL_MARKUP = 1.70;
 const nickel = c => parseFloat((Math.round(c * RETAIL_MARKUP / 0.05) * 0.05).toFixed(2));
 
 // ─── PHASE 1: products to hard-delete (Sept lists each ONLY as *DISC.) ──────────

@@ -18,7 +18,7 @@
  * ~1.6× cost, charm-priced to a 9-ending → ≈0.8× MSRP). The scraped MSRP is stored
  * as map_price for reference/strikethrough.
  *
- * (~1.65× cost — see OUR_MARKUP below.)
+ * (~1.70× cost — see OUR_MARKUP below.)
  *
  * Selling: per-unit (each) — sell_by='unit', variant_type='hardware', price_basis='per_unit'.
  *
@@ -44,7 +44,7 @@ const BASE = 'https://www.topknobs.com';
 const VENDOR = { code: 'HR', name: 'Hardware Resources', website: 'https://www.hardwareresources.com' };
 const BRAND = { code: 'TOPKNOBS', name: 'Top Knobs', website: 'https://www.topknobs.com' };
 const COST_FRACTION_OF_RETAIL = 0.5;   // our cost = 50% of Top Knobs MSRP
-const OUR_MARKUP = 1.65;                 // our retail = 1.65× cost (base.js charm-rounds to a 9-ending)
+const OUR_MARKUP = 1.70;                 // our retail = 1.70× cost (base.js charm-rounds to a 9-ending)
 const PAGE_LIMIT = 60;                  // /products.html max per-page (store allows 30/45/60)
 const CONCURRENCY = 4;
 const REQUEST_HEADERS = {

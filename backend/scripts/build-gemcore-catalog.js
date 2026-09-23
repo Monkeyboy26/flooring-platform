@@ -36,7 +36,7 @@ const raw = JSON.parse(fs.readFileSync(path.join(DATA, 'gemcore-public-raw.json'
 const slug = (s) => String(s).toLowerCase().replace(/['".]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const titleCase = (s) => String(s).replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
 const clean = (s) => (s || '').replace(/[”“]/g, '"').replace(/\s+/g, ' ').trim();
-const keystone = (cost) => parseFloat((Math.round(cost * 1.65 / 0.05) * 0.05).toFixed(2));
+const keystone = (cost) => parseFloat((Math.round(cost * 1.70 / 0.05) * 0.05).toFixed(2));
 const normSku = (s) => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 
 const FAMILY_CAT = { SPC: 'lvp-plank', LVT: 'lvp-plank', Laminate: 'laminate' };
@@ -185,7 +185,7 @@ for (const a of acc) {
 const catalog = {
   vendor: { name: 'Galleher Duffy', code: 'GALL', website: 'https://www.galleherduffy.com' },
   brand: { name: 'GemCore', code: 'GEM', website: 'https://www.gemcoreflooring.com' },
-  markup: 1.65, products, accessories,
+  markup: 1.70, products, accessories,
 };
 fs.writeFileSync(path.join(DATA, 'catalog.json'), JSON.stringify(catalog, null, 2));
 fs.writeFileSync(path.join(DATA, 'images.json'), JSON.stringify(images, null, 2));

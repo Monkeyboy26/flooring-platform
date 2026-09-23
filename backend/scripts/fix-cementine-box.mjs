@@ -63,7 +63,7 @@ async function main() {
       continue;
     }
     const cost = r2(parseFloat(c.cost) / sfPerPc); // EA net → per-sqft
-    plan.push({ cur: c, cost, retail: r2(cost * 1.65) });
+    plan.push({ cur: c, cost, retail: r2(cost * 1.70) });
   }
 
   for (const p of plan) {

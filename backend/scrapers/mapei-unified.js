@@ -8,9 +8,9 @@ import { upsertPricing, upsertMediaAsset, appendLog, addJobError } from './base.
  * Replaces the old 3-piece Mapei flow (Daltile-832 pricing + mapeihome.com image
  * enrichment + Floor & Decor per-color images). Business rule (2026-07-27, rev 2 —
  * the Big D CSP is Roma's NET buy price: per-account sheet, ~70% of street retail):
- *   sheet-priced items:  cost = sheet price, retail = 1.65x nickel-rounded
+ *   sheet-priced items:  cost = sheet price, retail = 1.70x nickel-rounded
  *   Lowe's-priced items: retail = Lowe's shelf price AS-IS (that's already retail;
- *                        marking it up 1.65x would price us over market), cost untouched
+ *                        marking it up 1.70x would price us over market), cost untouched
  *   images = lowes.com product photos (mobileimages.lowes.com CDN)
  *
  * Input: data/lowes-mapei-catalog.json — harvested from lowes.com in a real
@@ -42,7 +42,7 @@ import { upsertPricing, upsertMediaAsset, appendLog, addJobError } from './base.
 
 const CATALOG_PATH = 'data/lowes-mapei-catalog.json';
 const PRICESHEET_PATH = 'data/bigd-mapei-pricesheet.json';
-const STANDARD_MARKUP = 1.65;
+const STANDARD_MARKUP = 1.70;
 const IMG_HOST = 'https://mobileimages.lowes.com';
 
 const nickel = (n) => Math.round(n * STANDARD_MARKUP / 0.05) * 0.05;
@@ -330,7 +330,7 @@ export async function run(pool, job, source, opts = {}) {
 
   async function applyPrice(row, price, costSource) {
     backup.pricing.push({ sku_id: row.sku_id, cost: row.cost, retail_price: row.retail_price });
-    // Sheet price = our net cost → standard 1.65x retail. Lowe's price is already
+    // Sheet price = our net cost → standard 1.70x retail. Lowe's price is already
     // a retail number → use as-is and leave cost alone (upsertPricing COALESCEs
     // a null cost to the existing value).
     const fromSheet = costSource === 'sheet';

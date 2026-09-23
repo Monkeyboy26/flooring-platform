@@ -822,8 +822,8 @@ export async function run(pool, job, source) {
       // Pricing — always create a row so downstream scrapers (web services)
       // can UPDATE dealer cost without hitting the retail_price NOT NULL constraint.
       const priceBasis = sellBy === 'roll' ? 'per_sqyd' : sellBy === 'box' ? 'per_sqft' : 'per_unit';
-      // Store-standard retail = 1.65× cost, nickel-rounded (EF's vendor SRP runs
-      // ~1.9×, so we override it or rescrapes revert the reprice to the 1.65×
+      // Store-standard retail = 1.70× cost, nickel-rounded (EF's vendor SRP runs
+      // ~1.9×, so we override it or rescrapes revert the reprice to the 1.70×
       // standard). Super-cheap hard-surface goods get a $2.49/sqft floor so a
       // sub-$2 LVP isn't sold at a token price. Carpet is priced per SY off its
       // dealer cut/roll costs (all per-SY here — see the CARIND ×9 block above);
@@ -835,13 +835,13 @@ export async function run(pool, job, source) {
       if (sellBy === 'roll') {
         const cutBase = item.cut_cost || item.cost || 0;
         const rollBase = item.roll_cost || item.cut_cost || item.cost || 0;
-        if (cutBase > 0) efCutPrice = nickel(cutBase * 1.65);
-        if (rollBase > 0) efRollPrice = nickel(rollBase * 1.65);
-        efRetail = efCutPrice || (item.cost > 0 ? nickel(item.cost * 1.65) : (item.retail_price || 0));
+        if (cutBase > 0) efCutPrice = nickel(cutBase * 1.70);
+        if (rollBase > 0) efRollPrice = nickel(rollBase * 1.70);
+        efRetail = efCutPrice || (item.cost > 0 ? nickel(item.cost * 1.70) : (item.retail_price || 0));
       } else if (sellBy === 'box') {
-        efRetail = item.cost > 0 ? Math.max(nickel(item.cost * 1.65), LVP_FLOOR) : (item.retail_price || 0);
+        efRetail = item.cost > 0 ? Math.max(nickel(item.cost * 1.70), LVP_FLOOR) : (item.retail_price || 0);
       } else {
-        efRetail = item.cost > 0 ? nickel(item.cost * 1.65) : (item.retail_price || 0);
+        efRetail = item.cost > 0 ? nickel(item.cost * 1.70) : (item.retail_price || 0);
       }
       await upsertPricing(pool, skuId, {
         cost: item.cost || 0,

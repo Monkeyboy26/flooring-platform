@@ -4246,19 +4246,25 @@
     }
     const pricingRows = [];
     if (retailPrice) {
+      const TILE_SLUGS = ["tile", "backsplash-tile", "ceramic-tile", "commercial-tile", "fluted-tile", "large-format-tile", "pool-tile", "porcelain-tile", "talavera-tile", "terrazzo-tile", "wood-look-tile"];
+      const catSlug = product && product.category_slug || "";
+      const pb = mainSku && mainSku.price_basis || "";
+      const minMargin = catSlug === "mosaic-tile" && pb === "per_unit" ? 4.5 : catSlug === "mosaic-tile" || TILE_SLUGS.indexOf(catSlug) >= 0 ? 1.5 : 0.99;
+      const fallbackPct = (m) => m === 1.5 ? 11.765 : m === 1.4 ? 17.647 : m === 1.32 ? 22.353 : 0;
+      const tierPrice = (m) => costPrice > 0 ? Math.min(retailPrice, Math.max(costPrice * m, costPrice + minMargin)) : retailPrice * (1 - fallbackPct(m) / 100);
       const TRADE_TIERS = [
-        { label: "Retail \xB7 walk-in", pct: 0 },
-        { label: "Silver", pct: 9.091 },
-        { label: "Gold", pct: 15.152, highlight: true },
-        { label: "Platinum", pct: 21.212 }
+        { label: "Retail \xB7 walk-in", mult: null },
+        { label: "Silver", mult: 1.5 },
+        { label: "Gold", mult: 1.4, highlight: true },
+        { label: "Platinum", mult: 1.32 }
       ];
       TRADE_TIERS.forEach((t) => {
-        const price = retailPrice * (1 - t.pct / 100);
+        const price = t.mult == null ? retailPrice : tierPrice(t.mult);
         pricingRows.push({
           label: t.label,
-          mult: t.pct ? "\u2212" + t.pct + "%" : "list",
+          mult: t.mult ? t.mult + "\xD7 cost" : "list",
           price: "$" + price.toFixed(2),
-          margin: marginPct ? ((1 - (costPrice || 0) / price) * 100).toFixed(0) + "%" : "\u2014",
+          margin: price > 0 ? ((1 - (costPrice || 0) / price) * 100).toFixed(0) + "%" : "\u2014",
           highlight: t.highlight
         });
       });

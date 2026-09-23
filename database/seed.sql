@@ -441,12 +441,13 @@ ON CONFLICT DO NOTHING;
 -- Margin Tiers for Trade Pricing
 -- spend_threshold = minimum trailing 365-day product spend to reach the tier:
 -- Silver $0+, Gold $10,000+, Platinum $20,000+
--- Discounts off the 1.65x-cost retail: Silver 1.5x / Gold 1.4x / Platinum 1.3x cost
--- (9.091% / 15.152% / 21.212% off retail). See 2026-09-22-reprice-1.6x-to-1.65x.sql.
-INSERT INTO margin_tiers (name, discount_percent, spend_threshold, tier_level) VALUES
-('Silver', 9.091, 0, 0),
-('Gold', 15.152, 10000, 1),
-('Platinum', 21.212, 20000, 2);
+-- Cost-multiplier trade tiers (retail = 1.70x cost): Silver 1.50x / Gold 1.40x /
+-- Platinum 1.32x cost. cost_multiplier is the source of truth; discount_percent is the
+-- display/fallback (% off the 1.70x retail) for zero-cost rows. See lib/tierPrice.js.
+INSERT INTO margin_tiers (name, cost_multiplier, discount_percent, spend_threshold, tier_level) VALUES
+('Silver', 1.500, 11.765, 0, 0),
+('Gold', 1.400, 17.647, 10000, 1),
+('Platinum', 1.320, 22.353, 20000, 2);
 
 -- ==================== Extended Seed Data ====================
 -- 15 more products across multiple categories for richer filtering

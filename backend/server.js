@@ -36,6 +36,7 @@ import * as valorConnect from './lib/valorConnect.js';
 import { enrichItemsForNaming } from './lib/enrichItems.js';
 import { fullProductName, skuShapeFromLine } from './lib/productName.js';
 import { HIDDEN_PRICE_VENDOR_SQL, stripHiddenVendorPrices } from './lib/hiddenPrices.js';
+import { tradeTierPrice } from './lib/tierPrice.js';
 import QRCode from 'qrcode';
 import { s3, S3_BUCKET, uploadToS3, getPresignedUrl } from './lib/s3.js';
 import { docUpload, mediaUpload, importUpload, pricelistUpload, receiptUpload } from './lib/uploads.js';
@@ -534,6 +535,12 @@ app.get('/api/products', optionalTradeAuth, async (req, res) => {
         (SELECT pr.retail_locked FROM pricing pr
          JOIN skus s ON s.id = pr.sku_id
          WHERE s.product_id = p.id LIMIT 1) as retail_locked,
+        (SELECT pr.cost FROM pricing pr
+         JOIN skus s ON s.id = pr.sku_id
+         WHERE s.product_id = p.id LIMIT 1) as cost,
+        (SELECT pr.price_basis FROM pricing pr
+         JOIN skus s ON s.id = pr.sku_id
+         WHERE s.product_id = p.id LIMIT 1) as price_basis,
         (SELECT ma.url FROM media_assets ma
          WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id IS NULL THEN 0 ELSE 1 END, ma.sort_order LIMIT 1) as primary_image,
@@ -658,15 +665,14 @@ app.get('/api/products', optionalTradeAuth, async (req, res) => {
     const result = await pool.query(query, params);
 
     let products = result.rows;
-    if (req.tradeCustomer && req.tradeCustomer.discount_percent > 0) {
+    if (req.tradeCustomer) {
       products = products.map(p => {
         if (p.price) {
-          const retail = parseFloat(p.price);
-          return {
-            ...p,
-            trade_price: (retail * (1 - effTradeDiscount(req.tradeCustomer.discount_percent, p.retail_locked) / 100)).toFixed(2),
-            trade_tier: req.tradeCustomer.tier_name
-          };
+          const tp = tradeTierPrice({
+            cost: p.cost, retail: p.price, priceBasis: p.price_basis, categorySlug: p.category_slug,
+            costMultiplier: req.tradeCustomer.cost_multiplier, fallbackDiscountPct: req.tradeCustomer.discount_percent,
+            retailLocked: p.retail_locked });
+          if (tp != null) return { ...p, trade_price: tp.toFixed(2), trade_tier: req.tradeCustomer.tier_name };
         }
         return p;
       });
@@ -715,15 +721,15 @@ app.get('/api/products/:id', optionalTradeAuth, async (req, res) => {
     `, [id]);
 
     let skus = skusResult.rows;
-    if (req.tradeCustomer && req.tradeCustomer.discount_percent > 0) {
+    if (req.tradeCustomer) {
+      const catSlug = product.rows[0].category_slug;
       skus = skus.map(s => {
         if (s.retail_price) {
-          const retail = parseFloat(s.retail_price);
-          return {
-            ...s,
-            trade_price: (retail * (1 - effTradeDiscount(req.tradeCustomer.discount_percent, s.retail_locked) / 100)).toFixed(2),
-            trade_tier: req.tradeCustomer.tier_name
-          };
+          const tp = tradeTierPrice({
+            cost: s.cost, retail: s.retail_price, priceBasis: s.price_basis, categorySlug: catSlug,
+            costMultiplier: req.tradeCustomer.cost_multiplier, fallbackDiscountPct: req.tradeCustomer.discount_percent,
+            retailLocked: s.retail_locked });
+          if (tp != null) return { ...s, trade_price: tp.toFixed(2), trade_tier: req.tradeCustomer.tier_name };
         }
         return s;
       });
@@ -1027,7 +1033,7 @@ app.get('/api/storefront/featured', async (req, res) => {
         COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
-        pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price,
+        pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price, pr.cost,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
         COALESCE(si.url, pi.url, sli.url, sai.url, pai.url) as primary_image,
@@ -1100,7 +1106,7 @@ app.get('/api/storefront/featured', async (req, res) => {
         COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
-        pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price,
+        pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price, pr.cost,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
         COALESCE(si.url, pi.url, sli.url, sai.url, pai.url) as primary_image,
@@ -2752,7 +2758,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
-        pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price,
+        pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price, pr.cost,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
         COALESCE(si.url, pi.url, sli.url, sai.url, pai.url) as primary_image,
@@ -2914,14 +2920,14 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
     }
 
     // Apply trade pricing if authenticated
-    if (req.tradeCustomer && req.tradeCustomer.discount_percent > 0) {
+    if (req.tradeCustomer) {
       skus = skus.map(s => {
         if (s.retail_price) {
-          const retail = parseFloat(s.retail_price);
-          return {
-            ...s,
-            trade_price: (retail * (1 - effTradeDiscount(req.tradeCustomer.discount_percent, s.retail_locked) / 100)).toFixed(2)
-          };
+          const tp = tradeTierPrice({
+            cost: s.cost, retail: s.retail_price, priceBasis: s.price_basis, categorySlug: s.category_slug,
+            costMultiplier: req.tradeCustomer.cost_multiplier, fallbackDiscountPct: req.tradeCustomer.discount_percent,
+            retailLocked: s.retail_locked });
+          if (tp != null) return { ...s, trade_price: tp.toFixed(2) };
         }
         return s;
       });
@@ -3297,10 +3303,15 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
     sku.attributes = attrResult.rows;
 
     // Trade pricing
-    if (req.tradeCustomer && req.tradeCustomer.discount_percent > 0 && sku.retail_price) {
-      const retail = parseFloat(sku.retail_price);
-      sku.trade_price = (retail * (1 - effTradeDiscount(req.tradeCustomer.discount_percent, sku.retail_locked) / 100)).toFixed(2);
-      sku.trade_tier = req.tradeCustomer.tier_name;
+    if (req.tradeCustomer && sku.retail_price) {
+      const tp = tradeTierPrice({
+        cost: sku.cost, retail: sku.retail_price, priceBasis: sku.price_basis, categorySlug: sku.category_slug,
+        costMultiplier: req.tradeCustomer.cost_multiplier, fallbackDiscountPct: req.tradeCustomer.discount_percent,
+        retailLocked: sku.retail_locked });
+      if (tp != null) {
+        sku.trade_price = tp.toFixed(2);
+        sku.trade_tier = req.tradeCustomer.tier_name;
+      }
     }
 
     // Media: SKU-specific product photos including lifestyle/room scenes
@@ -10651,12 +10662,13 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       const skuResult = await client.query(`
         SELECT s.*, COALESCE(p.display_name, p.name) as product_name, p.collection, p.vendor_id,
           pr.retail_price, pr.retail_locked, pr.price_basis, pr.cost, pr.cut_price, pr.roll_price,
-          pr.cut_cost, pr.roll_cost,
+          pr.cut_cost, pr.roll_cost, c.slug as category_slug,
           pk.sqft_per_box, pk.weight_per_box_lbs, pk.roll_width_ft,
           sa_c.value as color, sa_sz.value as size
         FROM skus s
         JOIN products p ON p.id = s.product_id
         LEFT JOIN pricing pr ON pr.sku_id = s.id
+        LEFT JOIN categories c ON c.id = p.category_id
         LEFT JOIN packaging pk ON pk.sku_id = s.id
         LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = s.id
           AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
@@ -10682,19 +10694,30 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       const retailUnit = addPerPiece
         ? parseFloat(sku.retail_price || 0) * parseFloat(sku.sqft_per_box)
         : parseFloat(sku.retail_price || 0);
-      let tradeDiscount = 0;
+      let tradeDiscount = 0, tradeMult = null;
       if (order.trade_customer_id) {
         const tier = await client.query(`
-          SELECT COALESCE(mt.discount_percent, 0) AS discount_percent
+          SELECT COALESCE(mt.discount_percent, 0) AS discount_percent, mt.cost_multiplier
           FROM trade_customers tc
           LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
           WHERE tc.id = $1
         `, [order.trade_customer_id]);
-        tradeDiscount = tier.rows.length ? parseFloat(tier.rows[0].discount_percent) || 0 : 0;
+        if (tier.rows.length) {
+          tradeDiscount = parseFloat(tier.rows[0].discount_percent) || 0;
+          tradeMult = parseFloat(tier.rows[0].cost_multiplier) || null;
+        }
       }
-      unitPrice = tradeDiscount > 0
-        ? retailUnit * (1 - effTradeDiscount(tradeDiscount, sku.retail_locked) / 100)
-        : retailUnit;
+      if (order.trade_customer_id) {
+        // Trade price from the cost multiplier (per-basis), converted to the line unit.
+        const tradeBasis = tradeTierPrice({
+          cost: sku.cost, retail: sku.retail_price, priceBasis: sku.price_basis, categorySlug: sku.category_slug,
+          costMultiplier: tradeMult, fallbackDiscountPct: tradeDiscount, retailLocked: sku.retail_locked });
+        unitPrice = tradeBasis != null
+          ? (addPerPiece ? Math.round(tradeBasis * parseFloat(sku.sqft_per_box) * 100) / 100 : tradeBasis)
+          : retailUnit;
+      } else {
+        unitPrice = retailUnit;
+      }
       // Allow an explicit price override (e.g. change-order add-line editing).
       if (unit_price != null && unit_price !== '' && !isNaN(parseFloat(unit_price)) && parseFloat(unit_price) >= 0) {
         unitPrice = parseFloat(unit_price);
@@ -15269,10 +15292,11 @@ app.post('/api/trade/bulk-order', tradeAuth, async (req, res) => {
       const skuCode = item.sku || item.sku_code;
       const sku = await pool.query(`
         SELECT s.id, s.vendor_sku, s.internal_sku, p.id as product_id, COALESCE(p.display_name, p.name) as product_name, p.collection,
-          pr.retail_price, pr.retail_locked, pk.sqft_per_box, s.sell_by
+          pr.retail_price, pr.retail_locked, pr.cost, pr.price_basis, c.slug as category_slug, pk.sqft_per_box, s.sell_by
         FROM skus s
         JOIN products p ON p.id = s.product_id
         LEFT JOIN pricing pr ON pr.sku_id = s.id
+        LEFT JOIN categories c ON c.id = p.category_id
         LEFT JOIN packaging pk ON pk.sku_id = s.id
         WHERE s.internal_sku = $1 OR s.vendor_sku = $1
       `, [skuCode]);
@@ -15286,9 +15310,13 @@ app.post('/api/trade/bulk-order', tradeAuth, async (req, res) => {
       const qty = parseInt(item.qty || item.quantity) || 1;
       let price = parseFloat(s.retail_price) || 0;
 
-      // Apply trade discount (capped on HD-locked SKUs)
-      if (req.tradeCustomer.discount_percent > 0) {
-        price = price * (1 - effTradeDiscount(req.tradeCustomer.discount_percent, s.retail_locked) / 100);
+      // Trade price from the customer's cost multiplier (margin floors + retail cap).
+      if (req.tradeCustomer) {
+        const tp = tradeTierPrice({
+          cost: s.cost, retail: s.retail_price, priceBasis: s.price_basis, categorySlug: s.category_slug,
+          costMultiplier: req.tradeCustomer.cost_multiplier, fallbackDiscountPct: req.tradeCustomer.discount_percent,
+          retailLocked: s.retail_locked });
+        if (tp != null) price = tp;
       }
 
       validated.push({
@@ -19269,7 +19297,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
     // discount to catalog (SKU) line items — same rule as the storefront and
     // the RoF quote flow. Custom/one-off lines keep the rep-entered price.
     const tradeLookup = await client.query(`
-      SELECT tc.id, tc.tax_exempt, tc.status, COALESCE(mt.discount_percent, 0) AS discount_percent, mt.name AS tier_name
+      SELECT tc.id, tc.tax_exempt, tc.status, COALESCE(mt.discount_percent, 0) AS discount_percent, mt.cost_multiplier, mt.name AS tier_name
       FROM trade_customers tc
       LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
       WHERE LOWER(tc.email) = LOWER($1)
@@ -19277,6 +19305,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
     `, [customer_email]);
     const tradeCustomer = tradeLookup.rows[0] || null;
     const tradeDiscount = tradeCustomer ? parseFloat(tradeCustomer.discount_percent) || 0 : 0;
+    const tradeMult = tradeCustomer ? (parseFloat(tradeCustomer.cost_multiplier) || null) : null;
     const taxExempt = !!(tradeCustomer && tradeCustomer.status === 'approved' && tradeCustomer.tax_exempt);
 
     // Resolve items
@@ -19291,11 +19320,12 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         // SKU-based item
         const skuResult = await client.query(`
           SELECT s.id as sku_id, s.product_id, s.vendor_sku, s.variant_name, s.sell_by, s.is_sample,
-            COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id,
+            COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id, c.slug as category_slug,
             pr.retail_price, pr.retail_locked, pr.cost, pr.price_basis,
             pk.sqft_per_box
           FROM skus s
           JOIN products p ON p.id = s.product_id
+          LEFT JOIN categories c ON c.id = p.category_id
           LEFT JOIN pricing pr ON pr.sku_id = s.id
           LEFT JOIN packaging pk ON pk.sku_id = s.id
           WHERE s.id = $1 AND s.status = 'active'
@@ -19339,11 +19369,20 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         const overridePrice = item.unit_price != null && item.unit_price !== ''
           && !isNaN(parseFloat(item.unit_price)) && parseFloat(item.unit_price) >= 0
           ? parseFloat(item.unit_price) : null;
+        // Trade price from the cost multiplier (per-basis), converted to the line unit
+        // exactly as retailUnit is (per slab / per piece / per basis).
+        const tradeBasis = tradeCustomer
+          ? tradeTierPrice({ cost: sku.cost, retail: sku.retail_price, priceBasis: sku.price_basis,
+              categorySlug: sku.category_slug, costMultiplier: tradeMult, fallbackDiscountPct: tradeDiscount,
+              retailLocked: sku.retail_locked })
+          : null;
+        const tradeUnit = tradeBasis == null ? null
+          : (isPerSqftSlab ? Math.round(tradeBasis * slabSqft * 100) / 100
+             : isPerPiece ? Math.round(tradeBasis * sqftPerBox * 100) / 100
+             : tradeBasis);
         const unitPrice = overridePrice != null
           ? overridePrice
-          : (tradeDiscount > 0
-              ? retailUnit * (1 - effTradeDiscount(tradeDiscount, sku.retail_locked) / 100)
-              : retailUnit);
+          : (tradeUnit != null ? tradeUnit : retailUnit);
         // Honor a rep-edited vendor cost (order-flow cost cell); fall back to the
         // SKU cost. Stored per-basis (per sqft / sqyd / unit — or per slab for a
         // sized slab), matching what generatePurchaseOrders expects so it flows to
@@ -21173,12 +21212,13 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       const skuResult = await client.query(`
         SELECT s.*, COALESCE(p.display_name, p.name) as product_name, p.collection, p.vendor_id,
           pr.retail_price, pr.retail_locked, pr.price_basis, pr.cost, pr.cut_price, pr.roll_price,
-          pr.cut_cost, pr.roll_cost,
+          pr.cut_cost, pr.roll_cost, c.slug as category_slug,
           pk.sqft_per_box, pk.weight_per_box_lbs, pk.roll_width_ft,
           sa_c.value as color, sa_sz.value as size
         FROM skus s
         JOIN products p ON p.id = s.product_id
         LEFT JOIN pricing pr ON pr.sku_id = s.id
+        LEFT JOIN categories c ON c.id = p.category_id
         LEFT JOIN packaging pk ON pk.sku_id = s.id
         LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = s.id
           AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
@@ -21204,19 +21244,30 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       const retailUnit = addPerPiece
         ? parseFloat(sku.retail_price || 0) * parseFloat(sku.sqft_per_box)
         : parseFloat(sku.retail_price || 0);
-      let tradeDiscount = 0;
+      let tradeDiscount = 0, tradeMult = null;
       if (order.trade_customer_id) {
         const tier = await client.query(`
-          SELECT COALESCE(mt.discount_percent, 0) AS discount_percent
+          SELECT COALESCE(mt.discount_percent, 0) AS discount_percent, mt.cost_multiplier
           FROM trade_customers tc
           LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
           WHERE tc.id = $1
         `, [order.trade_customer_id]);
-        tradeDiscount = tier.rows.length ? parseFloat(tier.rows[0].discount_percent) || 0 : 0;
+        if (tier.rows.length) {
+          tradeDiscount = parseFloat(tier.rows[0].discount_percent) || 0;
+          tradeMult = parseFloat(tier.rows[0].cost_multiplier) || null;
+        }
       }
-      unitPrice = tradeDiscount > 0
-        ? retailUnit * (1 - effTradeDiscount(tradeDiscount, sku.retail_locked) / 100)
-        : retailUnit;
+      if (order.trade_customer_id) {
+        // Trade price from the cost multiplier (per-basis), converted to the line unit.
+        const tradeBasis = tradeTierPrice({
+          cost: sku.cost, retail: sku.retail_price, priceBasis: sku.price_basis, categorySlug: sku.category_slug,
+          costMultiplier: tradeMult, fallbackDiscountPct: tradeDiscount, retailLocked: sku.retail_locked });
+        unitPrice = tradeBasis != null
+          ? (addPerPiece ? Math.round(tradeBasis * parseFloat(sku.sqft_per_box) * 100) / 100 : tradeBasis)
+          : retailUnit;
+      } else {
+        unitPrice = retailUnit;
+      }
       // Allow an explicit price override (e.g. change-order add-line editing).
       if (unit_price != null && unit_price !== '' && !isNaN(parseFloat(unit_price)) && parseFloat(unit_price) >= 0) {
         unitPrice = parseFloat(unit_price);
@@ -23552,7 +23603,7 @@ app.get('/api/rep/skus/:skuId', repAuth, async (req, res) => {
         COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id, p.description_short,
         v.name as vendor_name, v.id as vendor_id,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
-        c.name as category_name,
+        c.name as category_name, c.slug as category_slug,
         pr.retail_price, pr.cost, pr.cut_cost, pr.roll_cost, pr.map_price, pr.price_basis,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.boxes_per_pallet,
         inv.qty_on_hand,
@@ -31467,11 +31518,11 @@ app.get('/api/admin/margin-tiers', staffAuth, requireRole('admin', 'manager'), a
 
 app.post('/api/admin/margin-tiers', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
-    const { name, discount_percent, spend_threshold } = req.body;
+    const { name, discount_percent, spend_threshold, cost_multiplier } = req.body;
     if (!name || discount_percent == null) return res.status(400).json({ error: 'Name and discount_percent are required' });
     const result = await pool.query(
-      'INSERT INTO margin_tiers (name, discount_percent, spend_threshold) VALUES ($1, $2, $3) RETURNING *',
-      [name.trim(), discount_percent, spend_threshold || 0]
+      'INSERT INTO margin_tiers (name, discount_percent, spend_threshold, cost_multiplier) VALUES ($1, $2, $3, $4) RETURNING *',
+      [name.trim(), discount_percent, spend_threshold || 0, cost_multiplier != null ? cost_multiplier : null]
     );
     res.json({ tier: result.rows[0] });
   } catch (err) {
@@ -31482,11 +31533,12 @@ app.post('/api/admin/margin-tiers', staffAuth, requireRole('admin', 'manager'), 
 
 app.put('/api/admin/margin-tiers/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
-    const { name, discount_percent, is_active, spend_threshold } = req.body;
+    const { name, discount_percent, is_active, spend_threshold, cost_multiplier } = req.body;
     const result = await pool.query(
       `UPDATE margin_tiers SET name = COALESCE($1, name), discount_percent = COALESCE($2, discount_percent),
-       is_active = COALESCE($3, is_active), spend_threshold = COALESCE($4, spend_threshold), updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING *`,
-      [name, discount_percent, is_active, spend_threshold, req.params.id]
+       is_active = COALESCE($3, is_active), spend_threshold = COALESCE($4, spend_threshold),
+       cost_multiplier = COALESCE($5, cost_multiplier), updated_at = CURRENT_TIMESTAMP WHERE id = $6 RETURNING *`,
+      [name, discount_percent, is_active, spend_threshold, cost_multiplier, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Tier not found' });
     res.json({ tier: result.rows[0] });

@@ -6350,23 +6350,33 @@
         titleNode = titleName || titleColl;
       }
 
-      // Pricing tiers \u2014 the real trade tier names + discounts (margin_tiers table:
-      // Silver 9.091% \u00b7 Gold 15.152% \u00b7 Platinum 21.212%), matching the catalog quick-view.
+      // Pricing tiers \u2014 cost-multiplier model (margin_tiers): Silver 1.50x / Gold
+      // 1.40x / Platinum 1.32x cost, floored at the category min margin (tile $1.50 /
+      // mosaic sheet $4.50 / else $0.99) and capped at retail \u2014 matches the API.
       const pricingRows = [];
       if (retailPrice) {
+        const TILE_SLUGS = ['tile','backsplash-tile','ceramic-tile','commercial-tile','fluted-tile','large-format-tile','pool-tile','porcelain-tile','talavera-tile','terrazzo-tile','wood-look-tile'];
+        const catSlug = (product && product.category_slug) || '';
+        const pb = (mainSku && mainSku.price_basis) || '';
+        const minMargin = (catSlug === 'mosaic-tile' && pb === 'per_unit') ? 4.50
+          : ((catSlug === 'mosaic-tile' || TILE_SLUGS.indexOf(catSlug) >= 0) ? 1.50 : 0.99);
+        const fallbackPct = (m) => m === 1.50 ? 11.765 : m === 1.40 ? 17.647 : m === 1.32 ? 22.353 : 0;
+        const tierPrice = (m) => (costPrice > 0)
+          ? Math.min(retailPrice, Math.max(costPrice * m, costPrice + minMargin))
+          : retailPrice * (1 - fallbackPct(m) / 100);
         const TRADE_TIERS = [
-          { label: 'Retail \u00b7 walk-in', pct: 0 },
-          { label: 'Silver', pct: 9.091 },
-          { label: 'Gold', pct: 15.152, highlight: true },
-          { label: 'Platinum', pct: 21.212 },
+          { label: 'Retail \u00b7 walk-in', mult: null },
+          { label: 'Silver', mult: 1.50 },
+          { label: 'Gold', mult: 1.40, highlight: true },
+          { label: 'Platinum', mult: 1.32 },
         ];
         TRADE_TIERS.forEach(t => {
-          const price = retailPrice * (1 - t.pct / 100);
+          const price = t.mult == null ? retailPrice : tierPrice(t.mult);
           pricingRows.push({
             label: t.label,
-            mult: t.pct ? '\u2212' + t.pct + '%' : 'list',
+            mult: t.mult ? t.mult + '\u00d7 cost' : 'list',
             price: '$' + price.toFixed(2),
-            margin: marginPct ? ((1 - (costPrice || 0) / price) * 100).toFixed(0) + '%' : '\u2014',
+            margin: price > 0 ? ((1 - (costPrice || 0) / price) * 100).toFixed(0) + '%' : '\u2014',
             highlight: t.highlight,
           });
         });

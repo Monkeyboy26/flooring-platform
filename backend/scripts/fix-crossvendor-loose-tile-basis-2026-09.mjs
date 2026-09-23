@@ -186,7 +186,7 @@ for (const c of bedFlip) {
 }
 for (const c of bedSheets) {
   await upsertPricing(pool, c.sku_id, {
-    cost: c.cost, retail_price: r2(c.cost * 1.65), price_basis: 'per_unit', map_price: c.map_price || null,
+    cost: c.cost, retail_price: r2(c.cost * 1.70), price_basis: 'per_unit', map_price: c.map_price || null,
   }, { coveringFloor: true });
 }
 await pool.query(`

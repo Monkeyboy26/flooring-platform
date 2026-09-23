@@ -40,7 +40,7 @@ let images = {};
 try { images = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'images.json'), 'utf8')); }
 catch { console.warn('! images.json not found — importing without photos'); }
 
-const RETAIL_MARKUP = 1.65;
+const RETAIL_MARKUP = 1.70;
 const keystone = (cost) => parseFloat((Math.round(cost * RETAIL_MARKUP / 0.05) * 0.05).toFixed(2));
 const slugify = (s) => s.toLowerCase().replace(/\([^)]*\)/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 const baseColorName = (name) => name.replace(/\s*\(Solid\)\s*$/, '').trim();

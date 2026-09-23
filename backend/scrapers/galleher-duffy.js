@@ -9,7 +9,7 @@
  * brand-filtered search page and parse the DOM (Product#, price, Company Stock).
  *
  * For each item matched to our SKU by vendor_sku (the Galleher item code):
- *   - cost → pricing.cost, retail recomputed at keystone x1.65 (retail_locked honored
+ *   - cost → pricing.cost, retail recomputed at keystone x1.70 (retail_locked honored
  *     by upsertPricing; $0.00 tiles skipped so we never wipe a real cost)
  *   - Company Stock → inventory_snapshots (warehouse 'galleher', fresh_until +24h)
  *
@@ -34,7 +34,7 @@ const BRAND_SEARCH = {
 };
 
 const normSku = (s) => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-const keystone = (cost) => parseFloat((Math.round(cost * 1.65 / 0.05) * 0.05).toFixed(2));
+const keystone = (cost) => parseFloat((Math.round(cost * 1.70 / 0.05) * 0.05).toFixed(2));
 
 // Parse the rendered search DOM → [{code, cost, unit, stock}]. Runs in the page.
 function parseInPage() {

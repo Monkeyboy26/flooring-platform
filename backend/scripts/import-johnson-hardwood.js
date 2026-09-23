@@ -541,10 +541,10 @@ async function main() {
       });
       if (sku.is_new) skusCreated++; else skusUpdated++;
 
-      // Pricing: cost = Preferred, retail = cost × 1.65 (rounded to nickel)
+      // Pricing: cost = Preferred, retail = cost × 1.70 (rounded to nickel)
       await upsertPricing(sku.id, {
         cost,
-        retail_price: (Math.round(cost * 1.65 / 0.05) * 0.05).toFixed(2),
+        retail_price: (Math.round(cost * 1.70 / 0.05) * 0.05).toFixed(2),
         price_basis: 'per_sqft',
       });
 

@@ -55,7 +55,7 @@ const ACCESSORY_PRODUCTS = ['Depth Markers', 'Hide 12" Skimmer Lid Kit', 'Pool T
 // mesh/sheet mosaic. Normalized (lowercased, whitespace collapsed).
 const FIELD_SIZES = new Set(['6', '6x6', '6x6 glossy solid']);
 
-const RETAIL_MARKUP = 1.65;
+const RETAIL_MARKUP = 1.70;
 const RETAIL_MIN_MARGIN = 0.99;
 const round2 = (v) => Math.round(Number(v) * 100) / 100;
 // Round DOWN to nearest .x9 (platform keystone rule, mirrors update-fujiwa).

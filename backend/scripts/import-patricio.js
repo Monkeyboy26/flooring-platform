@@ -180,7 +180,7 @@ async function main() {
       sku.is_new ? sNew++ : sUpd++;
 
       // pricing: cost from PDF; retail via base.js (keystone x1.6 -> nine-ending -> covering floor)
-      const retail = Math.round(s.cost * 1.65 * 100) / 100;
+      const retail = Math.round(s.cost * 1.70 * 100) / 100;
       await basePricing(pool, sku.id, { cost: s.cost, retail_price: retail, price_basis: 'per_unit' },
                         { coveringFloor: !!p.covering });
       priced++;

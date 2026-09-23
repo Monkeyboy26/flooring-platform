@@ -42,7 +42,7 @@ const ATTR = {
   plankLength: '3410336d-25b5-49b7-9fa0-ecb467f93b77',
 };
 
-const MARKUP = 1.65;
+const MARKUP = 1.70;
 
 // ─── Collection definitions from PDF ───
 // Each size group: { size, sizeLabel, sfPerBox, pcsPerBox, boxesPerPallet, cost, map, colors: { colorName: vendorSku } }

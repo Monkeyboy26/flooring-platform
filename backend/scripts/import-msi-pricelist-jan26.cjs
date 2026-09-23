@@ -180,7 +180,7 @@ async function run() {
     const costVal = parseFloat(entry.cost) || 0;
     let retailVal = parseFloat(entry.retail) || 0;
     if (retailVal <= 0 && costVal > 0) {
-      retailVal = Math.round(costVal * 1.65 / 0.05) * 0.05;
+      retailVal = Math.round(costVal * 1.70 / 0.05) * 0.05;
     }
 
     // Upsert pricing

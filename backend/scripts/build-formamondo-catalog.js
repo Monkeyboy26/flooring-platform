@@ -159,7 +159,7 @@ const COLLECTIONS = [
 // ---- helpers ----
 const slugify = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const round2 = (n) => Math.round(n * 100) / 100;
-const keystone = (cost) => round2(Math.round(cost * 1.65 / 0.05) * 0.05);
+const keystone = (cost) => round2(Math.round(cost * 1.70 / 0.05) * 0.05);
 
 function build() {
   const products = [];
@@ -198,7 +198,7 @@ function build() {
       notes: 'Imported large-format porcelain tile distributor (Carson, CA). House brand Forma Mondo. FOB Carson. Price list = MSRP; Roma cost = MSRP/2, retail = cost x1.6 keystone.',
     },
     brand: { name: 'Forma Mondo', code: 'FMO', website: 'https://formamondo.com' },
-    markup: 1.65,
+    markup: 1.70,
     products,
   };
 }

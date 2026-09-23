@@ -57,7 +57,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const INSTOCK = path.join(__dirname, '..', 'data', 'triwest-instock.json');
 const IMAGES_PATH = path.join(__dirname, '..', 'data', 'mizunara', 'images.json');
 
-const RETAIL_MARKUP = 1.65;
+const RETAIL_MARKUP = 1.70;
 
 // ---- Color-token → proper name (Japanese whisky-distillery names) ----
 const titleColor = (tok) =>

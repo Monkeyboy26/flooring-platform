@@ -87,7 +87,7 @@ export function createAuthMiddleware(pool) {
     try {
       const result = await pool.query(`
         SELECT ts.id as session_id, tc.id, tc.email, tc.company_name, tc.contact_name, tc.status,
-          mt.name as tier_name, mt.discount_percent
+          mt.name as tier_name, mt.discount_percent, mt.cost_multiplier
         FROM trade_sessions ts
         JOIN trade_customers tc ON tc.id = ts.trade_customer_id
         LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
@@ -103,7 +103,8 @@ export function createAuthMiddleware(pool) {
         company_name: result.rows[0].company_name,
         contact_name: result.rows[0].contact_name,
         tier_name: result.rows[0].tier_name,
-        discount_percent: parseFloat(result.rows[0].discount_percent) || 0
+        discount_percent: parseFloat(result.rows[0].discount_percent) || 0,
+        cost_multiplier: parseFloat(result.rows[0].cost_multiplier) || null
       };
       next();
     } catch (err) {
@@ -123,7 +124,7 @@ export function createAuthMiddleware(pool) {
     try {
       const result = await pool.query(`
         SELECT ts.id as session_id, tc.id, tc.email, tc.company_name, tc.contact_name, tc.status,
-          mt.name as tier_name, mt.discount_percent
+          mt.name as tier_name, mt.discount_percent, mt.cost_multiplier
         FROM trade_sessions ts
         JOIN trade_customers tc ON tc.id = ts.trade_customer_id
         LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
@@ -137,7 +138,8 @@ export function createAuthMiddleware(pool) {
           company_name: result.rows[0].company_name,
           contact_name: result.rows[0].contact_name,
           tier_name: result.rows[0].tier_name,
-          discount_percent: parseFloat(result.rows[0].discount_percent) || 0
+          discount_percent: parseFloat(result.rows[0].discount_percent) || 0,
+          cost_multiplier: parseFloat(result.rows[0].cost_multiplier) || null
         };
       } else {
         // Fall back to a linked retail session (they may hold only a customer token).
@@ -158,7 +160,7 @@ export function createAuthMiddleware(pool) {
     try {
       const r = await pool.query(`
         SELECT tc.id, tc.email, tc.company_name, tc.contact_name, tc.status,
-          mt.name as tier_name, mt.discount_percent
+          mt.name as tier_name, mt.discount_percent, mt.cost_multiplier
         FROM customer_sessions cs
         JOIN customers c ON c.id = cs.customer_id
         JOIN trade_customers tc ON tc.id = c.trade_customer_id
@@ -174,6 +176,7 @@ export function createAuthMiddleware(pool) {
         contact_name: r.rows[0].contact_name,
         tier_name: r.rows[0].tier_name,
         discount_percent: parseFloat(r.rows[0].discount_percent) || 0,
+        cost_multiplier: parseFloat(r.rows[0].cost_multiplier) || null,
         via: 'retail_link'
       };
     } catch (err) {

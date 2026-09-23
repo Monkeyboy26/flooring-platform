@@ -52,7 +52,7 @@ const ATTR = {
   Brand:    '4d2dd076-ea5c-4bf3-89fb-bc6fc2cefeda',
 };
 
-const RETAIL_MARKUP = 1.65;
+const RETAIL_MARKUP = 1.70;
 const RETAIL_MIN_MARGIN = 0.99;
 // Round DOWN to the nearest .x9 (see backfill-round-down-nine.mjs / base.js)
 const newNine = (v) => {

@@ -46,8 +46,8 @@ let images = {};
 try { images = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'images.json'), 'utf8')); }
 catch { console.warn('! images.json not found — importing without photos (run build-pink-images.js first)'); }
 
-const RETAIL_MARKUP = 1.65;
-// Nine-ended retail: cost x1.65 rounded to the nearest price ending in .x9 (store
+const RETAIL_MARKUP = 1.70;
+// Nine-ended retail: cost x1.70 rounded to the nearest price ending in .x9 (store
 // standard). e.g. 5.59 -> 8.944 -> 8.99; 4.99 -> 7.984 -> 7.99.
 const nineEnd = (v) => parseFloat((Math.round((v - 0.09) / 0.10) * 0.10 + 0.09).toFixed(2));
 const retailFor = (cost) => nineEnd(cost * RETAIL_MARKUP);

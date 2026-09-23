@@ -25,7 +25,7 @@ import { fetchEdiPriceMap } from '../scrapers/daltile-edi-overlay.js';
 import { deriveSheetSqft } from '../scrapers/base.js';
 
 const COMMIT = process.argv.includes('--commit');
-const KEYSTONE = 1.65;
+const KEYSTONE = 1.70;
 const nineEnding = (raw) => Math.round((Math.floor((raw - 0.09) / 0.10) * 0.10 + 0.09) * 100) / 100;
 
 const pool = new pg.Pool({

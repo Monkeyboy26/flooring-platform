@@ -1024,7 +1024,7 @@ async function importToDatabase(allItems) {
         // Prefer MAP as retail, then explicit retail, then 1.6× cost fallback
         const retail = mapVal
           || ((item.retail_price && item.retail_price !== item.cost) ? item.retail_price : null)
-          || Math.round(cost * 1.65 / 0.05) * 0.05;
+          || Math.round(cost * 1.70 / 0.05) * 0.05;
         await pool.query(`
           INSERT INTO pricing (sku_id, cost, retail_price, map_price, price_basis)
           VALUES ($1, $2, $3, $4, $5)

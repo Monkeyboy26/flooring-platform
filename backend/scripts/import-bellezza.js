@@ -24,7 +24,7 @@ const pool = new pg.Pool({
   password: 'postgres',
 });
 
-const RETAIL_MARKUP = 1.65;
+const RETAIL_MARKUP = 1.70;
 
 // ==================== Helpers ====================
 

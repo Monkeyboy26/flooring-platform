@@ -116,7 +116,7 @@ const catalog = {
       + 'costs + activate when the distributor price sheet arrives. Thickness split into separate SKUs. Slabs sell_by unit.',
   },
   brand: { name: 'Cambria', code: 'CAMB', website: 'https://www.cambriausa.com' },
-  markup: 1.65,
+  markup: 1.70,
   products,
 };
 

@@ -10,7 +10,7 @@ import { upsertProduct, upsertSku, upsertPricing, appendLog, addJobError } from 
  * Cushion).
  *
  * Data: data/bigd-newbrands.json (curated from the parsed sheet).
- * Rules: vendor = Big D Supply, cost = sheet price, retail = 1.65x nickel,
+ * Rules: vendor = Big D Supply, cost = sheet price, retail = 1.70x nickel,
  * brand rows auto-created, products land ACTIVE (owner publishes sheet-priced
  * stock immediately). Images are a follow-up pass (Lowe's carries the backer
  * boards + Roberts; manufacturer sites for the rest).
@@ -19,7 +19,7 @@ import { upsertProduct, upsertSku, upsertPricing, appendLog, addJobError } from 
  */
 
 const DATA_PATH = 'data/bigd-newbrands.json';
-const STANDARD_MARKUP = 1.65;
+const STANDARD_MARKUP = 1.70;
 const nickel = (n) => Math.round(n * STANDARD_MARKUP / 0.05) * 0.05;
 const money = (n) => Math.round(n * 100) / 100;
 

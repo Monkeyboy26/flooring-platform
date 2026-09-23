@@ -855,6 +855,10 @@ ALTER TABLE margin_tiers ADD COLUMN IF NOT EXISTS spend_threshold DECIMAL(12,2) 
 ALTER TABLE margin_tiers ADD COLUMN IF NOT EXISTS tier_level INTEGER DEFAULT 0;
 -- Widened so tier discounts like 21.875% store exactly (DECIMAL(5,2) would round to 21.88)
 ALTER TABLE margin_tiers ALTER COLUMN discount_percent TYPE DECIMAL(6,3);
+-- Cost-multiplier tier model (2026-09-22): tier price = cost × cost_multiplier (with
+-- category margin floors, capped at retail). Source of truth; discount_percent is a
+-- display/fallback for zero-cost rows. See lib/tierPrice.js.
+ALTER TABLE margin_tiers ADD COLUMN IF NOT EXISTS cost_multiplier NUMERIC(5,3);
 
 -- ==================== Orders Trade Enhancements ====================
 

@@ -870,7 +870,7 @@ const catalog = {
       + 'cost x1.6 keystone. FOB Anaheim. Office 1415 S. Vernon St, Anaheim CA 92805 / (714) 780-0999.',
   },
   brand: { name: 'Marblex', code: 'MX', website: 'https://marblexcorp.com' },
-  markup: 1.65,
+  markup: 1.70,
   products: fieldProducts,
   accessoryProducts,
 };

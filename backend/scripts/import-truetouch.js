@@ -44,7 +44,7 @@ const pool = new pg.Pool({
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const INSTOCK = path.join(__dirname, '..', 'data', 'triwest-instock.json');
-const RETAIL_MARKUP = 1.65;
+const RETAIL_MARKUP = 1.70;
 
 const TYPE2LABEL = {
   FSTN: 'Flush Stair Nose', QTR: 'Quarter Round', RED: 'Reducer',

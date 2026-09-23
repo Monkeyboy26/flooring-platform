@@ -42,7 +42,7 @@ const pool = new pg.Pool({
 });
 
 const MSI_BRAND = 'c00e0000-0000-0000-0000-000000000001'; // MSI Surfaces
-const RETAIL_MARKUP = 1.65;
+const RETAIL_MARKUP = 1.70;
 
 // ---------- naming / classification helpers ----------
 const titleCase = s => s.toLowerCase().replace(/\b([a-z])/g, (_, c) => c.toUpperCase());

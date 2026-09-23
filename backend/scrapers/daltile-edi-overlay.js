@@ -23,7 +23,7 @@ import { parse832, getFtpConfig } from './daltile-832.js';
 import { appendLog, deriveSheetSqft } from './base.js';
 
 const DAL_VENDOR_ID = '550e8400-e29b-41d4-a716-446655440003';
-const KEYSTONE = 1.65;
+const KEYSTONE = 1.70;
 // retail: round DOWN to nearest .x9 (platform nine-ending convention)
 const nineEnding = (raw) => Math.round((Math.floor((raw - 0.09) / 0.10) * 0.10 + 0.09) * 100) / 100;
 // Live outbox only — NOT the Archive (stale catalogs would override current prices,

@@ -38,7 +38,7 @@ import { runQualityAudit } from '../quality/runner.js';
 const { parse832 } = __test__;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DAL = '550e8400-e29b-41d4-a716-446655440003';
-const KEYSTONE = 1.65;
+const KEYSTONE = 1.70;
 const APPLY = process.argv.includes('--apply');
 // Only rows still carrying a stale cheap price are touched — anything at or above
 // this is treated as already fixed (keeps re-runs and future mapping drift safe).

@@ -53,7 +53,7 @@ def nearest_nine(v):
     return max(9, k * 10 + 9) / 100.0
 
 def retail_of(cost):
-    return round(nearest_nine(cost * 1.65), 2)
+    return round(nearest_nine(cost * 1.70), 2)
 
 # Stone display names, matched longest-code-first against the code remainder.
 STONE = [

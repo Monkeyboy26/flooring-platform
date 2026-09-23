@@ -796,7 +796,7 @@ async function importPricing(pool, items) {
       return Math.max(9, Math.floor((cents - 9) / 10) * 10 + 9) / 100;
     };
     const floorMin = (priceBasis === 'per_sqft' || priceBasis === 'sqft') ? item.price + 0.99 : 0;
-    let retailPrice = nineDown(Math.max(item.price * 1.65, floorMin));
+    let retailPrice = nineDown(Math.max(item.price * 1.70, floorMin));
     if (floorMin > 0 && retailPrice < floorMin - 1e-9) retailPrice = Math.round((retailPrice + 0.10) * 100) / 100;
     await pool.query(`
       INSERT INTO pricing (sku_id, cost, retail_price, price_basis)

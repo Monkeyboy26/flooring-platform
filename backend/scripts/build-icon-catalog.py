@@ -67,8 +67,8 @@ def nearest_nine(v):
 
 
 def retail_from_cost(cost):
-    # keystone 1.65x then charm-round to a 9-ending; covering floor never binds here
-    return round(nearest_nine(cost * 1.65), 2)
+    # keystone 1.70x then charm-round to a 9-ending; covering floor never binds here
+    return round(nearest_nine(cost * 1.70), 2)
 
 
 # ---------------- classification ----------------

@@ -29,7 +29,7 @@ import { __test__, findRemote832Files } from '../scrapers/daltile-832.js';
 const { parse832 } = __test__;
 
 const DAL = '550e8400-e29b-41d4-a716-446655440003';
-const KEYSTONE = 1.65;
+const KEYSTONE = 1.70;
 const APPLY = process.argv.includes('--apply');
 const round2 = (n) => Math.round(n * 100) / 100;
 

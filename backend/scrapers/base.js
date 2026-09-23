@@ -715,21 +715,21 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
 
   const { cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, map_price } = cleaned;
 
-  // Keystone reprice guard (2026-07, retuned 2026-09-22): the store's standard
-  // markup is retail = 1.65x cost. Scrapers/imports still hand us retail = ~2x cost
-  // (the legacy keystone), which would revert the reprice on every rescrape. Rewrite
-  // any incoming retail that sits at ~2x its cost to 1.65x cost (nickel-rounded).
+  // Keystone reprice guard (2026-07, retuned 2026-09-22 to 1.70x): the store's
+  // standard markup is retail = 1.70x cost. Scrapers/imports still hand us retail =
+  // ~2x cost (the legacy keystone), which would revert the reprice on every rescrape.
+  // Rewrite any incoming retail that sits at ~2x its cost to 1.70x cost (nickel-round).
   // Feeds priced at another ratio (MSRP, MAP, 2.5x, etc.) pass through untouched.
-  // Mirrors database/migrations/2026-09-22-reprice-1.6x-to-1.65x.sql (band 1.95–2.05).
+  // Mirrors database/migrations/2026-09-22-reprice-1.65x-to-1.70x.sql (band 1.95–2.05).
   // Callers that already emit store-standard retail (e.g. EF, which applies its
-  // own 1.65×/floor markup) pass opts.skipKeystoneReprice so an intentional
-  // floored price at a ~2× ratio isn't second-guessed back down to 1.65×.
+  // own 1.70×/floor markup) pass opts.skipKeystoneReprice so an intentional
+  // floored price at a ~2× ratio isn't second-guessed back down to 1.70×.
   const applyKeystone = (c, r) => {
     if (opts.skipKeystoneReprice) return r;
     const cn = c != null ? Number(c) : null;
     const rn = r != null ? Number(r) : null;
     if (cn && rn && cn > 0 && rn / cn >= 1.95 && rn / cn <= 2.05) {
-      return Math.round(cn * 1.65 / 0.05) * 0.05;
+      return Math.round(cn * 1.70 / 0.05) * 0.05;
     }
     return r;
   };

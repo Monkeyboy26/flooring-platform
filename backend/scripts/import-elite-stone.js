@@ -334,7 +334,7 @@ async function main() {
       });
       if (sku.is_new) skusCreated++; else skusUpdated++;
 
-      const retailPrice = +(prices[i] * 1.65).toFixed(2); // ~65% markup for slabs
+      const retailPrice = +(prices[i] * 1.70).toFixed(2); // ~65% markup for slabs
       await upsertPricing(sku.id, { cost: prices[i], retail_price: retailPrice });
 
       await setAttr(sku.id, 'color', name);
@@ -378,7 +378,7 @@ async function main() {
       });
       if (sku.is_new) skusCreated++; else skusUpdated++;
 
-      const retailPrice = +(prices[i] * 1.65).toFixed(2);
+      const retailPrice = +(prices[i] * 1.70).toFixed(2);
       await upsertPricing(sku.id, { cost: prices[i], retail_price: retailPrice });
 
       await setAttr(sku.id, 'color', name);
@@ -414,7 +414,7 @@ async function main() {
     });
     if (sku.is_new) skusCreated++; else skusUpdated++;
 
-    const retailPrice = +(cost * 1.65).toFixed(2);
+    const retailPrice = +(cost * 1.70).toFixed(2);
     await upsertPricing(sku.id, { cost, retail_price: retailPrice });
 
     await setAttr(sku.id, 'color', name);
@@ -454,7 +454,7 @@ async function main() {
       });
       if (sku.is_new) skusCreated++; else skusUpdated++;
 
-      const retailPrice = +(costs[i] * 1.65).toFixed(2);
+      const retailPrice = +(costs[i] * 1.70).toFixed(2);
       await upsertPricing(sku.id, { cost: costs[i], retail_price: retailPrice });
 
       await setAttr(sku.id, 'color', name);
@@ -499,7 +499,7 @@ async function main() {
     });
     if (sku.is_new) skusCreated++; else skusUpdated++;
 
-    const retailPrice = +(Math.round(cost * 1.65 / 0.05) * 0.05).toFixed(2); // keystone markup for sinks
+    const retailPrice = +(Math.round(cost * 1.70 / 0.05) * 0.05).toFixed(2); // keystone markup for sinks
     await upsertPricing(sku.id, { cost, retail_price: retailPrice });
 
     await setAttr(sku.id, 'sink_material', 'Stainless Steel');

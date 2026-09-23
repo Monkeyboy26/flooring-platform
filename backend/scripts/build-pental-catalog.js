@@ -109,7 +109,7 @@ const catalog = {
       + 'is brand-level (standard 2cm + 3cm gauges applied to every color) and SPLIT into separate SKUs. Slabs sell_by unit.',
   },
   brand: { name: 'PentalQuartz', code: 'PQ', website: 'https://arcsurfaces.com/quartz/pentalquartz/' },
-  markup: 1.65,
+  markup: 1.70,
   // brand-level documents attached as spec_pdf to every color
   brandPdfs: [
     'https://arcsurfaces.com/wp-content/uploads/2022/08/PQ-ARCHITECTURAL-SPECIFICATION.pdf',

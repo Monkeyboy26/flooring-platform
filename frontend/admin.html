@@ -9410,6 +9410,7 @@
       const [editTier, setEditTier] = useState(null);
       const [name, setName] = useState('');
       const [discountPercent, setDiscountPercent] = useState('');
+      const [costMultiplier, setCostMultiplier] = useState('');
       const [spendThreshold, setSpendThreshold] = useState('');
       const [saving, setSaving] = useState(false);
 
@@ -9425,6 +9426,7 @@
         setEditTier(null);
         setName('');
         setDiscountPercent('');
+        setCostMultiplier('');
         setSpendThreshold('');
         setShowForm(true);
       };
@@ -9433,6 +9435,7 @@
         setEditTier(tier);
         setName(tier.name);
         setDiscountPercent(tier.discount_percent);
+        setCostMultiplier(tier.cost_multiplier != null ? tier.cost_multiplier : '');
         setSpendThreshold(tier.spend_threshold != null ? tier.spend_threshold : '');
         setShowForm(true);
       };
@@ -9440,7 +9443,7 @@
       const handleSave = async () => {
         setSaving(true);
         try {
-          const payload = { name, discount_percent: parseFloat(discountPercent), spend_threshold: parseFloat(spendThreshold) || 0 };
+          const payload = { name, discount_percent: parseFloat(discountPercent), cost_multiplier: costMultiplier === '' ? null : parseFloat(costMultiplier), spend_threshold: parseFloat(spendThreshold) || 0 };
           if (editTier) {
             await adminFetch('/api/admin/margin-tiers/' + editTier.id, {
               method: 'PUT',
@@ -9487,8 +9490,12 @@
                   <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Silver" />
                 </div>
                 <div className="form-group" style={{ flex: 1 }}>
-                  <label>Discount %</label>
-                  <input type="number" step="0.01" min="0" max="100" value={discountPercent} onChange={e => setDiscountPercent(e.target.value)} placeholder="e.g. 12.5" />
+                  <label>× Cost (price driver)</label>
+                  <input type="number" step="0.01" min="1" value={costMultiplier} onChange={e => setCostMultiplier(e.target.value)} placeholder="e.g. 1.50" />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Discount % (fallback, no cost)</label>
+                  <input type="number" step="0.01" min="0" max="100" value={discountPercent} onChange={e => setDiscountPercent(e.target.value)} placeholder="e.g. 11.765" />
                 </div>
                 <div className="form-group" style={{ flex: 1 }}>
                   <label>Spend Threshold ($, trailing 12 mo)</label>
@@ -9509,23 +9516,25 @@
             <thead>
               <tr>
                 <th>Tier Name</th>
-                <th>Discount</th>
+                <th>× Cost</th>
+                <th>Discount (fallback)</th>
                 <th>Spend Threshold</th>
                 <th>Customers</th>
-                <th>Example ($10.00 retail)</th>
+                <th>Example ($5.00 cost)</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {tiers.length === 0 ? (
-                <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--stone-400)' }}>No margin tiers yet</td></tr>
+                <tr><td colSpan="7" style={{ textAlign: 'center', color: 'var(--stone-400)' }}>No margin tiers yet</td></tr>
               ) : tiers.map(t => (
                 <tr key={t.id}>
                   <td><strong>{t.name}</strong></td>
+                  <td>{t.cost_multiplier != null ? parseFloat(t.cost_multiplier) + '×' : '—'}</td>
                   <td>{parseFloat(t.discount_percent || 0)}%</td>
                   <td>${parseFloat(t.spend_threshold || 0).toLocaleString()}+</td>
                   <td>{t.customer_count}</td>
-                  <td>${(10 * (1 - parseFloat(t.discount_percent || 0) / 100)).toFixed(2)}</td>
+                  <td>{t.cost_multiplier != null ? '$' + (5 * parseFloat(t.cost_multiplier)).toFixed(2) : '$' + (10 * (1 - parseFloat(t.discount_percent || 0) / 100)).toFixed(2)}</td>
                   <td>
                     <button className="btn-link" onClick={() => openEdit(t)}>Edit</button>
                     <button className="btn-link btn-link-danger" onClick={() => handleDelete(t)} style={{ marginLeft: '0.5rem' }}>Delete</button>
