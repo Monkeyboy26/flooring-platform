@@ -6351,14 +6351,14 @@
       }
 
       // Pricing tiers \u2014 the real trade tier names + discounts (margin_tiers table:
-      // Silver 12.5% \u00b7 Gold 18.75% \u00b7 Platinum 21.875%), matching the catalog quick-view.
+      // Silver 9.091% \u00b7 Gold 15.152% \u00b7 Platinum 21.212%), matching the catalog quick-view.
       const pricingRows = [];
       if (retailPrice) {
         const TRADE_TIERS = [
           { label: 'Retail \u00b7 walk-in', pct: 0 },
-          { label: 'Silver', pct: 12.5 },
-          { label: 'Gold', pct: 18.75, highlight: true },
-          { label: 'Platinum', pct: 21.875 },
+          { label: 'Silver', pct: 9.091 },
+          { label: 'Gold', pct: 15.152, highlight: true },
+          { label: 'Platinum', pct: 21.212 },
         ];
         TRADE_TIERS.forEach(t => {
           const price = retailPrice * (1 - t.pct / 100);

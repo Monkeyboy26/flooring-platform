@@ -4248,9 +4248,9 @@
     if (retailPrice) {
       const TRADE_TIERS = [
         { label: "Retail \xB7 walk-in", pct: 0 },
-        { label: "Silver", pct: 12.5 },
-        { label: "Gold", pct: 18.75, highlight: true },
-        { label: "Platinum", pct: 21.875 }
+        { label: "Silver", pct: 9.091 },
+        { label: "Gold", pct: 15.152, highlight: true },
+        { label: "Platinum", pct: 21.212 }
       ];
       TRADE_TIERS.forEach((t) => {
         const price = retailPrice * (1 - t.pct / 100);
