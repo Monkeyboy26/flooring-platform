@@ -33648,6 +33648,27 @@ async function initScheduler() {
       console.log(`[Scheduler] Reaped ${ghosts.rows.length} ghost job(s) orphaned by restart`);
     }
 
+    // Same reconciliation for pipeline_runs. A restart orphans the in-flight
+    // pipeline but leaves its row 'running', which then PERMANENTLY blocks the
+    // vendor's next scheduled run via the already_running guard in runPipeline()
+    // (the scrape_jobs reap above only clears the child scraper row, not the
+    // parent pipeline). On a fresh process activePipelineRuns is empty, so any
+    // 'running' row past the grace window is a ghost. Cancel its dangling steps.
+    const ghostPipelines = await pool.query(`
+      UPDATE pipeline_runs SET status = 'failed', completed_at = CURRENT_TIMESTAMP,
+        error_message = 'Orphaned by API restart — the process running this pipeline is gone'
+      WHERE status = 'running' AND COALESCE(started_at, created_at) < NOW() - INTERVAL '10 minutes'
+      RETURNING id
+    `);
+    if (ghostPipelines.rows.length > 0) {
+      await pool.query(
+        `UPDATE pipeline_step_runs SET status = 'cancelled'
+         WHERE status IN ('running', 'pending') AND pipeline_run_id = ANY($1::uuid[])`,
+        [ghostPipelines.rows.map(r => r.id)]
+      );
+      console.log(`[Scheduler] Reaped ${ghostPipelines.rows.length} ghost pipeline run(s) orphaned by restart`);
+    }
+
     const result = await pool.query(
       'SELECT * FROM vendor_sources WHERE is_active = true AND schedule IS NOT NULL'
     );
