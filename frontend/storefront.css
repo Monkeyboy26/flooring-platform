@@ -2650,6 +2650,23 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 .collection-card-name { font-family: var(--font-heading); font-size: 1.5rem; font-weight: 400; margin-bottom: 0.25rem; }
 .collection-card-count { font-size: 0.8125rem; color: var(--stone-500); }
 
+/* ── BRANDS (/brands A–Z index + /brands/:slug landing) ── */
+.brand-index { columns: 4 230px; column-gap: 3.5rem; }
+.brand-index-group { break-inside: avoid; margin-bottom: 2.25rem; }
+.brand-index-letter { font-family: var(--font-heading); font-size: 1.75rem; font-weight: 400; color: var(--stone-900); margin: 0 0 0.6rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--stone-200); }
+.brand-index-list { list-style: none; margin: 0; padding: 0; }
+.brand-index-list li { margin: 0; }
+.brand-index-list a { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding: 0.35rem 0; color: var(--stone-700); text-decoration: none; transition: color 0.15s; }
+.brand-index-list a:hover { color: var(--gold-dark); }
+.brand-index-list a:hover .brand-index-name { text-decoration: underline; text-underline-offset: 3px; }
+.brand-index-name { font-size: 0.9375rem; line-height: 1.4; }
+.brand-index-count { font-size: 0.75rem; color: var(--stone-400); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.brand-detail .brand-intro { max-width: 70ch; color: var(--stone-700); font-size: 1.0625rem; line-height: 1.7; margin-bottom: 1.5rem; }
+.brand-detail .brand-intro p { margin: 0 0 1rem; }
+.brand-detail .brand-footer { max-width: 70ch; color: var(--stone-600); font-size: 0.9375rem; line-height: 1.7; margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--stone-200); }
+.brand-detail .brand-footer p { margin: 0 0 1rem; }
+@media (max-width: 640px) { .brand-index { columns: 2 140px; column-gap: 2rem; } .brand-index-letter { font-size: 1.5rem; } }
+
 /* ── WISHLIST ── */
 /* Wishlist heart: now part of .sku-card-hover-actions overlay (positioned via parent) */
 .wishlist-heart { position: relative; top: auto; right: auto; z-index: auto; background: var(--warm-bg); border: none; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--stone-400); transition: all 220ms; opacity: 1; box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
