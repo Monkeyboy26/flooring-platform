@@ -1650,15 +1650,7 @@
         repListNav.customers = displayCustomers.map((x) => x.id);
         navigate("customer-detail", c.id);
       } }, /* @__PURE__ */ React.createElement("div", { className: "cl-avatar" }, getInitials(name)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "cv-row-name" }, name), /* @__PURE__ */ React.createElement("div", { className: "cv-row-sub" }, tierLabel(c), " ", "\xB7", " ", c.city || "\u2014")), /* @__PURE__ */ React.createElement("div", { className: "cv-row-line" }, deriveLine(c)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "cv-row-ltvwrap" }, /* @__PURE__ */ React.createElement("span", { className: "cv-row-ltv" }, "$", ltv.toLocaleString(void 0, { maximumFractionDigits: 0 })), /* @__PURE__ */ React.createElement("span", { className: "cv-row-ord" }, c.order_count, " ord")), /* @__PURE__ */ React.createElement("div", { className: "cv-bar" }, /* @__PURE__ */ React.createElement("div", { className: "cv-bar-fill", style: { width: ltv / maxLtv * 100 + "%" } }))), /* @__PURE__ */ React.createElement("div", { className: "cv-row-last" }, /* @__PURE__ */ React.createElement("span", { className: "cv-row-lastdot", style: { color: lt.tone } }, "\u25CF", " ", lt.label), /* @__PURE__ */ React.createElement("span", { style: { font: '400 14px/1 "Cormorant Garamond", serif', color: "var(--brass-muted)" } }, "\u2192")));
-    }), displayCustomers.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "gs-empty", style: { padding: "40px 4px" } }, "No customers in this view"), /* @__PURE__ */ React.createElement("div", { className: "cv-roster-foot" }, /* @__PURE__ */ React.createElement("span", null, "Showing ", displayCustomers.length, " of ", activeView === "all" ? total : displayCustomers.length, " ", "\xB7", " sorted by ", sortCol === "spent" ? "LTV" : sortCol === "last_order" ? "activity" : sortCol === "orders" ? "orders" : "name"), accts > 0 && /* @__PURE__ */ React.createElement("span", null, "Avg ", compact(avgLtv), " ", "\xB7", " median ", medOrders, " order", medOrders !== 1 ? "s" : "")), totalPages > 1 && activeView === "all" && /* @__PURE__ */ React.createElement("div", { className: "ol-pagination" }, /* @__PURE__ */ React.createElement("span", { className: "ol-meta" }, limit, " per page"), /* @__PURE__ */ React.createElement("div", { className: "ol-page-btns" }, /* @__PURE__ */ React.createElement("button", { className: "ol-page-btn", disabled: page <= 1, onClick: () => setPage((p) => p - 1) }, "\u2190"), Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((p) => /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        key: p,
-        className: "ol-page-btn" + (page === p ? " active" : ""),
-        onClick: () => setPage(p)
-      },
-      p
-    )), /* @__PURE__ */ React.createElement("button", { className: "ol-page-btn", disabled: page >= totalPages, onClick: () => setPage((p) => p + 1) }, "\u2192")))), showInvite && /* @__PURE__ */ React.createElement(InviteToTradeModal, { onClose: () => setShowInvite(false) }));
+    }), displayCustomers.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "gs-empty", style: { padding: "40px 4px" } }, "No customers in this view"), /* @__PURE__ */ React.createElement("div", { className: "cv-roster-foot" }, /* @__PURE__ */ React.createElement("span", null, "Showing ", displayCustomers.length, " of ", activeView === "all" ? total : displayCustomers.length, " ", "\xB7", " sorted by ", sortCol === "spent" ? "LTV" : sortCol === "last_order" ? "activity" : sortCol === "orders" ? "orders" : "name"), accts > 0 && /* @__PURE__ */ React.createElement("span", null, "Avg ", compact(avgLtv), " ", "\xB7", " median ", medOrders, " order", medOrders !== 1 ? "s" : "")), totalPages > 1 && activeView === "all" && /* @__PURE__ */ React.createElement("div", { className: "ol-pagination" }, /* @__PURE__ */ React.createElement("span", { className: "ol-meta" }, limit, " per page"), /* @__PURE__ */ React.createElement(OlPageBtns, { page, totalPages, setPage }))), showInvite && /* @__PURE__ */ React.createElement(InviteToTradeModal, { onClose: () => setShowInvite(false) }));
   }
   function RepCustomerCreateView({ navigate }) {
     const [form, setForm] = useState({ first_name: "", middle_initial: "", last_name: "", email: "", phone: "", company_name: "", address_line1: "", address_line2: "", city: "", state: "", zip: "", sms_consent: false });
@@ -7821,6 +7813,10 @@
       label
     )));
   }
+  function OlPageBtns({ page, totalPages, setPage }) {
+    const wanted = totalPages <= 7 ? Array.from({ length: totalPages }, (_, i) => i + 1) : [.../* @__PURE__ */ new Set([1, page - 1, page, page + 1, totalPages])].filter((p) => p >= 1 && p <= totalPages).sort((a, b) => a - b);
+    return /* @__PURE__ */ React.createElement("div", { className: "ol-page-btns" }, /* @__PURE__ */ React.createElement("button", { className: "ol-page-btn", disabled: page <= 1, onClick: () => setPage((p) => p - 1) }, "\u2190"), wanted.map((p, i) => /* @__PURE__ */ React.createElement(React.Fragment, { key: p }, i > 0 && p - wanted[i - 1] > 1 && /* @__PURE__ */ React.createElement("span", { className: "ol-meta", style: { padding: "4px 6px" } }, "\xB7\xB7\xB7"), /* @__PURE__ */ React.createElement("button", { className: "ol-page-btn" + (page === p ? " active" : ""), onClick: () => setPage(p) }, p))), /* @__PURE__ */ React.createElement("button", { className: "ol-page-btn", disabled: page >= totalPages, onClick: () => setPage((p) => p + 1) }, "\u2192"));
+  }
   function RepSampleRequestsListView({ navigate }) {
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -8016,15 +8012,7 @@
         /* @__PURE__ */ React.createElement("span", { className: "ol-install" }, fmtDay(r.created_at)),
         /* @__PURE__ */ React.createElement("span", { style: { font: '400 14px/1 "Cormorant Garamond", serif', color: "var(--brass-muted)", textAlign: "right" } }, "\u2192")
       );
-    }), pageRequests.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { padding: "40px 22px", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { color: "var(--brass-muted)", font: "400 13px/1.4 Inter, sans-serif", marginBottom: 14 } }, "No sample requests match this view."), /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn", onClick: () => navigate("sample-create") }, "+ New sample request")), filtered.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "ol-footer" }, /* @__PURE__ */ React.createElement("span", null, "Showing ", Math.min((page - 1) * perPage + 1, filtered.length), "\u2013", Math.min(page * perPage, filtered.length), " of ", filtered.length), /* @__PURE__ */ React.createElement("span", null, totalSamples, " sample", totalSamples !== 1 ? "s" : "", " across ", filtered.length, " request", filtered.length !== 1 ? "s" : "")), totalPages > 1 && /* @__PURE__ */ React.createElement("div", { className: "ol-pagination" }, /* @__PURE__ */ React.createElement("span", { className: "ol-meta" }, "Page ", page, " of ", totalPages), /* @__PURE__ */ React.createElement("div", { className: "ol-page-btns" }, /* @__PURE__ */ React.createElement("button", { className: "ol-page-btn", disabled: page <= 1, onClick: () => setPage((p) => p - 1) }, "\u2190"), Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((p) => /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        key: p,
-        className: "ol-page-btn" + (page === p ? " active" : ""),
-        onClick: () => setPage(p)
-      },
-      p
-    )), totalPages > 5 && /* @__PURE__ */ React.createElement("span", { className: "ol-meta", style: { padding: "4px 6px" } }, "\xB7\xB7\xB7"), /* @__PURE__ */ React.createElement("button", { className: "ol-page-btn", disabled: page >= totalPages, onClick: () => setPage((p) => p + 1) }, "\u2192")))));
+    }), pageRequests.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { padding: "40px 22px", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { color: "var(--brass-muted)", font: "400 13px/1.4 Inter, sans-serif", marginBottom: 14 } }, "No sample requests match this view."), /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn", onClick: () => navigate("sample-create") }, "+ New sample request")), filtered.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "ol-footer" }, /* @__PURE__ */ React.createElement("span", null, "Showing ", Math.min((page - 1) * perPage + 1, filtered.length), "\u2013", Math.min(page * perPage, filtered.length), " of ", filtered.length), /* @__PURE__ */ React.createElement("span", null, totalSamples, " sample", totalSamples !== 1 ? "s" : "", " across ", filtered.length, " request", filtered.length !== 1 ? "s" : "")), totalPages > 1 && /* @__PURE__ */ React.createElement("div", { className: "ol-pagination" }, /* @__PURE__ */ React.createElement("span", { className: "ol-meta" }, "Page ", page, " of ", totalPages), /* @__PURE__ */ React.createElement(OlPageBtns, { page, totalPages, setPage }))));
   }
   function RepSampleRequestCreateView({ navigate }) {
     const [pickedCustomer, setPickedCustomer] = useState(null);
@@ -9292,15 +9280,7 @@
         /* @__PURE__ */ React.createElement("span", { className: "vl-age" }, getAge(v.created_at)),
         /* @__PURE__ */ React.createElement("span", { style: { font: '400 14px/1 "Cormorant Garamond", serif', color: "var(--brass-muted)", textAlign: "right" } }, "\u2192")
       );
-    }), pageVisits.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { padding: "40px 22px", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { color: "var(--brass-muted)", font: "400 13px/1.4 Inter, sans-serif", marginBottom: 14 } }, "No visits match this view."), /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn", onClick: () => navigate("visit-create") }, "+ New visit")), filteredVisits.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "ol-footer" }, /* @__PURE__ */ React.createElement("span", null, "Showing ", Math.min((page - 1) * perPage + 1, filteredVisits.length), "\u2013", Math.min(page * perPage, filteredVisits.length), " of ", filteredVisits.length), /* @__PURE__ */ React.createElement("span", null, filteredVisits.reduce((s, v) => s + (v.item_count || 0), 0), " items shared")), totalPages > 1 && /* @__PURE__ */ React.createElement("div", { className: "ol-pagination" }, /* @__PURE__ */ React.createElement("span", { className: "ol-meta" }, perPage, " per page"), /* @__PURE__ */ React.createElement("div", { className: "ol-page-btns" }, /* @__PURE__ */ React.createElement("button", { className: "ol-page-btn", disabled: page <= 1, onClick: () => setPage((p) => p - 1) }, "\u2190"), Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((p) => /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        key: p,
-        className: "ol-page-btn" + (page === p ? " active" : ""),
-        onClick: () => setPage(p)
-      },
-      p
-    )), /* @__PURE__ */ React.createElement("button", { className: "ol-page-btn", disabled: page >= totalPages, onClick: () => setPage((p) => p + 1) }, "\u2192")))));
+    }), pageVisits.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { padding: "40px 22px", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { color: "var(--brass-muted)", font: "400 13px/1.4 Inter, sans-serif", marginBottom: 14 } }, "No visits match this view."), /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn", onClick: () => navigate("visit-create") }, "+ New visit")), filteredVisits.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "ol-footer" }, /* @__PURE__ */ React.createElement("span", null, "Showing ", Math.min((page - 1) * perPage + 1, filteredVisits.length), "\u2013", Math.min(page * perPage, filteredVisits.length), " of ", filteredVisits.length), /* @__PURE__ */ React.createElement("span", null, filteredVisits.reduce((s, v) => s + (v.item_count || 0), 0), " items shared")), totalPages > 1 && /* @__PURE__ */ React.createElement("div", { className: "ol-pagination" }, /* @__PURE__ */ React.createElement("span", { className: "ol-meta" }, perPage, " per page"), /* @__PURE__ */ React.createElement(OlPageBtns, { page, totalPages, setPage }))));
   }
   function RepVisitBuilderView({ navigate }) {
     const [pickedCustomer, setPickedCustomer] = useState(null);
@@ -9772,6 +9752,8 @@
     const [activeView, setActiveView] = useState("all");
     const [scope, setScope] = useState("team");
     const [selected, setSelected] = useState(/* @__PURE__ */ new Set());
+    const [dateRange, setDateRange] = useState("");
+    const [sort, setSort] = useState({ key: "created_at", dir: "desc" });
     const [page, setPage] = useState(1);
     const perPage = 50;
     const searchTimer = useRef(null);
@@ -9797,8 +9779,23 @@
     };
     const filteredOrders = useMemo(() => {
       const fn = viewFilters[activeView] || (() => true);
-      return orders.filter(fn);
-    }, [orders, activeView]);
+      const cutoff = dateRange ? Date.now() - parseInt(dateRange, 10) * 864e5 : null;
+      return orders.filter((o) => fn(o) && (!cutoff || new Date(o.created_at).getTime() >= cutoff));
+    }, [orders, activeView, dateRange]);
+    const sortedOrders = useMemo(() => {
+      const { key, dir } = sort;
+      const mul = dir === "asc" ? 1 : -1;
+      const val = (o) => key === "total" ? parseFloat(o.total || 0) : key === "paid" ? parseFloat(o.total || 0) > 0 ? parseFloat(o.amount_paid || 0) / parseFloat(o.total) : 0 : key === "created_at" ? new Date(o.created_at).getTime() : o[key] || "";
+      return [...filteredOrders].sort((a, b) => {
+        const va = val(a), vb = val(b);
+        if (typeof va === "string") return mul * va.localeCompare(vb, void 0, { numeric: true, sensitivity: "base" });
+        return mul * (va - vb);
+      });
+    }, [filteredOrders, sort]);
+    const sortBy = (key) => {
+      setSort((s) => s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "created_at" || key === "total" || key === "paid" ? "desc" : "asc" });
+      setPage(1);
+    };
     const viewCounts = useMemo(() => ({
       "needs-me": orders.filter(viewFilters["needs-me"]).length,
       "fulfillment": orders.filter(viewFilters["fulfillment"]).length,
@@ -9807,7 +9804,7 @@
       "all": orders.length
     }), [orders]);
     const totalPages = Math.ceil(filteredOrders.length / perPage);
-    const pageOrders = filteredOrders.slice((page - 1) * perPage, page * perPage);
+    const pageOrders = sortedOrders.slice((page - 1) * perPage, page * perPage);
     const toggleSelect = (id) => {
       setSelected((prev) => {
         const next = new Set(prev);
@@ -9818,6 +9815,49 @@
     const toggleAll = () => {
       if (selected.size === pageOrders.length) setSelected(/* @__PURE__ */ new Set());
       else setSelected(new Set(pageOrders.map((o) => o.id)));
+    };
+    const exportCsv = (rows) => {
+      if (!rows.length) {
+        alert("No orders to export.");
+        return;
+      }
+      const cols = [
+        ["Order", (o) => o.order_number],
+        ["Placed", (o) => new Date(o.created_at).toLocaleDateString("en-US")],
+        ["Customer", (o) => o.customer_name],
+        ["Email", (o) => o.customer_email],
+        ["Phone", (o) => o.phone],
+        ["Company", (o) => o.company_name],
+        ["Job", (o) => o.job_name],
+        ["Type", (o) => o.trade_customer_id ? "Trade" : "Retail"],
+        ["Status", (o) => o.status],
+        ["Delivery", (o) => o.delivery_method],
+        ["Items", (o) => o.item_count],
+        ["Total", (o) => parseFloat(o.total || 0).toFixed(2)],
+        ["Paid", (o) => parseFloat(o.amount_paid || 0).toFixed(2)],
+        ["Balance", (o) => (parseFloat(o.total || 0) - parseFloat(o.amount_paid || 0)).toFixed(2)],
+        ["Rep", (o) => o.rep_name],
+        ["PO #", (o) => o.po_number],
+        ["Tracking", (o) => o.tracking_number]
+      ];
+      const esc = (v) => {
+        const s = v == null ? "" : String(v);
+        return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+      };
+      const csv = [cols.map((c) => c[0]).join(",")].concat(rows.map((o) => cols.map((c) => esc(c[1](o))).join(","))).join("\n");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+      a.download = "orders-" + (/* @__PURE__ */ new Date()).toISOString().substring(0, 10) + ".csv";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+    const emailSelected = () => {
+      const emails = [...new Set(orders.filter((o) => selected.has(o.id)).map((o) => (o.customer_email || "").trim().toLowerCase()).filter(Boolean))];
+      if (!emails.length) {
+        alert("None of the selected orders have a customer email.");
+        return;
+      }
+      window.location.href = "mailto:?bcc=" + emails.join(",");
     };
     const getPayStatus = (o) => {
       const paid = parseFloat(o.amount_paid || 0);
@@ -9854,7 +9894,7 @@
       { value: "delivered", label: "Delivered" },
       { value: "cancelled", label: "Cancelled" }
     ];
-    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "ol-header" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "ol-header-label" }, "\u25CF", " Orders ", "\xB7", " ", orders.filter((o) => o.status !== "delivered" && o.status !== "cancelled").length, " active ", "\xB7", " ", orders.length, " total"), /* @__PURE__ */ React.createElement("h1", null, /* @__PURE__ */ React.createElement("em", null, "Orders"))), /* @__PURE__ */ React.createElement("div", { className: "ol-header-actions" }, /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn" }, "Export"), /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn primary", onClick: () => navigate("order-create") }, "+ New order"))), /* @__PURE__ */ React.createElement("div", { className: "ol-saved-views" }, VIEWS.map((v) => /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "ol-header" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "ol-header-label" }, "\u25CF", " Orders ", "\xB7", " ", orders.filter((o) => o.status !== "delivered" && o.status !== "cancelled").length, " active ", "\xB7", " ", orders.length, " total"), /* @__PURE__ */ React.createElement("h1", null, /* @__PURE__ */ React.createElement("em", null, "Orders"))), /* @__PURE__ */ React.createElement("div", { className: "ol-header-actions" }, /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn", title: "Download the current view as CSV", onClick: () => exportCsv(sortedOrders) }, "Export"), /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn primary", onClick: () => navigate("order-create") }, "+ New order"))), /* @__PURE__ */ React.createElement("div", { className: "ol-saved-views" }, VIEWS.map((v) => /* @__PURE__ */ React.createElement(
       "button",
       {
         key: v.key,
@@ -9882,11 +9922,29 @@
         style: { appearance: "auto", paddingRight: 24 }
       },
       STATUSES.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.value, value: s.value }, s.value ? s.label : "Status: Any"))
-    ), statusFilter && /* @__PURE__ */ React.createElement("span", { className: "ol-chip active", onClick: () => setStatusFilter("") }, /* @__PURE__ */ React.createElement("span", { className: "ol-chip-label" }, "Status:"), " ", statusFilter, /* @__PURE__ */ React.createElement("span", { className: "ol-chip-remove" }, "\xD7"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement("span", { style: { position: "absolute", left: 10, top: 7, font: '400 14px/1 "Cormorant Garamond", serif', color: "var(--brass-muted)" } }, "\u2315"), /* @__PURE__ */ React.createElement(
+    ), statusFilter && /* @__PURE__ */ React.createElement("span", { className: "ol-chip active", onClick: () => setStatusFilter("") }, /* @__PURE__ */ React.createElement("span", { className: "ol-chip-label" }, "Status:"), " ", statusFilter, /* @__PURE__ */ React.createElement("span", { className: "ol-chip-remove" }, "\xD7")), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        className: "ol-chip",
+        value: dateRange,
+        onChange: (e) => {
+          setDateRange(e.target.value);
+          setPage(1);
+          setSelected(/* @__PURE__ */ new Set());
+        },
+        style: { appearance: "auto", paddingRight: 24 },
+        "aria-label": "Filter by date placed"
+      },
+      /* @__PURE__ */ React.createElement("option", { value: "" }, "Placed: Any time"),
+      /* @__PURE__ */ React.createElement("option", { value: "7" }, "Last 7 days"),
+      /* @__PURE__ */ React.createElement("option", { value: "30" }, "Last 30 days"),
+      /* @__PURE__ */ React.createElement("option", { value: "90" }, "Last 90 days"),
+      /* @__PURE__ */ React.createElement("option", { value: "365" }, "Last 12 months")
+    )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement("span", { style: { position: "absolute", left: 10, top: 7, font: '400 14px/1 "Cormorant Garamond", serif', color: "var(--brass-muted)" } }, "\u2315"), /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "ol-search-inline",
-        placeholder: "Search orders, customers",
+        placeholder: "Search orders, customers, jobs, PO #",
         "aria-label": "Search orders",
         value: search,
         onChange: (e) => {
@@ -9894,7 +9952,7 @@
           setPage(1);
         }
       }
-    )), /* @__PURE__ */ React.createElement("span", { className: "ol-meta" }, filteredOrders.length, " rows"))), selected.size > 0 && /* @__PURE__ */ React.createElement("div", { className: "ol-bulk-bar" }, /* @__PURE__ */ React.createElement("div", { className: "ol-bulk-label" }, "\u25CF", " ", selected.size, " order", selected.size !== 1 ? "s" : "", " selected"), /* @__PURE__ */ React.createElement("div", { className: "ol-bulk-actions" }, /* @__PURE__ */ React.createElement("button", { className: "ol-bulk-btn" }, "Email customers"), /* @__PURE__ */ React.createElement("button", { className: "ol-bulk-btn" }, "Export CSV"), /* @__PURE__ */ React.createElement("button", { className: "ol-bulk-btn", onClick: () => setSelected(/* @__PURE__ */ new Set()) }, "\u2715", " Clear"))), loading ? /* @__PURE__ */ React.createElement("div", { className: "gs-loading", style: { padding: "40px 22px", background: "#ece5d8", border: "0.5px solid rgba(28,25,23,0.14)" } }, "Loading orders", "\u2026") : /* @__PURE__ */ React.createElement("div", { className: "ol-table-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "ol-table-head" }, /* @__PURE__ */ React.createElement(
+    )), /* @__PURE__ */ React.createElement("span", { className: "ol-meta" }, filteredOrders.length, " rows"))), selected.size > 0 && /* @__PURE__ */ React.createElement("div", { className: "ol-bulk-bar" }, /* @__PURE__ */ React.createElement("div", { className: "ol-bulk-label" }, "\u25CF", " ", selected.size, " order", selected.size !== 1 ? "s" : "", " selected"), /* @__PURE__ */ React.createElement("div", { className: "ol-bulk-actions" }, /* @__PURE__ */ React.createElement("button", { className: "ol-bulk-btn", title: "Open a mail draft BCC'd to the selected customers", onClick: emailSelected }, "Email customers"), /* @__PURE__ */ React.createElement("button", { className: "ol-bulk-btn", title: "Download the selected orders as CSV", onClick: () => exportCsv(sortedOrders.filter((o) => selected.has(o.id))) }, "Export CSV"), /* @__PURE__ */ React.createElement("button", { className: "ol-bulk-btn", onClick: () => setSelected(/* @__PURE__ */ new Set()) }, "\u2715", " Clear"))), loading ? /* @__PURE__ */ React.createElement("div", { className: "gs-loading", style: { padding: "40px 22px", background: "#ece5d8", border: "0.5px solid rgba(28,25,23,0.14)" } }, "Loading orders", "\u2026") : /* @__PURE__ */ React.createElement("div", { className: "ol-table-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "ol-table-head" }, /* @__PURE__ */ React.createElement(
       "input",
       {
         type: "checkbox",
@@ -9903,7 +9961,33 @@
         checked: pageOrders.length > 0 && selected.size === pageOrders.length,
         onChange: toggleAll
       }
-    ), /* @__PURE__ */ React.createElement("span", null), /* @__PURE__ */ React.createElement("span", null, "Order ID"), /* @__PURE__ */ React.createElement("span", null, "Customer"), /* @__PURE__ */ React.createElement("span", { style: { textAlign: "right" } }, "Total"), /* @__PURE__ */ React.createElement("span", null, "Pay"), /* @__PURE__ */ React.createElement("span", null, "State ", "\xB7", " step"), /* @__PURE__ */ React.createElement("span", { style: { textAlign: "right" } }, "Age"), /* @__PURE__ */ React.createElement("span", null, "Date"), /* @__PURE__ */ React.createElement("span", null)), pageOrders.map((o) => {
+    ), /* @__PURE__ */ React.createElement("span", null), [
+      { k: "order_number", label: "Order ID" },
+      { k: "customer_name", label: "Customer" },
+      { k: "total", label: "Total", right: true },
+      { k: "paid", label: "Pay" },
+      { k: "status", label: "State \xB7 step" },
+      { k: "created_at", label: "Age", right: true },
+      { k: "created_at", label: "Date" }
+    ].map((c, i) => /* @__PURE__ */ React.createElement(
+      "span",
+      {
+        key: i,
+        role: "button",
+        tabIndex: 0,
+        title: "Sort by " + c.label.toLowerCase(),
+        onClick: () => sortBy(c.k),
+        onKeyDown: (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            sortBy(c.k);
+          }
+        },
+        style: { cursor: "pointer", userSelect: "none", textAlign: c.right ? "right" : void 0 }
+      },
+      c.label,
+      sort.key === c.k ? sort.dir === "asc" ? " \u2191" : " \u2193" : ""
+    )), /* @__PURE__ */ React.createElement("span", null)), pageOrders.map((o) => {
       const pay = getPayStatus(o);
       const isSel = selected.has(o.id);
       const statusLabel = o.status === "ready_for_pickup" ? "Ready for pickup" : o.delivery_method === "pickup" && o.status === "shipped" ? "Ready for pickup" : o.delivery_method === "pickup" && o.status === "delivered" ? "Picked up" : o.status === "pending" ? "Pending" : o.status === "confirmed" ? "Confirmed" : o.status === "shipped" ? "In transit" : o.status === "delivered" ? "Delivered" : o.status === "cancelled" ? "Cancelled" : o.status;
@@ -9917,13 +10001,13 @@
           role: "button",
           tabIndex: 0,
           onClick: () => {
-            repListNav.orders = filteredOrders.map((x) => x.id);
+            repListNav.orders = sortedOrders.map((x) => x.id);
             navigate("order-detail", o.id);
           },
           onKeyDown: (e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
-              repListNav.orders = filteredOrders.map((x) => x.id);
+              repListNav.orders = sortedOrders.map((x) => x.id);
               navigate("order-detail", o.id);
             }
           }
@@ -9950,15 +10034,7 @@
         /* @__PURE__ */ React.createElement("span", { className: "ol-install" }, new Date(o.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })),
         /* @__PURE__ */ React.createElement("span", { className: "ol-arrow" }, "\u2192")
       );
-    }), pageOrders.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { padding: "40px 22px", textAlign: "center", color: "var(--brass-muted)", font: "400 13px/1.4 Inter, sans-serif" } }, "No orders match this view."), filteredOrders.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "ol-footer" }, /* @__PURE__ */ React.createElement("span", null, "Showing ", Math.min((page - 1) * perPage + 1, filteredOrders.length), "\u2013", Math.min(page * perPage, filteredOrders.length), " of ", filteredOrders.length, " ", "\xB7", " ", perPage, " per page"), /* @__PURE__ */ React.createElement("span", null, "$", filteredOrders.reduce((s, o) => s + parseFloat(o.total || 0), 0).toLocaleString(void 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 }), " total value")), totalPages > 1 && /* @__PURE__ */ React.createElement("div", { className: "ol-pagination" }, /* @__PURE__ */ React.createElement("span", { className: "ol-meta" }, "Page ", page, " of ", totalPages), /* @__PURE__ */ React.createElement("div", { className: "ol-page-btns" }, /* @__PURE__ */ React.createElement("button", { className: "ol-page-btn", disabled: page <= 1, onClick: () => setPage((p) => p - 1) }, "\u2190"), Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((p) => /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        key: p,
-        className: "ol-page-btn" + (page === p ? " active" : ""),
-        onClick: () => setPage(p)
-      },
-      p
-    )), totalPages > 5 && /* @__PURE__ */ React.createElement("span", { className: "ol-meta", style: { padding: "4px 6px" } }, "\xB7\xB7\xB7"), /* @__PURE__ */ React.createElement("button", { className: "ol-page-btn", disabled: page >= totalPages, onClick: () => setPage((p) => p + 1) }, "\u2192")))));
+    }), pageOrders.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { padding: "40px 22px", textAlign: "center", color: "var(--brass-muted)", font: "400 13px/1.4 Inter, sans-serif" } }, "No orders match this view."), filteredOrders.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "ol-footer" }, /* @__PURE__ */ React.createElement("span", null, "Showing ", Math.min((page - 1) * perPage + 1, filteredOrders.length), "\u2013", Math.min(page * perPage, filteredOrders.length), " of ", filteredOrders.length, " ", "\xB7", " ", perPage, " per page"), /* @__PURE__ */ React.createElement("span", null, "$", filteredOrders.reduce((s, o) => s + parseFloat(o.total || 0), 0).toLocaleString(void 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 }), " total value")), totalPages > 1 && /* @__PURE__ */ React.createElement("div", { className: "ol-pagination" }, /* @__PURE__ */ React.createElement("span", { className: "ol-meta" }, "Page ", page, " of ", totalPages), /* @__PURE__ */ React.createElement(OlPageBtns, { page, totalPages, setPage }))));
   }
   function PODocumentViewer({ url, po, onClose, onSend, confirmBeforeSend = true }) {
     const iframeRef = React.useRef(null);
@@ -13651,15 +13727,7 @@
         /* @__PURE__ */ React.createElement("span", { className: "ql-age" }, getAge(q.created_at)),
         /* @__PURE__ */ React.createElement("span", { style: { font: '400 14px/1 "Cormorant Garamond", serif', color: "var(--brass-muted)", textAlign: "right" } }, "\u2192")
       );
-    }), pageQuotes.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { padding: "40px 22px", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { color: "var(--brass-muted)", font: "400 13px/1.4 Inter, sans-serif", marginBottom: 14 } }, "No quotes match this view."), /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn", onClick: () => navigate("quote-create") }, "+ New quote")), /* @__PURE__ */ React.createElement("div", { className: "ql-footer" }, /* @__PURE__ */ React.createElement("span", null, "Showing ", Math.min((page - 1) * perPage + 1, filteredQuotes.length), "\u2013", Math.min(page * perPage, filteredQuotes.length), " of ", filteredQuotes.length), /* @__PURE__ */ React.createElement("span", null, "$", pipelineTotal.toLocaleString(void 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 }), " in open pipeline")), totalPages > 1 && /* @__PURE__ */ React.createElement("div", { className: "ol-pagination" }, /* @__PURE__ */ React.createElement("span", { className: "ol-meta" }, perPage, " per page"), /* @__PURE__ */ React.createElement("div", { className: "ol-page-btns" }, /* @__PURE__ */ React.createElement("button", { className: "ol-page-btn", disabled: page <= 1, onClick: () => setPage((p) => p - 1) }, "\u2190"), Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((p) => /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        key: p,
-        className: "ol-page-btn" + (page === p ? " active" : ""),
-        onClick: () => setPage(p)
-      },
-      p
-    )), /* @__PURE__ */ React.createElement("button", { className: "ol-page-btn", disabled: page >= totalPages, onClick: () => setPage((p) => p + 1) }, "\u2192")))));
+    }), pageQuotes.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { padding: "40px 22px", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { color: "var(--brass-muted)", font: "400 13px/1.4 Inter, sans-serif", marginBottom: 14 } }, "No quotes match this view."), /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn", onClick: () => navigate("quote-create") }, "+ New quote")), /* @__PURE__ */ React.createElement("div", { className: "ql-footer" }, /* @__PURE__ */ React.createElement("span", null, "Showing ", Math.min((page - 1) * perPage + 1, filteredQuotes.length), "\u2013", Math.min(page * perPage, filteredQuotes.length), " of ", filteredQuotes.length), /* @__PURE__ */ React.createElement("span", null, "$", pipelineTotal.toLocaleString(void 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 }), " in open pipeline")), totalPages > 1 && /* @__PURE__ */ React.createElement("div", { className: "ol-pagination" }, /* @__PURE__ */ React.createElement("span", { className: "ol-meta" }, perPage, " per page"), /* @__PURE__ */ React.createElement(OlPageBtns, { page, totalPages, setPage }))));
   }
   function RepQuoteFormView({ navigate, editId, terminalRef, terminalStatus, connectReader, showCost }) {
     const [quote, setQuote] = useState(null);
@@ -15572,15 +15640,7 @@
         /* @__PURE__ */ React.createElement("span", { className: "ol-install" }, new Date(e.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })),
         /* @__PURE__ */ React.createElement("span", { className: "ol-arrow" }, "\u2192")
       );
-    }), pageEstimates.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { padding: "40px 22px", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { color: "var(--brass-muted)", font: "400 13px/1.4 Inter, sans-serif", marginBottom: 14 } }, "No estimates match this view."), /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn", onClick: () => navigate("estimate-create") }, "+ New estimate")), filteredEstimates.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "ol-footer" }, /* @__PURE__ */ React.createElement("span", null, "Showing ", Math.min((page - 1) * perPage + 1, filteredEstimates.length), "\u2013", Math.min(page * perPage, filteredEstimates.length), " of ", filteredEstimates.length, " ", "\xB7", " ", perPage, " per page"), /* @__PURE__ */ React.createElement("span", null, "$", filteredEstimates.reduce((s, e) => s + parseFloat(e.total || 0), 0).toLocaleString(void 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 }), " total value")), totalPages > 1 && /* @__PURE__ */ React.createElement("div", { className: "ol-pagination" }, /* @__PURE__ */ React.createElement("span", { className: "ol-meta" }, "Page ", page, " of ", totalPages), /* @__PURE__ */ React.createElement("div", { className: "ol-page-btns" }, /* @__PURE__ */ React.createElement("button", { className: "ol-page-btn", disabled: page <= 1, onClick: () => setPage((p) => p - 1) }, "\u2190"), Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((p) => /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        key: p,
-        className: "ol-page-btn" + (page === p ? " active" : ""),
-        onClick: () => setPage(p)
-      },
-      p
-    )), totalPages > 5 && /* @__PURE__ */ React.createElement("span", { className: "ol-meta", style: { padding: "4px 6px" } }, "\xB7\xB7\xB7"), /* @__PURE__ */ React.createElement("button", { className: "ol-page-btn", disabled: page >= totalPages, onClick: () => setPage((p) => p + 1) }, "\u2192")))));
+    }), pageEstimates.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { padding: "40px 22px", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { color: "var(--brass-muted)", font: "400 13px/1.4 Inter, sans-serif", marginBottom: 14 } }, "No estimates match this view."), /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn", onClick: () => navigate("estimate-create") }, "+ New estimate")), filteredEstimates.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "ol-footer" }, /* @__PURE__ */ React.createElement("span", null, "Showing ", Math.min((page - 1) * perPage + 1, filteredEstimates.length), "\u2013", Math.min(page * perPage, filteredEstimates.length), " of ", filteredEstimates.length, " ", "\xB7", " ", perPage, " per page"), /* @__PURE__ */ React.createElement("span", null, "$", filteredEstimates.reduce((s, e) => s + parseFloat(e.total || 0), 0).toLocaleString(void 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 }), " total value")), totalPages > 1 && /* @__PURE__ */ React.createElement("div", { className: "ol-pagination" }, /* @__PURE__ */ React.createElement("span", { className: "ol-meta" }, "Page ", page, " of ", totalPages), /* @__PURE__ */ React.createElement(OlPageBtns, { page, totalPages, setPage }))));
   }
   function RepEstimateFormView({ navigate, editId, showCost }) {
     const [estimate, setEstimate] = useState(null);

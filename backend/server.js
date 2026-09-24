@@ -19233,7 +19233,8 @@ app.get('/api/rep/orders', repAuth, async (req, res) => {
       idx++;
     }
     if (search) {
-      query += ` AND (o.customer_name ILIKE $${idx} OR o.customer_email ILIKE $${idx} OR o.order_number ILIKE $${idx})`;
+      query += ` AND (o.customer_name ILIKE $${idx} OR o.customer_email ILIKE $${idx} OR o.order_number ILIKE $${idx}
+        OR o.company_name ILIKE $${idx} OR o.job_name ILIKE $${idx} OR o.po_number ILIKE $${idx} OR o.phone ILIKE $${idx})`;
       params.push('%' + search + '%');
       idx++;
     }

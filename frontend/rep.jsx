@@ -2571,14 +2571,7 @@
               {totalPages > 1 && activeView === 'all' && (
                 <div className="ol-pagination">
                   <span className="ol-meta">{limit} per page</span>
-                  <div className="ol-page-btns">
-                    <button className="ol-page-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{'\u2190'}</button>
-                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(p => (
-                      <button key={p} className={'ol-page-btn' + (page === p ? ' active' : '')}
-                        onClick={() => setPage(p)}>{p}</button>
-                    ))}
-                    <button className="ol-page-btn" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{'\u2192'}</button>
-                  </div>
+                  <OlPageBtns page={page} totalPages={totalPages} setPage={setPage} />
                 </div>
               )}
             </div>
@@ -11750,6 +11743,26 @@
       );
     }
 
+    // Numbered page buttons shared by the rep list sections: first, last, and a
+    // window around the current page, with elided gaps — every page reachable.
+    function OlPageBtns({ page, totalPages, setPage }) {
+      const wanted = totalPages <= 7
+        ? Array.from({ length: totalPages }, (_, i) => i + 1)
+        : [...new Set([1, page - 1, page, page + 1, totalPages])].filter(p => p >= 1 && p <= totalPages).sort((a, b) => a - b);
+      return (
+        <div className="ol-page-btns">
+          <button className="ol-page-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{'←'}</button>
+          {wanted.map((p, i) => (
+            <React.Fragment key={p}>
+              {i > 0 && p - wanted[i - 1] > 1 && <span className="ol-meta" style={{ padding: '4px 6px' }}>{'···'}</span>}
+              <button className={'ol-page-btn' + (page === p ? ' active' : '')} onClick={() => setPage(p)}>{p}</button>
+            </React.Fragment>
+          ))}
+          <button className="ol-page-btn" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{'→'}</button>
+        </div>
+      );
+    }
+
     function RepSampleRequestsListView({ navigate }) {
       const [requests, setRequests] = useState([]);
       const [loading, setLoading] = useState(true);
@@ -12003,15 +12016,7 @@
               {totalPages > 1 && (
                 <div className="ol-pagination">
                   <span className="ol-meta">Page {page} of {totalPages}</span>
-                  <div className="ol-page-btns">
-                    <button className="ol-page-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{'\u2190'}</button>
-                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(p => (
-                      <button key={p} className={'ol-page-btn' + (page === p ? ' active' : '')}
-                        onClick={() => setPage(p)}>{p}</button>
-                    ))}
-                    {totalPages > 5 && <span className="ol-meta" style={{ padding: '4px 6px' }}>{'\u00b7\u00b7\u00b7'}</span>}
-                    <button className="ol-page-btn" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{'\u2192'}</button>
-                  </div>
+                  <OlPageBtns page={page} totalPages={totalPages} setPage={setPage} />
                 </div>
               )}
             </div>
@@ -14231,14 +14236,7 @@
               {totalPages > 1 && (
                 <div className="ol-pagination">
                   <span className="ol-meta">{perPage} per page</span>
-                  <div className="ol-page-btns">
-                    <button className="ol-page-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{'←'}</button>
-                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(p => (
-                      <button key={p} className={'ol-page-btn' + (page === p ? ' active' : '')}
-                        onClick={() => setPage(p)}>{p}</button>
-                    ))}
-                    <button className="ol-page-btn" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{'→'}</button>
-                  </div>
+                  <OlPageBtns page={page} totalPages={totalPages} setPage={setPage} />
                 </div>
               )}
             </div>
@@ -15299,6 +15297,8 @@
       const [activeView, setActiveView] = useState('all');
       const [scope, setScope] = useState('team');
       const [selected, setSelected] = useState(new Set());
+      const [dateRange, setDateRange] = useState(''); // days back as a string; '' = any time
+      const [sort, setSort] = useState({ key: 'created_at', dir: 'desc' });
       const [page, setPage] = useState(1);
       const perPage = 50;
       const searchTimer = useRef(null);
@@ -15328,8 +15328,32 @@
 
       const filteredOrders = useMemo(() => {
         const fn = viewFilters[activeView] || (() => true);
-        return orders.filter(fn);
-      }, [orders, activeView]);
+        const cutoff = dateRange ? Date.now() - parseInt(dateRange, 10) * 86400000 : null;
+        return orders.filter(o => fn(o) && (!cutoff || new Date(o.created_at).getTime() >= cutoff));
+      }, [orders, activeView, dateRange]);
+
+      // Column sort — applied after view/date filters, before pagination
+      const sortedOrders = useMemo(() => {
+        const { key, dir } = sort;
+        const mul = dir === 'asc' ? 1 : -1;
+        const val = o => key === 'total' ? parseFloat(o.total || 0)
+          : key === 'paid' ? (parseFloat(o.total || 0) > 0 ? parseFloat(o.amount_paid || 0) / parseFloat(o.total) : 0)
+          : key === 'created_at' ? new Date(o.created_at).getTime()
+          : (o[key] || '');
+        return [...filteredOrders].sort((a, b) => {
+          const va = val(a), vb = val(b);
+          if (typeof va === 'string') return mul * va.localeCompare(vb, undefined, { numeric: true, sensitivity: 'base' });
+          return mul * (va - vb);
+        });
+      }, [filteredOrders, sort]);
+
+      const sortBy = (key) => {
+        setSort(s => s.key === key
+          ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' }
+          // Money and dates read best newest/biggest first; text columns A→Z
+          : { key, dir: (key === 'created_at' || key === 'total' || key === 'paid') ? 'desc' : 'asc' });
+        setPage(1);
+      };
 
       // View counts from all orders (not filtered by status dropdown)
       const viewCounts = useMemo(() => ({
@@ -15341,7 +15365,7 @@
       }), [orders]);
 
       const totalPages = Math.ceil(filteredOrders.length / perPage);
-      const pageOrders = filteredOrders.slice((page - 1) * perPage, page * perPage);
+      const pageOrders = sortedOrders.slice((page - 1) * perPage, page * perPage);
 
       const toggleSelect = (id) => {
         setSelected(prev => {
@@ -15353,6 +15377,49 @@
       const toggleAll = () => {
         if (selected.size === pageOrders.length) setSelected(new Set());
         else setSelected(new Set(pageOrders.map(o => o.id)));
+      };
+
+      // Download orders as CSV — header Export = the whole current view, bulk = selection
+      const exportCsv = (rows) => {
+        if (!rows.length) { alert('No orders to export.'); return; }
+        const cols = [
+          ['Order', o => o.order_number],
+          ['Placed', o => new Date(o.created_at).toLocaleDateString('en-US')],
+          ['Customer', o => o.customer_name],
+          ['Email', o => o.customer_email],
+          ['Phone', o => o.phone],
+          ['Company', o => o.company_name],
+          ['Job', o => o.job_name],
+          ['Type', o => o.trade_customer_id ? 'Trade' : 'Retail'],
+          ['Status', o => o.status],
+          ['Delivery', o => o.delivery_method],
+          ['Items', o => o.item_count],
+          ['Total', o => parseFloat(o.total || 0).toFixed(2)],
+          ['Paid', o => parseFloat(o.amount_paid || 0).toFixed(2)],
+          ['Balance', o => (parseFloat(o.total || 0) - parseFloat(o.amount_paid || 0)).toFixed(2)],
+          ['Rep', o => o.rep_name],
+          ['PO #', o => o.po_number],
+          ['Tracking', o => o.tracking_number],
+        ];
+        const esc = v => { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+        const csv = [cols.map(c => c[0]).join(',')]
+          .concat(rows.map(o => cols.map(c => esc(c[1](o))).join(',')))
+          .join('\n');
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+        a.download = 'orders-' + new Date().toISOString().substring(0, 10) + '.csv';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      };
+
+      // Open a mail draft BCC'd to every distinct customer on the selected orders
+      const emailSelected = () => {
+        const emails = [...new Set(orders
+          .filter(o => selected.has(o.id))
+          .map(o => (o.customer_email || '').trim().toLowerCase())
+          .filter(Boolean))];
+        if (!emails.length) { alert('None of the selected orders have a customer email.'); return; }
+        window.location.href = 'mailto:?bcc=' + emails.join(',');
       };
 
       const getPayStatus = (o) => {
@@ -15406,7 +15473,7 @@
               <h1><em>Orders</em></h1>
             </div>
             <div className="ol-header-actions">
-              <button className="ol-header-btn">Export</button>
+              <button className="ol-header-btn" title="Download the current view as CSV" onClick={() => exportCsv(sortedOrders)}>Export</button>
               <button className="ol-header-btn primary" onClick={() => navigate('order-create')}>+ New order</button>
             </div>
           </div>
@@ -15439,11 +15506,20 @@
                   <span className="ol-chip-remove">{'\u00d7'}</span>
                 </span>
               )}
+              {/* Placed-date range chip */}
+              <select className="ol-chip" value={dateRange} onChange={e => { setDateRange(e.target.value); setPage(1); setSelected(new Set()); }}
+                style={{ appearance: 'auto', paddingRight: 24 }} aria-label="Filter by date placed">
+                <option value="">Placed: Any time</option>
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="90">Last 90 days</option>
+                <option value="365">Last 12 months</option>
+              </select>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <div style={{ position: 'relative' }}>
                 <span style={{ position: 'absolute', left: 10, top: 7, font: '400 14px/1 "Cormorant Garamond", serif', color: 'var(--brass-muted)' }}>{'\u2315'}</span>
-                <input className="ol-search-inline" placeholder="Search orders, customers" aria-label="Search orders"
+                <input className="ol-search-inline" placeholder="Search orders, customers, jobs, PO #" aria-label="Search orders"
                   value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
               </div>
               <span className="ol-meta">{filteredOrders.length} rows</span>
@@ -15455,8 +15531,8 @@
             <div className="ol-bulk-bar">
               <div className="ol-bulk-label">{'\u25CF'} {selected.size} order{selected.size !== 1 ? 's' : ''} selected</div>
               <div className="ol-bulk-actions">
-                <button className="ol-bulk-btn">Email customers</button>
-                <button className="ol-bulk-btn">Export CSV</button>
+                <button className="ol-bulk-btn" title="Open a mail draft BCC'd to the selected customers" onClick={emailSelected}>Email customers</button>
+                <button className="ol-bulk-btn" title="Download the selected orders as CSV" onClick={() => exportCsv(sortedOrders.filter(o => selected.has(o.id)))}>Export CSV</button>
                 <button className="ol-bulk-btn" onClick={() => setSelected(new Set())}>{'\u2715'} Clear</button>
               </div>
             </div>
@@ -15466,19 +15542,28 @@
             <div className="gs-loading" style={{ padding: '40px 22px', background: '#ece5d8', border: '0.5px solid rgba(28,25,23,0.14)' }}>Loading orders{'\u2026'}</div>
           ) : (
             <div className="ol-table-wrap">
-              {/* Table header */}
+              {/* Table header \u2014 click a column to sort */}
               <div className="ol-table-head">
                 <input type="checkbox" style={{ margin: 0 }} aria-label="Select all orders on page"
                   checked={pageOrders.length > 0 && selected.size === pageOrders.length}
                   onChange={toggleAll} />
                 <span />
-                <span>Order ID</span>
-                <span>Customer</span>
-                <span style={{ textAlign: 'right' }}>Total</span>
-                <span>Pay</span>
-                <span>State {'\u00b7'} step</span>
-                <span style={{ textAlign: 'right' }}>Age</span>
-                <span>Date</span>
+                {[
+                  { k: 'order_number', label: 'Order ID' },
+                  { k: 'customer_name', label: 'Customer' },
+                  { k: 'total', label: 'Total', right: true },
+                  { k: 'paid', label: 'Pay' },
+                  { k: 'status', label: 'State \u00b7 step' },
+                  { k: 'created_at', label: 'Age', right: true },
+                  { k: 'created_at', label: 'Date' },
+                ].map((c, i) => (
+                  <span key={i} role="button" tabIndex={0} title={'Sort by ' + c.label.toLowerCase()}
+                    onClick={() => sortBy(c.k)}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sortBy(c.k); } }}
+                    style={{ cursor: 'pointer', userSelect: 'none', textAlign: c.right ? 'right' : undefined }}>
+                    {c.label}{sort.key === c.k ? (sort.dir === 'asc' ? ' \u2191' : ' \u2193') : ''}
+                  </span>
+                ))}
                 <span />
               </div>
 
@@ -15511,8 +15596,8 @@
                 return (
                   <div key={o.id} className={'ol-table-row' + (isSel ? ' selected' : '')}
                     role="button" tabIndex={0}
-                    onClick={() => { repListNav.orders = filteredOrders.map(x => x.id); navigate('order-detail', o.id); }}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); repListNav.orders = filteredOrders.map(x => x.id); navigate('order-detail', o.id); } }}>
+                    onClick={() => { repListNav.orders = sortedOrders.map(x => x.id); navigate('order-detail', o.id); }}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); repListNav.orders = sortedOrders.map(x => x.id); navigate('order-detail', o.id); } }}>
                     <input type="checkbox" style={{ margin: 0 }} checked={isSel} aria-label={'Select order ' + o.order_number}
                       onChange={() => toggleSelect(o.id)} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} />
                     <span className="ol-flag" style={{ background: flagColor }} />
@@ -15558,15 +15643,7 @@
               {totalPages > 1 && (
                 <div className="ol-pagination">
                   <span className="ol-meta">Page {page} of {totalPages}</span>
-                  <div className="ol-page-btns">
-                    <button className="ol-page-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{'\u2190'}</button>
-                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(p => (
-                      <button key={p} className={'ol-page-btn' + (page === p ? ' active' : '')}
-                        onClick={() => setPage(p)}>{p}</button>
-                    ))}
-                    {totalPages > 5 && <span className="ol-meta" style={{ padding: '4px 6px' }}>{'\u00b7\u00b7\u00b7'}</span>}
-                    <button className="ol-page-btn" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{'\u2192'}</button>
-                  </div>
+                  <OlPageBtns page={page} totalPages={totalPages} setPage={setPage} />
                 </div>
               )}
             </div>
@@ -20587,14 +20664,7 @@
               {totalPages > 1 && (
                 <div className="ol-pagination">
                   <span className="ol-meta">{perPage} per page</span>
-                  <div className="ol-page-btns">
-                    <button className="ol-page-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{'\u2190'}</button>
-                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(p => (
-                      <button key={p} className={'ol-page-btn' + (page === p ? ' active' : '')}
-                        onClick={() => setPage(p)}>{p}</button>
-                    ))}
-                    <button className="ol-page-btn" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{'\u2192'}</button>
-                  </div>
+                  <OlPageBtns page={page} totalPages={totalPages} setPage={setPage} />
                 </div>
               )}
             </div>
@@ -23090,15 +23160,7 @@
               {totalPages > 1 && (
                 <div className="ol-pagination">
                   <span className="ol-meta">Page {page} of {totalPages}</span>
-                  <div className="ol-page-btns">
-                    <button className="ol-page-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>{'\u2190'}</button>
-                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(p => (
-                      <button key={p} className={'ol-page-btn' + (page === p ? ' active' : '')}
-                        onClick={() => setPage(p)}>{p}</button>
-                    ))}
-                    {totalPages > 5 && <span className="ol-meta" style={{ padding: '4px 6px' }}>{'\u00b7\u00b7\u00b7'}</span>}
-                    <button className="ol-page-btn" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>{'\u2192'}</button>
-                  </div>
+                  <OlPageBtns page={page} totalPages={totalPages} setPage={setPage} />
                 </div>
               )}
             </div>
