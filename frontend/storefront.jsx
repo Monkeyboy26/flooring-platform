@@ -12279,7 +12279,7 @@
                         <div className="co-delivery-card-cost">FREE</div>
                       </div>
                       <div className="co-delivery-card-sub">Roma Flooring Designs, 1440 S. State College Blvd.</div>
-                      <div className="co-delivery-card-eta">Ready in 3-5 business days</div>
+                      <div className="co-delivery-card-eta">Typically ready in 3-5 business days after stock verification</div>
                     </button>
                     <button type="button" className={`co-delivery-card ${!isPickup ? 'selected' : ''}`} onClick={() => { if (typeof setDeliveryMethod === 'function') setDeliveryMethod('shipping'); }}>
                       <div className="co-delivery-card-top">
@@ -12319,7 +12319,7 @@
                       <div className="co-pickup-label">Pickup location</div>
                       <div className="co-pickup-name">Roma Flooring Designs</div>
                       <div className="co-pickup-addr">1440 S. State College Blvd., Suite 6M, Anaheim, CA 92806</div>
-                      <div className="co-pickup-ready">Ready in 3-5 business days</div>
+                      <div className="co-pickup-ready">Typically ready in 3-5 business days after stock verification — we’ll notify you when your order is ready</div>
                     </div>
                   ) : editingAddress ? (
                     <div className="co-form-grid">
@@ -12684,7 +12684,7 @@
                 ? 'Your sample request has been received. We’ll email you when your samples ship — they typically arrive within 2-3 business days.'
                 : order && order.delivery_method !== 'pickup'
                 ? 'Your order has been placed. Freight is quoted and billed separately — we’ll email your shipping cost to approve before delivery.'
-                : 'Your order has been placed. We’ll email a confirmation; your materials will be ready for pickup in 3-5 business days.'}
+                : 'Your order has been placed. We’ll email a confirmation, verify stock, and notify you when your materials are ready for pickup — typically 3-5 business days.'}
             </div>
           </div>
 
@@ -12762,7 +12762,7 @@
               <div className="conf-detail-text" style={{ marginTop: '0.5rem' }}>
                 {sampleOnly
                   ? 'Samples ship separately within 2-3 business days'
-                  : order && order.delivery_method === 'pickup' ? 'Ready in 3-5 business days' : 'Freight quoted separately — we’ll email your shipping cost to approve'}
+                  : order && order.delivery_method === 'pickup' ? 'Typically ready in 3-5 business days after stock verification' : 'Freight quoted separately — we’ll email your shipping cost to approve'}
               </div>
             </div>
             <div className="conf-detail-card">
