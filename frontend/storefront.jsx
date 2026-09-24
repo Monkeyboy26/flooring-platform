@@ -11492,7 +11492,7 @@
       const requireTermsAccepted = () => {
         if (termsAcceptedRef.current) return true;
         setTermsError(true);
-        setError('Please accept the terms of service and privacy policy to place your order.');
+        setError('Please accept the terms of service, shipping & returns policy, and privacy policy to place your order.');
         return false;
       };
 
@@ -12530,7 +12530,8 @@
                   <input type="checkbox" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} />
                   <span>
                     I have read and agree to Roma's{' '}
-                    <a href="/terms" target="_blank" rel="noopener">terms of service</a> and{' '}
+                    <a href="/terms" target="_blank" rel="noopener">terms of service</a>,{' '}
+                    <a href="/returns" target="_blank" rel="noopener">shipping &amp; returns policy</a>, and{' '}
                     <a href="/privacy" target="_blank" rel="noopener">privacy policy</a>.
                   </span>
                 </label>
@@ -14018,7 +14019,7 @@
                                   <div style={{ marginBottom: '1rem' }}>
                                     <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.8125rem', color: 'var(--stone-600)', marginBottom: '0.625rem', cursor: 'pointer', lineHeight: 1.5 }}>
                                       <input type="checkbox" checked={!!quoteTerms[q.id]} onChange={e => setQuoteTerms(prev => ({ ...prev, [q.id]: e.target.checked }))} style={{ marginTop: 3, flexShrink: 0 }} />
-                                      <span>I have read and agree to Roma's <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+                                      <span>I have read and agree to Roma's <a href="/terms" target="_blank" rel="noopener">Terms of Service</a>, <a href="/returns" target="_blank" rel="noopener">Shipping &amp; Returns Policy</a>, and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span>
                                     </label>
                                     <button className="acct-btn" onClick={() => acceptAndPay(q.id)} disabled={acceptingQuote === q.id || !quoteTerms[q.id]}>
                                       {acceptingQuote === q.id ? 'Preparing secure checkout…' : 'Accept & pay ' + fmtMoney(q.total)}
