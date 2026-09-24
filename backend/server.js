@@ -16871,6 +16871,22 @@ app.post('/api/rep/trade-invites/send', repAuth, async (req, res) => {
 
 const OPEN_ORDER_STATUSES = ['pending', 'confirmed', 'ready_for_pickup', 'shipped'];
 
+// When an order changes hands, the rep-owned WORK tied to it must follow so the new
+// rep sees it and the old rep stops seeing it. Moves the order's still-OPEN follow-up
+// tasks and any ACTIVE-pipeline deal (lead/quoted/negotiating) to the new rep. Won/lost
+// deals and completed/dismissed tasks are historical and left with the original rep.
+// Commission is handled separately by recalculateCommission (it reassigns rep_id too).
+// Runs on the caller's queryable (pool or txn client).
+async function reassignOrderRepWork(queryable, orderId, newRepId) {
+  const tasks = await queryable.query(
+    "UPDATE rep_tasks SET rep_id = $1, updated_at = CURRENT_TIMESTAMP WHERE linked_order_id = $2 AND status = 'open' AND rep_id <> $1",
+    [newRepId, orderId]);
+  const deals = await queryable.query(
+    "UPDATE deals SET rep_id = $1, updated_at = CURRENT_TIMESTAMP WHERE linked_order_id = $2 AND stage IN ('lead','quoted','negotiating') AND rep_id <> $1",
+    [newRepId, orderId]);
+  return { tasksMoved: tasks.rowCount, dealsMoved: deals.rowCount };
+}
+
 // List active reps (for the reassign dropdown).
 app.get('/api/rep/reps', repAuth, requireRepManager, async (req, res) => {
   try {
@@ -16932,6 +16948,7 @@ app.put('/api/rep/customers/:id/assign-rep', repAuth, requireRepManager, async (
       for (const o of orderRes.rows) {
         try { await logOrderActivity(pool, o.id, 'rep_assigned', req.rep.id, manager, { rep_name: newRepName, via: 'customer_reassign' }); } catch {}
         try { await recalculateCommission(pool, o.id); } catch {}
+        try { await reassignOrderRepWork(pool, o.id, rep_id); } catch (e) { console.error('reassignOrderRepWork:', e.message); }
       }
       if (orderRes.rows.length) {
         createRepNotification(pool, rep_id, 'customer_assigned',
@@ -16975,8 +16992,9 @@ app.put('/api/rep/orders/:id/assign-rep', repAuth, requireRepManager, async (req
     await logOrderActivity(pool, id, 'rep_assigned', req.rep.id, manager, { rep_name: newRepName });
     res.json({ order: result.rows[0] });
 
-    // Move any existing commission row to the new rep along with the order.
+    // Move any existing commission row + open follow-up tasks + active deal to the new rep.
     setImmediate(() => recalculateCommission(pool, id));
+    setImmediate(() => reassignOrderRepWork(pool, id, rep_id).catch(e => console.error('reassignOrderRepWork:', e.message)));
     setImmediate(() => createRepNotification(pool, rep_id, 'order_assigned',
       'Order ' + result.rows[0].order_number + ' assigned to you',
       'You have been assigned to order ' + result.rows[0].order_number + '.',
