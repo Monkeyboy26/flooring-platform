@@ -353,12 +353,17 @@ export function validatePricing({ cost, retail_price, price_basis, cut_price, ro
     warnings.push(`Negative margin: cost $${parsedCost} > retail $${parsedRetail}`);
   }
 
-  // Validate price_basis enum (canonicalize legacy labels silently)
-  let cleanPriceBasis = price_basis || 'per_sqft';
-  cleanPriceBasis = LEGACY_PRICE_BASIS[cleanPriceBasis] || cleanPriceBasis;
-  if (!VALID_PRICE_BASIS.includes(cleanPriceBasis)) {
-    warnings.push(`Invalid price_basis "${cleanPriceBasis}", defaulting to "per_sqft"`);
-    cleanPriceBasis = 'per_sqft';
+  // Validate price_basis enum (canonicalize legacy labels silently). An OMITTED
+  // basis stays null: upsertPricing treats it as per_sqft for its floor logic but
+  // will NOT overwrite an existing row's basis with it (manual basis fixes — e.g.
+  // per-piece accessories retagged per_unit — must survive rescrapes).
+  let cleanPriceBasis = price_basis || null;
+  if (cleanPriceBasis != null) {
+    cleanPriceBasis = LEGACY_PRICE_BASIS[cleanPriceBasis] || cleanPriceBasis;
+    if (!VALID_PRICE_BASIS.includes(cleanPriceBasis)) {
+      warnings.push(`Invalid price_basis "${cleanPriceBasis}", defaulting to "per_sqft"`);
+      cleanPriceBasis = 'per_sqft';
+    }
   }
 
   return {
@@ -713,7 +718,10 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
     logValidationWarnings(pool, opts.jobId, sku_id, warnings).catch(() => {});
   }
 
-  const { cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, map_price } = cleaned;
+  const { cost, retail_price, price_basis: explicitBasis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, map_price } = cleaned;
+  // Effective basis for the floor/keystone logic below: an omitted basis behaves
+  // as the legacy per_sqft default. Only explicitBasis is ever WRITTEN on update.
+  const price_basis = explicitBasis || 'per_sqft';
 
   // Keystone reprice guard (2026-07, retuned 2026-09-22 to 1.70x): the store's
   // standard markup is retail = 1.70x cost. Scrapers/imports still hand us retail =
@@ -841,7 +849,7 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
   // UPDATE uses COALESCE($N, pricing.col) so NULL params preserve existing values.
   await pool.query(`
     INSERT INTO pricing (sku_id, cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, map_price)
-    VALUES ($1, COALESCE($2, 0::numeric), COALESCE($3, 0::numeric), $4, $5, $6, $7, $8, $9, $10)
+    VALUES ($1, COALESCE($2, 0::numeric), COALESCE($3, 0::numeric), COALESCE($4, 'per_sqft'), $5, $6, $7, $8, $9, $10)
     ON CONFLICT (sku_id) DO UPDATE SET
       cost = COALESCE($2, pricing.cost),
       -- retail_locked rows (e.g. Home-Depot-matched prices) keep their retail no
@@ -850,6 +858,10 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
       -- locked price to cost+$0.99 (as a 9-ending) when a cost increase would put
       -- it under. $11 is null for non-covering/cost-less upserts (price preserved).
       retail_price = CASE WHEN pricing.retail_locked THEN GREATEST(pricing.retail_price, COALESCE($11, 0::numeric)) ELSE COALESCE($3, pricing.retail_price) END,
+      -- Basis only moves when the caller EXPLICITLY sends one — the old
+      -- unconditional 'per_sqft' default re-clobbered manual basis fixes on every
+      -- rescrape (e.g. per-piece accessories retagged per_unit). New rows still
+      -- default to per_sqft via the INSERT COALESCE above.
       price_basis = COALESCE($4, pricing.price_basis),
       cut_price = COALESCE($5, pricing.cut_price),
       roll_price = COALESCE($6, pricing.roll_price),
@@ -857,7 +869,7 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
       roll_cost = COALESCE($8, pricing.roll_cost),
       roll_min_sqft = COALESCE($9, pricing.roll_min_sqft),
       map_price = COALESCE($10, pricing.map_price)
-  `, [sku_id, cost != null ? cost : null, retailAdj != null ? retailAdj : null, price_basis || 'per_sqft', cutAdj || null, rollAdj || null, cut_cost || null, roll_cost || null, roll_min_sqft || null, map_price || null, coveringFloorValue != null ? coveringFloorValue : null]);
+  `, [sku_id, cost != null ? cost : null, retailAdj != null ? retailAdj : null, explicitBasis || null, cutAdj || null, rollAdj || null, cut_cost || null, roll_cost || null, roll_min_sqft || null, map_price || null, coveringFloorValue != null ? coveringFloorValue : null]);
 }
 
 /**

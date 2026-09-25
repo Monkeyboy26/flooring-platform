@@ -13236,6 +13236,20 @@
         setPoUpdating(false);
       };
 
+      // Pull each line's cost back in sync with the SKU's CURRENT pricing. Draft POs
+      // resync automatically when a SKU cost is edited; this is the manual path for a PO
+      // that was already sent before the price changed. Rug/custom lines are left as-is.
+      const resyncPOCost = async () => {
+        if (!confirm('Resync this PO’s line costs from current SKU pricing? The vendor already has the sent PO — update it there too if needed.')) return;
+        setPoUpdating(true);
+        try {
+          const result = await adminFetch('/api/admin/purchase-orders/' + editId + '/resync-cost', { method: 'POST' });
+          alert(result.itemsUpdated + ' line(s) updated' + (result.itemsSkipped ? ', ' + result.itemsSkipped + ' skipped (rug/custom)' : '') + '.');
+          load();
+        } catch (err) { alert(err.message); }
+        setPoUpdating(false);
+      };
+
       const updatePOItemStatus = async (itemId, status) => {
         try {
           await adminFetch('/api/admin/purchase-orders/' + editId + '/items/' + itemId + '/status', {
@@ -13407,6 +13421,9 @@
                     )}
                     {po.status === 'acknowledged' && (
                       <button className="btn btn-primary" disabled={poUpdating} onClick={() => updatePOStatus('fulfilled')}>Mark Fulfilled</button>
+                    )}
+                    {['sent', 'acknowledged', 'fulfilled'].includes(po.status) && (
+                      <button className="btn btn-secondary" disabled={poUpdating} onClick={resyncPOCost}>Resync cost from pricing</button>
                     )}
                     {['sent', 'acknowledged'].includes(po.status) && (
                       <button className="stepper-revert-link" disabled={poUpdating} onClick={() => updatePOStatus('draft')}>Revert to Draft</button>

@@ -5664,6 +5664,144 @@ async function resolveRepRugItem(client, item) {
   };
 }
 
+// Compute a standard PO line's cost/qty/subtotal from order-line + pricing data.
+// Shared by PO generation and the draft-PO cost resync so the two can never drift.
+// Mirrors the per-basis conversion: per-piece stone, per-sqyd carpet, per-sqft, flat.
+// A rep cost override on the order line (item.line_cost, differing from the SKU base)
+// wins — matching generation semantics. Does NOT handle custom rug lines (LF-priced
+// via rugPoLine) or custom off-catalog lines. Inputs expected on `item`:
+//   sqft_per_box, price_tier, cut_cost, roll_cost, price_basis, sell_by,
+//   vendor_cost (SKU base cost), line_cost (order-line cost), unit_price,
+//   sqft_needed, qty (num_boxes).
+function computePoLineCost(item) {
+  const sqftPerBox = parseFloat(item.sqft_per_box || 1);
+  let vendorCost = parseFloat(item.vendor_cost);
+  if (item.price_tier === 'roll' && item.roll_cost != null) {
+    vendorCost = parseFloat(item.roll_cost);
+  } else if (item.price_tier === 'cut' && item.cut_cost != null) {
+    vendorCost = parseFloat(item.cut_cost);
+  }
+  const poPerPiece = isPerPieceSku(item.price_basis, item.sell_by, item.sqft_per_box);
+  const poBaseLineCost = poPerPiece ? parseFloat(item.vendor_cost || 0) * sqftPerBox : parseFloat(item.vendor_cost || 0);
+  if (item.line_cost != null && Math.abs(parseFloat(item.line_cost) - poBaseLineCost) > 0.005) {
+    vendorCost = parseFloat(item.line_cost);
+  } else if (poPerPiece) {
+    vendorCost = poBaseLineCost;   // rate → per-piece
+  }
+  let costPerBox, retailPerBox, itemSubtotal, poQty = item.qty;
+  if (poPerPiece) {
+    costPerBox = vendorCost;                              // per piece
+    retailPerBox = item.unit_price ? parseFloat(item.unit_price) : null;   // already per piece
+    itemSubtotal = costPerBox * item.qty;
+  } else if (item.price_basis === 'per_sqyd') {
+    // Carpet ordered by the SQUARE YARD — real sqyd is the PO qty. [[doc-material-units]]
+    const sqyd = Math.round((parseFloat(item.sqft_needed || 0) / 9) * 100) / 100;
+    costPerBox = vendorCost; // cost per sqyd
+    retailPerBox = item.unit_price ? parseFloat(item.unit_price) : null; // retail per sqyd
+    itemSubtotal = vendorCost * sqyd;
+    poQty = sqyd;
+  } else if (item.price_basis === 'per_sqft' || item.price_basis === 'sqft') {
+    costPerBox = vendorCost * sqftPerBox;
+    retailPerBox = item.unit_price ? parseFloat(item.unit_price) * sqftPerBox : null;
+    itemSubtotal = costPerBox * item.qty;
+  } else {
+    costPerBox = vendorCost;
+    retailPerBox = item.unit_price ? parseFloat(item.unit_price) : null;
+    itemSubtotal = costPerBox * item.qty;
+  }
+  return { poQty, costPerBox, retailPerBox, itemSubtotal };
+}
+
+// Join query returning the CURRENT cost inputs (live pricing + packaging + order line)
+// for a set of PO line items, in the shape computePoLineCost expects. Append a WHERE.
+const PO_ITEM_COST_INPUTS_SQL = `
+  SELECT poi.id AS po_item_id, poi.purchase_order_id, poi.order_item_id, poi.sku_id,
+         oi.num_boxes AS qty, oi.unit_price, oi.sqft_needed, oi.sell_by, oi.price_tier,
+         oi.is_custom_rug, oi.cost AS line_cost,
+         COALESCE(pr.cost, 0) AS vendor_cost,
+         COALESCE(pr.price_basis, 'per_sqft') AS price_basis,
+         pr.cut_cost, pr.roll_cost,
+         pk.sqft_per_box, pk.roll_width_ft
+  FROM purchase_order_items poi
+  JOIN purchase_orders po ON po.id = poi.purchase_order_id
+  LEFT JOIN order_items oi ON oi.id = poi.order_item_id
+  LEFT JOIN pricing pr ON pr.sku_id = poi.sku_id
+  LEFT JOIN packaging pk ON pk.sku_id = poi.sku_id`;
+
+// Recompute cost/qty/subtotal for the given PO line rows from CURRENT pricing, using the
+// exact same conversion as generation (computePoLineCost). Preserves original_cost (the
+// historical baseline). Custom rug lines and lines with no linked SKU / order line are
+// left untouched (their cost isn't SKU-pricing driven) and reported as skipped. After
+// updating lines, recomputes each affected PO's subtotal. Runs inside the caller's txn.
+async function recomputePoItemCosts(client, rows) {
+  const poIds = new Set();
+  let updated = 0; const skipped = [];
+  for (const item of rows) {
+    poIds.add(item.purchase_order_id);
+    if (item.is_custom_rug || item.order_item_id == null || item.sku_id == null) {
+      skipped.push(item.po_item_id); continue;
+    }
+    const { poQty, costPerBox, retailPerBox, itemSubtotal } = computePoLineCost(item);
+    await client.query(
+      `UPDATE purchase_order_items SET qty = $1, cost = $2, retail_price = $3, subtotal = $4 WHERE id = $5`,
+      [poQty, costPerBox.toFixed(2),
+       retailPerBox !== null ? retailPerBox.toFixed(2) : null,
+       itemSubtotal.toFixed(2), item.po_item_id]
+    );
+    updated++;
+  }
+  for (const poId of poIds) {
+    const t = await client.query(
+      'SELECT COALESCE(SUM(subtotal), 0) AS total FROM purchase_order_items WHERE purchase_order_id = $1', [poId]);
+    await client.query(
+      'UPDATE purchase_orders SET subtotal = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [parseFloat(t.rows[0].total).toFixed(2), poId]);
+  }
+  return { updated, skipped, poIds };
+}
+
+// Root-cause propagation: when a SKU's cost changes, pull the new cost through to every
+// DRAFT (un-sent) PO line for that SKU. Sent/acknowledged/received POs are left alone —
+// they were already transmitted to the vendor; surface them separately for manual review.
+async function refreshDraftPoCostsForSku(client, skuId) {
+  const rows = (await client.query(
+    PO_ITEM_COST_INPUTS_SQL + ` WHERE poi.sku_id = $1 AND po.status = 'draft'`, [skuId])).rows;
+  if (!rows.length) return { updated: 0, skipped: [], poIds: new Set() };
+  return recomputePoItemCosts(client, rows);
+}
+
+// A manual DRAFT-PO line cost edit is the vendor cost of record — marry it back to
+// the covering order line so margin/commission read the same number and a later
+// draft-PO rebuild (rebuildDraftPosForOrderItem) re-derives THIS cost instead of
+// silently reverting the edit. Scraped/automated pricing changes never flow through
+// here: this runs only from the staff/rep PO line editors (owner rule: scrapes must
+// not touch PO costs). Converts the per-PO-unit cost back to the order line's basis —
+// the inverse of computePoLineCost: per-sqft tile divides the per-box cost back to a
+// rate; per-piece stone, per-sqyd carpet, slabs and custom lines already share the
+// PO's unit. Rug lines are skipped (their order cost is the fabrication total, not
+// the vendor PO). Returns {orderId, ...} when it wrote a change, else null.
+async function writeBackPoLineCost(client, poItem, poUnitCost) {
+  if (!poItem.order_item_id) return null;
+  const r = await client.query(`
+    SELECT oi.order_id, oi.cost, oi.sku_id, oi.sell_by, oi.is_custom_rug, oi.product_name,
+           pr.price_basis, pk.sqft_per_box
+    FROM order_items oi
+    LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
+    LEFT JOIN packaging pk ON pk.sku_id = oi.sku_id
+    WHERE oi.id = $1`, [poItem.order_item_id]);
+  if (!r.rows.length || r.rows[0].is_custom_rug) return null;
+  const oi = r.rows[0];
+  let lineCost = poUnitCost;
+  if (oi.sku_id && (oi.price_basis === 'per_sqft' || oi.price_basis === 'sqft')
+      && !isPerPieceSku(oi.price_basis, oi.sell_by, oi.sqft_per_box)) {
+    lineCost = poUnitCost / (parseFloat(oi.sqft_per_box) || 1);
+  }
+  lineCost = Math.round(lineCost * 100) / 100;
+  if (oi.cost != null && Math.abs(parseFloat(oi.cost) - lineCost) < 0.005) return null;
+  await client.query('UPDATE order_items SET cost = $1 WHERE id = $2', [lineCost.toFixed(2), poItem.order_item_id]);
+  return { orderId: oi.order_id, productName: oi.product_name, previousCost: oi.cost, newCost: lineCost.toFixed(2) };
+}
+
 async function generatePurchaseOrders(orderId, client) {
   // Get order items with vendor and cost info (exclude samples and custom items)
   const itemsResult = await client.query(`
@@ -5781,40 +5919,7 @@ async function generatePurchaseOrders(orderId, client) {
     for (const item of group.items) {
       const rug = rugPoLine(item);
       if (rug) { poSubtotal += rug.subtotal; continue; }
-      const sqftPerBox = parseFloat(item.sqft_per_box || 1);
-      // For carpet items, use cut_cost or roll_cost based on price_tier
-      let vendorCost = parseFloat(item.vendor_cost);
-      if (item.price_tier === 'roll' && item.roll_cost != null) {
-        vendorCost = parseFloat(item.roll_cost);
-      } else if (item.price_tier === 'cut' && item.cut_cost != null) {
-        vendorCost = parseFloat(item.cut_cost);
-      }
-      // Per-piece stone: the ORDER LINE cost is per piece (rate × piece area) while
-      // sku cost stays a per-sqft rate — compare/convert accordingly. [[natural-stone-per-piece]]
-      const costPerPiece = isPerPieceSku(item.price_basis, item.sell_by, item.sqft_per_box);
-      // Rep-edited vendor cost wins. order_items.cost starts equal to the SKU cost,
-      // so a value differing from the SKU base cost (item.vendor_cost) means the rep
-      // overrode it on the order line — honor that on the PO. It is in the same
-      // per-basis unit as the SKU cost, so the conversion below still applies.
-      const baseLineCost = costPerPiece ? parseFloat(item.vendor_cost || 0) * sqftPerBox : parseFloat(item.vendor_cost || 0);
-      if (item.line_cost != null && Math.abs(parseFloat(item.line_cost) - baseLineCost) > 0.005) {
-        vendorCost = parseFloat(item.line_cost);
-      } else if (costPerPiece) {
-        vendorCost = baseLineCost;   // rate → per-piece
-      }
-      let itemCost;
-      if (item.price_basis === 'per_sqyd') {
-        // Carpet: cost/sqyd * sqyd (sqft_needed is in sqft, convert to sqyd)
-        const sqyd = parseFloat(item.sqft_needed || 0) / 9;
-        itemCost = vendorCost * sqyd;
-      } else if (costPerPiece) {
-        itemCost = vendorCost * item.qty;          // per-piece cost × pieces
-      } else if (item.price_basis === 'per_sqft' || item.price_basis === 'sqft') {
-        itemCost = vendorCost * sqftPerBox * item.qty;
-      } else {
-        itemCost = vendorCost * item.qty;
-      }
-      poSubtotal += itemCost;
+      poSubtotal += computePoLineCost(item).itemSubtotal;
     }
 
     // Create purchase order
@@ -5840,49 +5945,7 @@ async function generatePurchaseOrders(orderId, client) {
             rug.subtotal.toFixed(2), rug.note]);
         continue;
       }
-      const sqftPerBox = parseFloat(item.sqft_per_box || 1);
-      let vendorCost = parseFloat(item.vendor_cost);
-      if (item.price_tier === 'roll' && item.roll_cost != null) {
-        vendorCost = parseFloat(item.roll_cost);
-      } else if (item.price_tier === 'cut' && item.cut_cost != null) {
-        vendorCost = parseFloat(item.cut_cost);
-      }
-      // Per-piece stone: order-line cost/price are per piece; sku cost is a per-sqft
-      // rate — convert the baseline before the override comparison. [[natural-stone-per-piece]]
-      const poPerPiece = isPerPieceSku(item.price_basis, item.sell_by, item.sqft_per_box);
-      const poBaseLineCost = poPerPiece ? parseFloat(item.vendor_cost || 0) * sqftPerBox : parseFloat(item.vendor_cost || 0);
-      // Rep-edited vendor cost wins. order_items.cost starts equal to the SKU cost,
-      // so a value differing from the SKU base cost (item.vendor_cost) means the rep
-      // overrode it on the order line — honor that on the PO. It is in the same
-      // per-basis unit as the SKU cost, so the conversion below still applies.
-      if (item.line_cost != null && Math.abs(parseFloat(item.line_cost) - poBaseLineCost) > 0.005) {
-        vendorCost = parseFloat(item.line_cost);
-      } else if (poPerPiece) {
-        vendorCost = poBaseLineCost;   // rate → per-piece
-      }
-      let costPerBox, retailPerBox, itemSubtotal, poQty = item.qty;
-      if (poPerPiece) {
-        costPerBox = vendorCost;                              // per piece
-        retailPerBox = item.unit_price ? parseFloat(item.unit_price) : null;   // already per piece
-        itemSubtotal = costPerBox * item.qty;
-      } else if (item.price_basis === 'per_sqyd') {
-        // Carpet is ordered by the SQUARE YARD — store the real sqyd as the PO qty
-        // (not the num_boxes placeholder) so qty×cost = subtotal and the EDI 850 /
-        // vendor PO transmit the true yardage in SY. See [[doc-material-units]].
-        const sqyd = Math.round((parseFloat(item.sqft_needed || 0) / 9) * 100) / 100;
-        costPerBox = vendorCost; // cost per sqyd
-        retailPerBox = item.unit_price ? parseFloat(item.unit_price) : null; // retail per sqyd
-        itemSubtotal = vendorCost * sqyd;
-        poQty = sqyd;
-      } else if (item.price_basis === 'per_sqft' || item.price_basis === 'sqft') {
-        costPerBox = vendorCost * sqftPerBox;
-        retailPerBox = item.unit_price ? parseFloat(item.unit_price) * sqftPerBox : null;
-        itemSubtotal = costPerBox * item.qty;
-      } else {
-        costPerBox = vendorCost;
-        retailPerBox = item.unit_price ? parseFloat(item.unit_price) : null;
-        itemSubtotal = costPerBox * item.qty;
-      }
+      const { poQty, costPerBox, retailPerBox, itemSubtotal } = computePoLineCost(item);
       await client.query(`
         INSERT INTO purchase_order_items
           (purchase_order_id, order_item_id, sku_id, product_name, vendor_sku, description, qty, sell_by, cost, original_cost, retail_price, subtotal)
@@ -8741,6 +8804,23 @@ app.put('/api/admin/skus/:id', staffAuth, requireRole('admin', 'manager'), async
       `, [id, cost, retail_price, price_basis, cut_price || null, roll_price || null, cut_cost || null, roll_cost || null, roll_min_sqft || null]);
     }
 
+    // Propagate a cost change to any un-sent (draft) PO lines for this SKU so their
+    // frozen cost snapshot tracks the new price. Sent/acknowledged/received POs were
+    // already transmitted to the vendor — leave them, but surface them so the admin can
+    // decide whether to manually resync (POST /purchase-orders/:id/resync-cost).
+    let poSync = null;
+    if (cost != null) {
+      const draftSync = await refreshDraftPoCostsForSku(client, id);
+      const sentPOs = (await client.query(`
+        SELECT DISTINCT po.id, po.po_number, po.status, v.name AS vendor_name
+        FROM purchase_order_items poi
+        JOIN purchase_orders po ON po.id = poi.purchase_order_id
+        JOIN vendors v ON v.id = po.vendor_id
+        WHERE poi.sku_id = $1 AND po.status NOT IN ('draft', 'cancelled')
+      `, [id])).rows;
+      poSync = { draftItemsUpdated: draftSync.updated, draftPOsUpdated: draftSync.poIds.size, sentPOs };
+    }
+
     await client.query('COMMIT');
 
     const full = await pool.query(`
@@ -8754,7 +8834,7 @@ app.put('/api/admin/skus/:id', staffAuth, requireRole('admin', 'manager'), async
 
     if (!full.rows.length) return res.status(404).json({ error: 'SKU not found' });
     clearSearchCaches();
-    res.json({ sku: full.rows[0] });
+    res.json({ sku: full.rows[0], poSync });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -25218,7 +25298,21 @@ app.put('/api/rep/purchase-orders/:poId/items/:itemId', repAuth, async (req, res
       [parseFloat(totals.rows[0].total).toFixed(2), poId]
     );
 
+    // Marry the edited cost back onto the covering order line (cost of record).
+    let costSync = null;
+    if (cost != null) {
+      costSync = await writeBackPoLineCost(client, item.rows[0], newCost);
+      if (costSync) {
+        await logOrderActivity(client, costSync.orderId, 'cost_updated', req.rep.id,
+          req.rep.first_name + ' ' + req.rep.last_name,
+          { product_name: costSync.productName, previous_cost: costSync.previousCost,
+            new_cost: costSync.newCost, source: 'po_line_edit', po_number: po.rows[0].po_number });
+      }
+    }
+
     await client.query('COMMIT');
+    // Commission derives from PO line subtotals — refresh it after any line change.
+    if (po.rows[0].order_id) setImmediate(() => recalculateCommission(pool, po.rows[0].order_id));
     res.json({ success: true });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -31383,8 +31477,52 @@ app.put('/api/admin/purchase-orders/:poId/items/:itemId', staffAuth, requireRole
       [parseFloat(totals.rows[0].total).toFixed(2), poId]
     );
 
+    // Marry the edited cost back onto the covering order line (cost of record).
+    let costSync = null;
+    if (cost != null) {
+      costSync = await writeBackPoLineCost(client, item.rows[0], newCost);
+      if (costSync) {
+        await logOrderActivity(client, costSync.orderId, 'cost_updated', req.staff.id,
+          req.staff.first_name + ' ' + req.staff.last_name,
+          { product_name: costSync.productName, previous_cost: costSync.previousCost,
+            new_cost: costSync.newCost, source: 'po_line_edit', po_number: po.rows[0].po_number });
+      }
+    }
+
     await client.query('COMMIT');
+    // Commission derives from PO line subtotals — refresh it after any line change.
+    if (po.rows[0].order_id) setImmediate(() => recalculateCommission(pool, po.rows[0].order_id));
     res.json({ success: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// Admin: resync a PO's line costs from CURRENT SKU pricing. Unlike the draft-only line
+// editor above, this works on already-sent POs so a cost correction can be pushed onto a
+// PO that was generated before the price change. Rug/custom lines are left untouched.
+app.post('/api/admin/purchase-orders/:poId/resync-cost', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { poId } = req.params;
+    const po = await client.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+    if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
+    if (po.rows[0].status === 'cancelled') return res.status(400).json({ error: 'Cannot resync a cancelled PO' });
+
+    await client.query('BEGIN');
+    const rows = (await client.query(
+      PO_ITEM_COST_INPUTS_SQL + ` WHERE poi.purchase_order_id = $1`, [poId])).rows;
+    const result = await recomputePoItemCosts(client, rows);
+    if (po.rows[0].order_id) {
+      await logOrderActivity(client, po.rows[0].order_id, 'po_cost_resynced', req.staff.id,
+        req.staff.first_name + ' ' + req.staff.last_name,
+        { po_number: po.rows[0].po_number, items_updated: result.updated });
+    }
+    await client.query('COMMIT');
+    res.json({ success: true, itemsUpdated: result.updated, itemsSkipped: result.skipped.length });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err); res.status(500).json({ error: 'Internal server error' });
