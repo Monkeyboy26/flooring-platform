@@ -34,7 +34,7 @@
     else out = "(" + d.slice(0, 3) + ") " + d.slice(3, 6) + "-" + d.slice(6);
     return (cc + out + (ext ? " x" + ext : "")).trim();
   }
-  const SITE_URL = "https://www.romaflooringdesigns.com";
+  const SITE_URL = "https://romaflooringdesigns.com";
   function updateSEO({ title, description, url, image }) {
     document.title = title || "Shop | Roma Flooring Designs";
     const setMeta = (selector, value) => {

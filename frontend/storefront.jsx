@@ -43,7 +43,7 @@
       return (cc + out + (ext ? ' x' + ext : '')).trim();
     }
 
-    const SITE_URL = 'https://www.romaflooringdesigns.com';
+    const SITE_URL = 'https://romaflooringdesigns.com';
     function updateSEO({ title, description, url, image }) {
       document.title = title || 'Shop | Roma Flooring Designs';
       const setMeta = (selector, value) => {

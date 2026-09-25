@@ -8,4 +8,4 @@ Disallow: /trade/dashboard
 Disallow: /trade/bulk-order
 Disallow: /wishlist
 
-Sitemap: https://www.romaflooringdesigns.com/sitemap.xml
+Sitemap: https://romaflooringdesigns.com/sitemap.xml
