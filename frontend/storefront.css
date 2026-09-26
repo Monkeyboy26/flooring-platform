@@ -4034,6 +4034,18 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 .guide li { font-size: 1.0625rem; line-height: 1.7; margin-bottom: 0.55rem; }
 .guide strong { color: var(--stone-900); font-weight: 600; }
 .guide a { color: var(--gold-dark); text-decoration: underline; text-underline-offset: 2px; }
+/* Cost tables inside guide content (hand-authored HTML from landing_pages.content_html) */
+.guide-body table { width: 100%; border-collapse: collapse; margin: 1.5rem 0 2rem; font-size: 1rem; }
+.guide-body table caption { text-align: left; font-family: var(--font-heading); font-size: 1.05rem; color: var(--stone-500); margin-bottom: 0.5rem; }
+.guide-body th, .guide-body td { text-align: left; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--stone-200); vertical-align: top; }
+.guide-body thead th { font-family: var(--font-body); font-size: 0.8125rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--stone-500); border-bottom: 2px solid var(--stone-300); }
+.guide-body tbody tr:nth-child(even) { background: var(--stone-50); }
+.guide-body td:not(:first-child), .guide-body th:not(:first-child) { white-space: nowrap; }
+.guide-body td:first-child { font-weight: 500; color: var(--stone-800); }
+.guide-body tfoot td { font-weight: 600; color: var(--stone-900); border-top: 2px solid var(--stone-300); border-bottom: none; }
+.guide-callout { background: var(--stone-50); border-left: 3px solid var(--gold); border-radius: 0 8px 8px 0; padding: 1.1rem 1.35rem; margin: 1.75rem 0; }
+.guide-callout p { margin: 0; font-size: 1.0625rem; }
+@media (max-width: 640px) { .guide-body table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; font-size: 0.875rem; } .guide-body th, .guide-body td { padding: 0.55rem 0.5rem; } }
 .guide-faq-item { margin-bottom: 1.25rem; }
 .guide-faq-item h3 { font-size: 1.25rem; font-weight: 500; margin: 0 0 0.35rem; }
 .guide-faq-item p { margin: 0; color: var(--stone-600); }
