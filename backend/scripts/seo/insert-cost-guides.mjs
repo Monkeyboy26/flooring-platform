@@ -263,6 +263,93 @@ const GUIDES = [
     ],
     related: ['tile', 'porcelain-tile', 'mosaic-tile', 'natural-stone'],
   },
+  {
+    slug: 'countertop-installation-cost-orange-county',
+    title: 'Countertop Installation Cost in Orange County (2026)',
+    h1: 'How Much Do New Countertops Cost in Orange County?',
+    meta_title: 'Countertop Installation Cost in Orange County (2026) | Roma Flooring Designs',
+    meta_description: 'What new countertops cost installed in Orange County in 2026 — quartz, granite, marble, quartzite, and porcelain slab per square foot, prefab vs. custom slab, and real kitchen examples. Free estimates.',
+    intro_html: `<p><strong>In Orange County, new countertops typically cost $50–$120 per square foot installed in 2026</strong> — material, fabrication, and installation combined. For a standard kitchen with 45–55 square feet of counter space, that's roughly <strong>$2,500–$6,500</strong> for popular quartz or granite, and more for premium marble, quartzite, or waterfall details. Prefabricated countertops can bring a straightforward kitchen in for meaningfully less.</p>
+<p>Countertops are quoted as one number, but the price is really three jobs — the slab, the fabrication, and the install — and each has its own levers. Below is how the local market prices them, material by material, so you can budget with confidence. For an exact figure, <a href="/installation">request a free estimate</a>, or bring your kitchen dimensions to our Anaheim showroom and we'll quote it from real slabs.</p>`,
+    content_html: `
+<h2>Countertop cost by material (per square foot, installed)</h2>
+<table>
+  <caption>Typical installed cost per square foot — Orange County, 2026</caption>
+  <thead><tr><th>Material</th><th>Typical installed range</th><th>Care &amp; character</th></tr></thead>
+  <tbody>
+    <tr><td>Quartz (engineered)</td><td>$50–$100</td><td>No sealing, consistent patterns, the most popular choice; avoid direct hot pans</td></tr>
+    <tr><td>Granite</td><td>$45–$100</td><td>Natural one-of-a-kind slabs, heat-tolerant; periodic sealing</td></tr>
+    <tr><td>Porcelain slab</td><td>$60–$120</td><td>Thin, heat- and UV-proof, marble looks; great for outdoor kitchens and full-height backsplashes</td></tr>
+    <tr><td>Quartzite</td><td>$70–$150</td><td>Natural stone harder than granite with marble-like veining; sealing required</td></tr>
+    <tr><td>Marble</td><td>$60–$150+</td><td>The classic look; softer, etches with acids — best for baths and baking stations</td></tr>
+  </tbody>
+</table>
+<div class="guide-callout"><p><strong>Rule of thumb:</strong> budget about <strong>$55–$75/sq ft installed for mid-range quartz or granite</strong> in Orange County. Premium slabs, waterfall edges, and full-height slab backsplashes are what push kitchens past $100/sq ft.</p></div>
+<p>Torn between engineered and natural stone? Our <a href="/guides/quartz-vs-natural-stone-countertops">quartz vs. natural stone comparison</a> walks through durability, maintenance, and look in detail.</p>
+
+<h2>What's inside the price</h2>
+<p>A countertop quote bundles several distinct costs. Knowing the pieces makes competing bids comparable:</p>
+<ul>
+  <li><strong>Slab material</strong> — usually 40–60% of the total. The same color can vary widely by grade, lot, and brand.</li>
+  <li><strong>Fabrication</strong> — templating, cutting, edge profiling, and polishing, plus cutouts: sink cutouts and cooktop cutouts typically add $100–$300 each.</li>
+  <li><strong>Installation</strong> — delivery, setting, leveling, seaming, and securing; heavy 3cm stone takes a bigger crew.</li>
+  <li><strong>Tear-out</strong> — removing and disposing of old tops usually runs $300–$800 for a typical kitchen (tile-over-mortar counters cost more to demo).</li>
+  <li><strong>Plumbing</strong> — disconnecting and reconnecting the sink, faucet, and disposal is often a separate $150–$500 line, whether by the installer or your plumber.</li>
+</ul>
+
+<h2>Prefab vs. custom slab: the biggest lever on price</h2>
+<p><strong>Prefabricated countertops</strong> — slabs pre-cut to standard depths with the front edge already finished — are a Southern California staple and the fastest way to cut the fabrication share of your bill. For a straightforward layout (standard 25.5" depth runs, common sink sizes, no waterfall), prefab granite or quartz can bring installed cost down toward the <strong>$40–$60/sq ft</strong> range.</p>
+<p><strong>Custom slab fabrication</strong> buys you exact seam placement, book-matched veining, any edge profile, waterfall sides, and full choice of the slab yard. Kitchens with long runs, big islands, or dramatic stone are custom jobs by nature. Many of our projects mix the two — prefab in the laundry and baths, custom in the kitchen. <a href="/shop?category=prefab-countertops">Browse prefabricated countertops</a> to see what standard sizes cover.</p>
+
+<h2>Real project examples</h2>
+<table>
+  <caption>Estimated installed cost by project — Orange County, 2026</caption>
+  <thead><tr><th>Project</th><th>Counter area</th><th>Mid-range quartz/granite</th><th>Premium stone / details</th></tr></thead>
+  <tbody>
+    <tr><td>Bathroom vanity top</td><td>~10–15 sq ft</td><td>$600–$1,500</td><td>$1,500–$3,000</td></tr>
+    <tr><td>Galley / condo kitchen</td><td>~30 sq ft</td><td>$1,800–$3,000</td><td>$3,000–$5,500</td></tr>
+    <tr><td>Standard kitchen</td><td>~45–55 sq ft</td><td>$2,500–$5,500</td><td>$5,500–$10,000</td></tr>
+    <tr><td>Large kitchen w/ island</td><td>~70–90 sq ft</td><td>$4,500–$9,000</td><td>$9,000–$18,000+</td></tr>
+  </tbody>
+</table>
+<p>Ranges assume replacement on existing, level cabinets. Waterfall island sides, full-height slab backsplashes, and radius or laminated edges are the usual adders. <a href="/installation">Book a free estimate</a> for a measured number — small vanities often price by the piece rather than the foot.</p>
+
+<h2>What drives countertop cost up or down</h2>
+<ul>
+  <li><strong>Slab grade and movement:</strong> dramatic veining, exotic quartzites, and designer quartz lines cost multiples of builder-grade colors in the same material.</li>
+  <li><strong>Thickness:</strong> 3cm stone is the standard look and costs more than 2cm; porcelain runs thinner (12mm) with a built-up edge.</li>
+  <li><strong>Edges and details:</strong> eased and bullnose edges are standard; ogee, mitered, and laminated edges add fabrication time. A waterfall side is priced like additional countertop plus two mitered joints.</li>
+  <li><strong>Seams and layout:</strong> L-shapes and long runs that exceed one slab need seams — and matching veining across a seam takes more material and skill.</li>
+  <li><strong>Backsplash choice:</strong> a 4" stone splash is cheap; full-height slab is dramatic but effectively doubles the visible stone. Tile is the middle path — see our <a href="/guides/kitchen-backsplash-tile-guide">backsplash tile guide</a>.</li>
+  <li><strong>Sink style:</strong> undermount and farmhouse sinks need polished cutouts and support; drop-ins are simplest.</li>
+</ul>
+
+<h2>Do you need a permit to replace countertops?</h2>
+<p>A like-for-like countertop swap is <strong>generally cosmetic work — no permit</strong> in most Orange County cities. Permits enter the picture when the project grows: moving or adding plumbing or gas (relocating a sink or switching cooktop fuel), adding island electrical outlets, or structural changes to cabinets and walls. Requirements vary by city and change over time, so confirm your project's specifics with your city's building division — when one is needed, we pull it as part of the job.</p>
+
+<h2>How to save without cutting corners</h2>
+<ul>
+  <li><strong>Ask about prefab first</strong> — if your layout fits standard sizes, it's the single biggest saving available.</li>
+  <li><strong>Put the drama where you see it:</strong> premium stone on the island, quieter quartz on perimeter runs.</li>
+  <li><strong>Keep the sink and cooktop where they are</strong> — no new plumbing or electrical keeps the job cosmetic and the cost contained.</li>
+  <li><strong>Choose a standard edge</strong> (eased or pencil) — modern kitchens favor them anyway.</li>
+  <li><strong>Replace counters and backsplash together</strong> — demoing a backsplash later risks the new tops, and one mobilization is cheaper than two.</li>
+</ul>
+<p>See the options in person: <a href="/shop?category=quartz-countertops">quartz</a>, <a href="/shop?category=granite-countertops">granite</a>, <a href="/shop?category=quartzite-countertops">quartzite</a>, <a href="/shop?category=marble-countertops">marble</a>, and <a href="/shop?category=porcelain-slabs">porcelain slabs</a> — or pair new tops with <a href="/cabinets">custom cabinets</a>.</p>
+
+<h2>How long does countertop replacement take?</h2>
+<p>The install itself is usually <strong>one day</strong>. The full sequence — template after cabinets are final, fabrication, then install — typically runs <strong>1–3 weeks</strong> depending on the fabricator's queue and slab availability; prefab can move faster. Plan to be without a kitchen sink only between tear-out and install day, usually 24–48 hours when scheduling is tight. We give you a firm timeline with your quote.</p>
+`,
+    footer_html: `<p><em>Figures are typical Orange County market ranges for 2026 and are provided for planning only — they are not a quote. Actual cost depends on the slab you choose, layout, edge and backsplash details, and site specifics, and permit requirements are set by your city and can change. For exact pricing, <a href="/installation">request a free estimate</a> or call (714) 999-0009. Roma Flooring Designs is licensed, bonded, and insured (CA Lic #830966).</em></p>`,
+    faq: [
+      ['How much do new countertops cost in Orange County?', 'In 2026, installed countertops in Orange County typically run $50–$120 per square foot depending on material — about $2,500–$6,500 for a standard kitchen in mid-range quartz or granite. Premium marble, quartzite, waterfall edges, and full-height slab backsplashes push totals higher.'],
+      ['Is quartz or granite cheaper to install?', 'They overlap heavily — both typically run $45–$100 per square foot installed in Orange County. Builder-grade granite is often the cheapest slab option, while designer quartz lines cost more; fabrication and install cost about the same for either.'],
+      ['What are prefabricated countertops, and how much do they save?', 'Prefab countertops are slabs pre-cut to standard depths with the front edge already finished, so you skip most custom fabrication. For layouts that fit standard sizes, prefab granite or quartz can bring installed cost down toward $40–$60 per square foot.'],
+      ['Does countertop replacement include removing the old counters?', 'Tear-out is usually a separate line item — typically $300–$800 for a standard kitchen, more for tile-over-mortar tops. Plumbing disconnect and reconnect for the sink and disposal is often itemized separately as well; we spell out both in every estimate.'],
+      ['How long does it take to replace kitchen countertops?', 'Install day is usually a single day. End to end — templating, fabrication, install — plan on 1–3 weeks depending on slab availability and the fabrication queue; prefabricated tops can move faster. You\'re typically without a sink for only 24–48 hours.'],
+    ],
+    related: ['countertops', 'quartz-countertops', 'granite-countertops', 'porcelain-slabs'],
+  },
 ];
 
 async function upsertGuide(g) {
