@@ -25354,7 +25354,11 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
 
     const po = poCheck.rows[0];
     const ediConfig = po.edi_config;
-    const ediEnabled = ediConfig && ediConfig.enabled;
+    // Outbound 850s are opt-in per vendor (edi_config.outbound_850). `enabled`
+    // alone only turns on the inbound poller (832/855/856/810) — the one live 850
+    // (Daltile RDP-10019) was picked up but never processed or acknowledged, so
+    // POs go by email unless a vendor's outbound path has been certified end-to-end.
+    const ediEnabled = ediConfig && ediConfig.enabled && ediConfig.outbound_850 === true;
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
 
     // Optional recipient overrides from the send dialog. `recipient_email` sets
@@ -30956,7 +30960,11 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
     const po = poResult.rows[0];
 
     const ediConfig = po.edi_config;
-    const ediEnabled = ediConfig && ediConfig.enabled;
+    // Outbound 850s are opt-in per vendor (edi_config.outbound_850). `enabled`
+    // alone only turns on the inbound poller (832/855/856/810) — the one live 850
+    // (Daltile RDP-10019) was picked up but never processed or acknowledged, so
+    // POs go by email unless a vendor's outbound path has been certified end-to-end.
+    const ediEnabled = ediConfig && ediConfig.enabled && ediConfig.outbound_850 === true;
 
     if (!['draft', 'sent'].includes(po.status)) {
       return res.status(400).json({ error: 'Only draft or sent POs can be sent to vendors' });
