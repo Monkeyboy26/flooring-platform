@@ -4041,6 +4041,9 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 .guide-body thead th { font-family: var(--font-body); font-size: 0.8125rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--stone-500); border-bottom: 2px solid var(--stone-300); }
 .guide-body tbody tr:nth-child(even) { background: var(--stone-50); }
 .guide-body td:not(:first-child), .guide-body th:not(:first-child) { white-space: nowrap; }
+/* …but prose columns (tier descriptions, notes, "right for") are always last — let them wrap,
+   otherwise wide tables blow out of the 780px article column. */
+.guide-body td:last-child, .guide-body th:last-child { white-space: normal; }
 .guide-body td:first-child { font-weight: 500; color: var(--stone-800); }
 .guide-body tfoot td { font-weight: 600; color: var(--stone-900); border-top: 2px solid var(--stone-300); border-bottom: none; }
 .guide-callout { background: var(--stone-50); border-left: 3px solid var(--gold); border-radius: 0 8px 8px 0; padding: 1.1rem 1.35rem; margin: 1.75rem 0; }
