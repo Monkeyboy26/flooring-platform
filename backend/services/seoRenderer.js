@@ -1836,7 +1836,13 @@ function renderGuidePage(g) {
     ? g.meta_description.trim()
     : `${g.title} — expert flooring & tile buying advice from Roma Flooring Designs.`;
   const h1 = g.h1 || g.title;
-  const faq = Array.isArray(fj.faq) ? fj.faq.map(x => Array.isArray(x) ? { q: x[0], a: x[1] } : x).filter(x => x && x.q && x.a) : [];
+  // Guide FAQs arrive in three shapes: [q,a] pairs (hand-authored insert scripts),
+  // {q,a}, and {question,answer} (generate-guide-content.mjs) — the last was
+  // silently filtered out, dropping the FAQ section + FAQPage schema on every
+  // generated guide.
+  const faq = Array.isArray(fj.faq) ? fj.faq
+    .map(x => Array.isArray(x) ? { q: x[0], a: x[1] } : (x && x.question ? { q: x.question, a: x.answer } : x))
+    .filter(x => x && x.q && x.a) : [];
 
   const jsonLd = { '@context': 'https://schema.org', '@graph': [
     { '@type': 'Article', headline: g.title, description, mainEntityOfPage: canonicalUrl,
