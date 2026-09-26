@@ -63,7 +63,11 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       # Public site URL used inside emails (thumbnails, tracking pixel, CTAs) —
       # must be reachable from customers' inboxes, so it defaults to the live domain
-      SITE_URL: ${SITE_URL:-https://www.romaflooringdesigns.com}
+      SITE_URL: ${SITE_URL:-https://romaflooringdesigns.com}
+      # Review requests: auto-queue on delivered orders (reviewService.js). Off by
+      # default so dev/test order flows never email real customers.
+      REVIEW_AUTO_ENABLED: ${REVIEW_AUTO_ENABLED:-false}
+      REVIEW_REQUEST_DELAY_HOURS: ${REVIEW_REQUEST_DELAY_HOURS:-72}
       # In-app redirect base (Stripe return URLs, claim links) — localhost for dev
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
