@@ -1,6 +1,6 @@
 // Hand-authored OC cost guides (link-magnet content, Backlinks Track 3).
 //
-// Two flagship "cost" buying guides inserted as type='guide' landing_pages. Cost/permit
+// Flagship "cost" buying guides inserted as type='guide' landing_pages. Cost/permit
 // pages earn editorial citations; these are written for Orange County specifically with
 // typical market ranges (clearly framed as estimates, not our exact prices) so they read
 // as genuinely useful reference content rather than filler.
@@ -171,6 +171,97 @@ const GUIDES = [
       ['Can one company do the tile, countertops, and cabinets?', 'Yes. Roma Flooring Designs designs, supplies, and installs the full remodel — flooring, tile, countertops, and cabinetry — with one licensed crew, which keeps labor efficient and accountability in one place.'],
     ],
     related: ['tile', 'natural-stone', 'quartz-countertops', 'vanities'],
+  },
+  {
+    slug: 'tile-installation-cost-orange-county',
+    title: 'Tile Installation Cost in Orange County (2026)',
+    h1: 'How Much Does Tile Installation Cost in Orange County?',
+    meta_title: 'Tile Installation Cost in Orange County (2026) | Roma Flooring Designs',
+    meta_description: 'What tile installation costs in Orange County in 2026 — labor and material per square foot, floors vs. showers and backsplashes, what drives the price, and real project examples. Free local estimates.',
+    intro_html: `<p><strong>In Orange County, installed floor tile typically runs $10–$25 per square foot in 2026</strong> — roughly $6–$14/sq ft for professional labor plus $2–$10/sq ft for the tile itself and another $1.50–$3 for setting materials. A straightforward 250-square-foot kitchen floor in standard porcelain usually lands between <strong>$2,500 and $4,500</strong>, while large-format tile, natural stone, or heavy prep can push a project toward the top of the range.</p>
+<p>Showers and backsplashes price differently than floors — they're waterproofing and detail work, quoted by the project more than the square foot. Below we break down both for the local market so you can budget with confidence, and you can always <a href="/installation">request a free, no-obligation estimate</a> for exact pricing on your home.</p>`,
+    content_html: `
+<h2>Floor tile cost breakdown (per square foot, installed)</h2>
+<p>Tile has more line items than most flooring because the installation is built up in layers — substrate, mortar, tile, grout. Here's what each part typically costs in the Orange County market:</p>
+<table>
+  <caption>Typical installed cost per square foot — Orange County, 2026</caption>
+  <thead><tr><th>Component</th><th>Budget</th><th>Mid-range</th><th>Premium</th></tr></thead>
+  <tbody>
+    <tr><td>Tile (porcelain/ceramic material)</td><td>$2–$4</td><td>$4–$8</td><td>$8–$15+</td></tr>
+    <tr><td>Setting materials (thinset, grout, backer/membrane)</td><td>$1.50–$2</td><td>$2–$2.50</td><td>$2.50–$3</td></tr>
+    <tr><td>Installation labor (field tile)</td><td>$6–$8</td><td>$8–$11</td><td>$11–$16</td></tr>
+    <tr><td>Subfloor prep / leveling</td><td>$0–$1</td><td>$1–$2</td><td>$2–$4</td></tr>
+    <tr><td>Old floor removal &amp; disposal</td><td>$1–$2 (carpet/vinyl)</td><td>$2–$4 (old tile)</td><td>$4–$5 (mortar-bed tile)</td></tr>
+  </tbody>
+</table>
+<div class="guide-callout"><p><strong>Rule of thumb:</strong> for standard-format porcelain over a clean, level slab, budget about <strong>$10–$16 per square foot all-in</strong>. Large-format tile, patterned layouts, and natural stone typically run <strong>$15–$28</strong>.</p></div>
+<p>Not sure which tile you're pricing? Start with our <a href="/guides/how-to-choose-porcelain-tile">porcelain tile buying guide</a> — the material you choose sets the baseline for everything below.</p>
+
+<h2>Showers, tub surrounds &amp; backsplashes</h2>
+<p>Vertical and wet-area tile is detail work: waterproofing, slopes, cuts around valves and niches, and small-format setting. That's why it's priced per project rather than per square foot:</p>
+<table>
+  <caption>Typical tiled wet-area project costs — Orange County, 2026</caption>
+  <thead><tr><th>Project</th><th>Typical cost (labor + materials)</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>Kitchen backsplash</td><td>$900–$2,500</td><td>30–60 sq ft; mosaics and intricate patterns at the high end</td></tr>
+    <tr><td>Tub surround retile</td><td>$2,000–$4,500</td><td>Three walls to ~6 ft; includes backer and waterproofing</td></tr>
+    <tr><td>Walk-in shower retile</td><td>$4,500–$9,000+</td><td>Full tear-out, new pan and waterproofing, walls, niche, mosaic floor</td></tr>
+    <tr><td>Bathroom floor</td><td>$800–$2,000</td><td>40–80 sq ft; small rooms carry a per-job minimum</td></tr>
+  </tbody>
+</table>
+<p>A proper shower rebuild spends a meaningful share of the budget on what you never see — the pan, slope, and waterproofing membrane. That's the part worth paying for; tile can be replaced, a failed pan means opening the whole thing up. Planning a bigger refresh? See our <a href="/guides/bathroom-remodel-cost-anaheim-orange-county">full bathroom remodel cost guide</a>.</p>
+
+<h2>What drives tile installation cost up or down</h2>
+<ul>
+  <li><strong>Tile format:</strong> large-format tile (any edge 15"+) needs a flatter substrate and leveling systems — more prep and labor. Very small mosaics are also slower to set than standard field tile.</li>
+  <li><strong>Layout pattern:</strong> diagonal, herringbone, and chevron layouts add roughly 10–20% to labor from extra cutting and layout time.</li>
+  <li><strong>Porcelain vs. natural stone:</strong> stone costs more to cut, must be sealed, and often needs a more experienced setter — expect labor at the top of the range.</li>
+  <li><strong>What's coming out:</strong> demoing old tile (especially a vintage mortar bed) is the most expensive tear-out in flooring; carpet or vinyl removal is cheap by comparison.</li>
+  <li><strong>Slab condition:</strong> cracks call for crack-isolation membrane, and out-of-flat slabs need self-leveling underlayment — the most common source of "surprise" cost on SoCal concrete.</li>
+  <li><strong>Room complexity:</strong> lots of doorways, angles, cabinets, and closets mean more cuts per square foot than one open room.</li>
+</ul>
+
+<h2>Real project examples</h2>
+<table>
+  <caption>Estimated installed cost by project size — Orange County, 2026</caption>
+  <thead><tr><th>Project</th><th>Area</th><th>Standard porcelain</th><th>Large-format / stone</th></tr></thead>
+  <tbody>
+    <tr><td>Entry / laundry</td><td>~100 sq ft</td><td>$1,200–$1,800</td><td>$1,800–$2,800</td></tr>
+    <tr><td>Kitchen floor</td><td>~250 sq ft</td><td>$2,500–$4,500</td><td>$4,000–$7,000</td></tr>
+    <tr><td>Kitchen + family room</td><td>~600 sq ft</td><td>$6,000–$10,000</td><td>$9,500–$16,000</td></tr>
+    <tr><td>Whole first floor</td><td>~1,200 sq ft</td><td>$12,000–$19,000</td><td>$18,000–$32,000</td></tr>
+  </tbody>
+</table>
+<p>Ranges assume typical prep over a sound slab; tear-out of existing tile and extensive leveling are additional. <a href="/installation">Book a free in-home estimate</a> and we'll measure and price your exact project.</p>
+
+<h2>Why tile costs more to install than LVP — and when it's worth it</h2>
+<p>Tile is a masonry trade: the floor is built on site, layer by layer, by a setter whose skill determines whether those tight modern grout lines stay flat and straight. Vinyl plank clicks together in a fraction of the time, which is why its labor runs a third to half of tile's. What tile buys for the difference: decades of life instead of 10–20 years, total indifference to water and sun, and the look of real stone or concrete underfoot. On resale, permanent tile floors read as an upgrade; in rentals and flips, LVP's speed usually wins. It's the classic pay-once-versus-pay-again tradeoff.</p>
+
+<h2>Do you need a permit to install tile in Orange County?</h2>
+<p>For a straightforward <strong>like-for-like floor replacement, generally no</strong> — swapping flooring finishes is usually considered cosmetic work. A permit typically comes into play when the job goes beyond the finish: <strong>rebuilding a shower</strong> (new pan, waterproofing, or moved plumbing), altering walls, or adding electric floor heating. Requirements vary by city and change over time, so confirm your specific project with your city's building division — when a permit is needed, a licensed contractor pulls it and schedules inspections for you, and we handle that as part of the job.</p>
+
+<h2>How to save without cutting corners</h2>
+<ul>
+  <li><strong>Choose porcelain over natural stone</strong> — today's stone-look porcelain delivers the look for less material cost, less labor, and zero sealing.</li>
+  <li><strong>Stick to standard formats</strong> (12x24, 24x24) and straight-set layouts; save patterns for a small feature area like the backsplash.</li>
+  <li><strong>Do adjacent rooms at once</strong> — mobilizing a tile crew once is cheaper per square foot than repeat visits.</li>
+  <li><strong>Buy material and installation together</strong> from one source so nothing gets marked up twice and one company owns the result.</li>
+  <li><strong>Order 10–15% overage up front</strong> from a single lot — see <a href="/guides/how-to-measure-a-room-for-flooring">how to measure a room for flooring</a> — so a future repair never depends on matching a discontinued tile.</li>
+</ul>
+<p>Ready to look at real options? Browse <a href="/shop?category=porcelain-tile">porcelain tile</a>, <a href="/shop?category=mosaic-tile">mosaics</a>, and <a href="/shop?category=natural-stone">natural stone</a>, or visit our Anaheim showroom at 1440 S. State College Blvd #6M.</p>
+
+<h2>How long does tile installation take?</h2>
+<p>A typical 250-square-foot floor takes <strong>3–5 working days</strong>: tear-out and prep, setting, then grouting after the mortar cures overnight — plan on staying off the floor until the grout has cured. A full shower rebuild runs <strong>1–2 weeks</strong> including waterproofing cure time and, when permitted, inspection. We give you a firm timeline with your quote.</p>
+`,
+    footer_html: `<p><em>Figures are typical Orange County market ranges for 2026 and are provided for planning only — they are not a quote. Actual cost depends on the tile you choose, substrate condition, and site specifics, and permit requirements are set by your city and can change. For exact pricing, <a href="/installation">request a free estimate</a> or call (714) 999-0009. Roma Flooring Designs is licensed, bonded, and insured (CA Lic #830966).</em></p>`,
+    faq: [
+      ['How much does tile installation cost per square foot in Orange County?', 'In 2026, installed floor tile in Orange County typically runs $10–$25 per square foot all-in — about $6–$14/sq ft for labor plus the tile and setting materials. Standard porcelain over a level slab sits near $10–$16; large-format tile, patterns, and natural stone run $15–$28.'],
+      ['Why does tile cost more to install than vinyl plank?', 'Tile is skilled masonry work — substrate prep, mortar, layout, cutting, and grouting built up in layers on site — while vinyl plank clicks together quickly. Tile costs more up front but lasts decades, is fully waterproof and UV-proof, and typically reads as an upgrade at resale.'],
+      ['Does large-format tile cost more to install?', 'Yes. Any tile with an edge 15 inches or longer requires a flatter substrate (often self-leveling underlayment) and tile-leveling systems to prevent lippage, which adds prep and labor — commonly a few dollars more per square foot than standard formats.'],
+      ['How much does it cost to retile a shower in Orange County?', 'A full walk-in shower retile — tear-out, new pan and waterproofing, wall tile, niche, and a mosaic floor — typically runs $4,500–$9,000+ in 2026 depending on size and tile selection. A three-wall tub surround usually lands around $2,000–$4,500.'],
+      ['How long does tile installation take?', 'A typical 250 sq ft floor takes about 3–5 working days including prep, setting, and grouting after overnight mortar cure. A full shower rebuild takes 1–2 weeks including waterproofing cure time and inspection when a permit is involved.'],
+    ],
+    related: ['tile', 'porcelain-tile', 'mosaic-tile', 'natural-stone'],
   },
 ];
 
