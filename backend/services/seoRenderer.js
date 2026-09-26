@@ -102,6 +102,7 @@ function parsePath(reqPath, query) {
   if (path === '/cabinets') return { type: 'static', page: 'cabinets' };
   if (path === '/privacy') return { type: 'static', page: 'privacy' };
   if (path === '/terms') return { type: 'static', page: 'terms' };
+  if (path === '/sms-opt-in') return { type: 'static', page: 'sms-opt-in' };
 
   // /flooring-installation/{city}/{material} — per-city material install page (nested)
   const matMatch = path.match(/^\/flooring-installation\/([a-z0-9-]+)\/([a-z0-9-]+)$/);
@@ -1311,6 +1312,24 @@ function renderStaticPage(page) {
 <h2>7. Warranties &amp; Limitation of Liability</h2><p>Manufactured products may carry the applicable manufacturer's warranty. Except for any express written warranty provided by Roma, products and services are furnished "AS IS" to the fullest extent permitted by law. Roma's total liability shall not exceed the amount paid for the specific product giving rise to the claim.</p>
 <h2>8. Governing Law</h2><p>These Terms are governed by the laws of the State of California, with exclusive venue in Orange County, California.</p>
 <h2>9. Contact</h2><p>Questions about these Terms? Contact Roma Flooring Designs at (714) 999-0009 or Sales@romaflooringdesigns.com, 1440 S. State College Blvd #6M, Anaheim, CA 92806.</p>`
+    },
+    // Compliance artifact for A2P 10DLC campaign review (TCR error 30909: CTA
+    // could not be verified — the real checkbox sits inside the JS-only checkout
+    // funnel, unreachable to reviewers). Reproduces the checkout consent UI
+    // verbatim so carriers can verify the opt-in call-to-action at a public URL.
+    'sms-opt-in': {
+      title: 'SMS Opt-In Disclosure | Roma Flooring Designs',
+      description: 'How customers opt in to Roma Flooring Designs text messages: the consent checkbox shown at checkout and on quote requests, message frequency, and opt-out instructions.',
+      path: '/sms-opt-in',
+      body: `<h1>Text Message (SMS) Opt-In Disclosure</h1>
+<p>This page documents how customers opt in to receive text messages from Roma Flooring Designs. The consent checkbox below appears on our <strong>checkout page</strong> and on <strong>quote request forms</strong> at romaflooringdesigns.com, directly beneath the mobile phone number field. It is unchecked by default; customers must actively check it to opt in.</p>
+<div style="border:1px solid #d6d3d1;border-radius:8px;padding:16px 20px;margin:20px 0;max-width:640px;background:#fafaf9">
+<p style="margin:0 0 10px;font-size:14px;color:#57534e">Phone number: <span style="display:inline-block;border:1px solid #d6d3d1;border-radius:4px;padding:2px 60px 2px 8px;background:#fff;color:#a8a29e">(714) 555-0123</span></p>
+<p style="margin:0"><label><input type="checkbox" disabled> Text me order updates &amp; a review request. By checking this box you agree to receive automated text messages from Roma Flooring Designs at the number above. Consent is not a condition of purchase. Msg &amp; data rates may apply. Reply STOP to opt out.</label></p>
+</div>
+<h2>Program details</h2>
+<p>Opted-in customers receive service and review-request messages only: order and delivery updates and a one-time post-purchase invitation to rate their experience. Message frequency varies. Message and data rates may apply. Reply <strong>STOP</strong> to opt out at any time or <strong>HELP</strong> for help, or call (714) 999-0009. Customers may also opt in verbally with a Roma team member in our Anaheim showroom, where the same disclosure is provided.</p>
+<p>We do not sell or share mobile phone numbers or SMS opt-in and consent information with any third parties or affiliates for their own marketing or promotional purposes. See our <a href="/privacy">Privacy Policy</a> and <a href="/terms">Terms of Service</a> (Text Messaging sections) for full details.</p>`
     }
   };
 
