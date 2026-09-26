@@ -350,6 +350,98 @@ const GUIDES = [
     ],
     related: ['countertops', 'quartz-countertops', 'granite-countertops', 'porcelain-slabs'],
   },
+  {
+    slug: 'kitchen-remodel-cost-anaheim-orange-county',
+    title: 'Kitchen Remodel Cost in Anaheim & Orange County (2026)',
+    h1: 'How Much Does a Kitchen Remodel Cost in Anaheim & Orange County?',
+    meta_title: 'Kitchen Remodel Cost in Anaheim & Orange County (2026) | Roma Flooring Designs',
+    meta_description: 'What a kitchen remodel costs in Anaheim and Orange County in 2026 — full breakdown by component, budget vs. custom tiers, cost by kitchen size, permits, and timeline. Free estimates.',
+    intro_html: `<p><strong>A kitchen remodel in Anaheim and Orange County typically costs $30,000–$80,000 in 2026</strong>, with most mid-range projects landing around <strong>$40,000–$65,000</strong>. A cosmetic refresh — new counters, backsplash, flooring, and paint on the existing layout — can come in at $15,000–$30,000, while a custom kitchen with moved walls, new cabinetry, and premium stone can run well past $100,000.</p>
+<p>The spread is wide because a kitchen is really six or seven projects sharing one room — cabinets, counters, flooring, tile, plumbing, electrical, and appliances. Below is how each piece prices in the local market, what permits to expect, and where the budget levers are. For an exact figure, <a href="/installation">request a free estimate</a> — we design, supply, and install with one licensed crew.</p>`,
+    content_html: `
+<h2>Kitchen remodel cost by tier</h2>
+<table>
+  <caption>Typical kitchen remodel cost — Anaheim &amp; Orange County, 2026</caption>
+  <thead><tr><th>Tier</th><th>Typical cost</th><th>What it includes</th></tr></thead>
+  <tbody>
+    <tr><td>Refresh / cosmetic</td><td>$15,000–$30,000</td><td>Same layout: new countertops and backsplash, flooring, paint, hardware, faucet; cabinets kept or refaced.</td></tr>
+    <tr><td>Mid-range</td><td>$40,000–$65,000</td><td>New semi-custom cabinets, quartz counters, tile floor and backsplash, new appliances, lighting, minor layout tweaks.</td></tr>
+    <tr><td>High-end / custom</td><td>$80,000–$150,000+</td><td>Custom cabinetry, premium stone or porcelain slab, island rework or removed walls, relocated plumbing/gas, designer fixtures.</td></tr>
+  </tbody>
+</table>
+
+<h2>Cost breakdown by component</h2>
+<p>Here's roughly how the budget splits on a typical mid-range Orange County kitchen:</p>
+<table>
+  <caption>Component cost ranges — mid-range kitchen, 2026</caption>
+  <thead><tr><th>Component</th><th>Typical cost</th></tr></thead>
+  <tbody>
+    <tr><td>Cabinets</td><td>$10,000–$25,000</td></tr>
+    <tr><td>Countertops (material + fab + install)</td><td>$2,500–$8,000</td></tr>
+    <tr><td>Appliances</td><td>$4,000–$15,000</td></tr>
+    <tr><td>Flooring (material + install)</td><td>$2,500–$7,000</td></tr>
+    <tr><td>Backsplash tile</td><td>$900–$2,500</td></tr>
+    <tr><td>Plumbing (fixtures/rough-in)</td><td>$1,000–$5,000</td></tr>
+    <tr><td>Electrical &amp; lighting</td><td>$1,500–$6,000</td></tr>
+    <tr><td>Demolition &amp; disposal</td><td>$1,000–$3,500</td></tr>
+    <tr><td>Drywall, paint &amp; finishing</td><td>$1,000–$3,000</td></tr>
+    <tr><td>Permits (when required)</td><td>$500–$2,500</td></tr>
+  </tbody>
+  <tfoot><tr><td>Typical mid-range total</td><td>$40,000–$65,000</td></tr></tfoot>
+</table>
+<div class="guide-callout"><p><strong>Cabinets are the anchor</strong> — typically 25–40% of a kitchen budget, and they set the schedule too (semi-custom lines usually run 4–10 weeks of lead time). Deciding your cabinet approach first makes every other number easier to place.</p></div>
+<p>For deeper dives on the two biggest surfaces, see our <a href="/guides/countertop-installation-cost-orange-county">countertop cost guide</a> and <a href="/guides/tile-installation-cost-orange-county">tile installation cost guide</a>.</p>
+
+<h2>Cost by kitchen size</h2>
+<table>
+  <caption>Estimated remodel cost by kitchen size — Orange County, 2026</caption>
+  <thead><tr><th>Kitchen</th><th>Approx. size</th><th>Standard finishes</th><th>Premium finishes</th></tr></thead>
+  <tbody>
+    <tr><td>Galley / condo</td><td>~70–100 sq ft</td><td>$25,000–$40,000</td><td>$45,000–$70,000</td></tr>
+    <tr><td>Standard closed kitchen</td><td>~120–170 sq ft</td><td>$35,000–$60,000</td><td>$65,000–$100,000</td></tr>
+    <tr><td>Large / open concept w/ island</td><td>~200+ sq ft</td><td>$55,000–$85,000</td><td>$100,000–$175,000+</td></tr>
+  </tbody>
+</table>
+<p>Ranges assume a full remodel (cabinets, counters, flooring, tile, appliances installed) without structural changes. Want a firm number? <a href="/installation">Book a free estimate</a> and we'll measure and price your exact kitchen.</p>
+
+<h2>Opening up walls: what open-concept really costs</h2>
+<p>Removing the wall between kitchen and living space is the most requested change in older Orange County homes — and the most variable line in the budget. A non-load-bearing partition might add <strong>$3,000–$6,000</strong> including drywall, flooring patch, and electrical reroutes. A load-bearing wall means an engineered beam, permits, and inspections — typically <strong>$10,000–$25,000+</strong> depending on span and what's hiding in the wall (plumbing vents and gas lines are the usual surprises). It transforms the house, but go in with eyes open: this one decision can swing the project by a third.</p>
+
+<h2>Do you need a permit to remodel a kitchen in Anaheim?</h2>
+<p>Generally, <strong>yes — a permit is required when the work involves plumbing, electrical, gas, or structural changes</strong>, which most full kitchen remodels do. Purely cosmetic work — new counters on existing cabinets, backsplash, flooring, paint, or swapping appliances in place — typically does not.</p>
+<p>You'll usually need a permit from the City of Anaheim Building Division when you:</p>
+<ul>
+  <li>Move or add plumbing or gas (relocating the sink, dishwasher, or range; switching electric to gas or vice versa)</li>
+  <li>Add or move circuits, outlets, or lighting — including new island outlets and dedicated appliance circuits</li>
+  <li>Remove or alter walls, or change window/door openings</li>
+  <li>Replace a range hood with one that vents through the roof or an exterior wall</li>
+</ul>
+<p>Kitchen permit fees typically run a few hundred dollars up to around $2,500 depending on scope. Requirements change and other Orange County cities have their own building departments, so confirm your specific project before you start — a licensed contractor pulls permits and schedules inspections for you, and we handle that as part of the job.</p>
+
+<h2>How to control your remodel budget</h2>
+<ul>
+  <li><strong>Keep the plumbing and gas where they are</strong> — the sink and range staying put is the single biggest cost saver in a kitchen.</li>
+  <li><strong>Decide cabinets first:</strong> refacing solid boxes, stock lines with upgraded doors, or semi-custom — each step up moves the budget more than any countertop choice. See our <a href="/cabinets">cabinet options</a>.</li>
+  <li><strong>Ask about prefabricated countertops</strong> — for standard-depth runs they can cut the counter line by a third or more.</li>
+  <li><strong>Put the drama in one place:</strong> a statement island top or backsplash reads as a designer kitchen even with quiet perimeter finishes — ideas in our <a href="/guides/kitchen-backsplash-tile-guide">backsplash guide</a>.</li>
+  <li><strong>Run flooring through adjacent rooms at once</strong> — continuous floors look bigger and one crew mobilization is cheaper than two.</li>
+  <li><strong>Buy materials and installation together</strong> so selections stay coordinated, nothing is double-marked-up, and one company owns the result.</li>
+</ul>
+<p>Get a feel for finishes: <a href="/shop?category=tile">tile</a>, <a href="/shop?category=quartz-countertops">quartz countertops</a>, <a href="/shop?category=natural-stone">natural stone</a>, and <a href="/shop?category=porcelain-tile">porcelain flooring</a> — or visit our Anaheim showroom at 1440 S. State College Blvd #6M.</p>
+
+<h2>How long does a kitchen remodel take?</h2>
+<p>A mid-range kitchen typically takes <strong>4–8 weeks of active construction</strong> once materials are on hand: demo, rough plumbing/electrical, inspection, cabinets, counter template, then a 1–2 week counter fabrication window while tile and paint proceed, and finally appliances and finish work. Custom or structural projects run 8–12+ weeks. The quiet schedule driver is lead time — cabinets and special-order slabs are ordered weeks before demo starts, which is why good projects feel fast: the waiting happens before the kitchen is torn up. Plan on a temporary kitchen setup either way; we give you a firm timeline with your quote.</p>
+`,
+    footer_html: `<p><em>Figures are typical Anaheim / Orange County market ranges for 2026 and are for planning only — they are not a quote, and permit requirements and fees are set by your city and can change. Always confirm permit needs with the City of Anaheim Building Division (or your local building department) before starting. For exact pricing on your kitchen, <a href="/installation">request a free estimate</a> or call (714) 999-0009. Roma Flooring Designs is licensed, bonded, and insured (CA Lic #830966).</em></p>`,
+    faq: [
+      ['How much does a kitchen remodel cost in Anaheim?', 'In 2026, a kitchen remodel in Anaheim and Orange County typically costs $30,000–$80,000, with most mid-range projects around $40,000–$65,000. A cosmetic refresh on the existing layout can run $15,000–$30,000, while custom kitchens with structural changes can exceed $100,000.'],
+      ['What is the most expensive part of a kitchen remodel?', 'Cabinets — typically 25–40% of the total budget — followed by appliances and countertops. Among decisions, moving plumbing or gas lines and removing load-bearing walls are the biggest cost multipliers.'],
+      ['Can I remodel a kitchen for $25,000–$30,000 in Orange County?', 'Yes, if you keep the existing layout and cabinets (or reface them) and put the budget into new countertops, backsplash, flooring, paint, and hardware. A full gut with new cabinetry at that price point requires very careful selections.'],
+      ['Do I need a permit to remodel a kitchen in Anaheim?', 'Usually yes when the project touches plumbing, gas, electrical, or walls — which most full remodels do. Counter, backsplash, and flooring swaps on the existing layout are typically cosmetic and exempt. Confirm with the City of Anaheim Building Division; your contractor normally pulls permits for you.'],
+      ['How long does a kitchen remodel take?', 'Plan on 4–8 weeks of active construction for a mid-range kitchen once materials arrive, and 8–12+ weeks for custom or structural projects — plus cabinet and slab lead time (often 4–10 weeks) before demo begins.'],
+    ],
+    related: ['tile', 'quartz-countertops', 'countertops', 'porcelain-tile'],
+  },
 ];
 
 async function upsertGuide(g) {
