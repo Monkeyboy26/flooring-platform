@@ -4726,6 +4726,33 @@
             desc: 'Bound rugs cut to any size, shape, and edge — from our carpet or yours.', cta: 'Request a quote' },
         ],
       },
+      guides: {
+        label: 'Guides',
+        columns: [
+          { title: 'Buying Guides', route: '/guides', items: [
+            { name: 'How to Choose Porcelain Tile', route: '/guides/how-to-choose-porcelain-tile' },
+            { name: 'LVP vs. Laminate', route: '/guides/lvp-vs-laminate' },
+            { name: 'Best Waterproof Flooring', route: '/guides/best-waterproof-flooring' },
+            { name: 'Engineered vs. Solid Hardwood', route: '/guides/engineered-vs-solid-hardwood' },
+            { name: 'Best Flooring for Pets', route: '/guides/best-flooring-for-pets' },
+            { name: 'Quartz vs. Natural Stone', route: '/guides/quartz-vs-natural-stone-countertops' },
+          ]},
+          { title: 'Cost Guides — Orange County', route: '/guides', items: [
+            { name: 'Kitchen Remodel Cost', route: '/guides/kitchen-remodel-cost-anaheim-orange-county' },
+            { name: 'Bathroom Remodel Cost', route: '/guides/bathroom-remodel-cost-anaheim-orange-county' },
+            { name: 'Tile Installation Cost', route: '/guides/tile-installation-cost-orange-county' },
+            { name: 'Hardwood Installation Cost', route: '/guides/cost-to-install-hardwood-floors-orange-county' },
+            { name: 'Countertop Installation Cost', route: '/guides/countertop-installation-cost-orange-county' },
+          ]},
+          { title: 'Planning', route: '/guides', items: [
+            { name: 'Flooring Cost Calculator', route: '/guides/flooring-cost-calculator' },
+            { name: 'How to Measure a Room', route: '/guides/how-to-measure-a-room-for-flooring' },
+            { name: 'Tile Sizes Explained', route: '/guides/tile-sizes-explained' },
+            { name: 'Hardwood Finishes Explained', route: '/guides/hardwood-flooring-finishes-explained' },
+            { name: 'All Guides', route: '/guides', isViewAll: true },
+          ]},
+        ],
+      },
     };
 
     // Line icons for the Services mega panel cards
@@ -5304,6 +5331,7 @@
         { id: 'shop', label: 'Shop', hasPanel: true, onClick: () => goBrowse() },
         { id: 'brands', label: 'Brands', hasPanel: false, onClick: () => navigate('/brands') },
         { id: 'services', label: 'Services', hasPanel: true, onClick: () => navigate('/cabinets') },
+        { id: 'guides', label: 'Guides', hasPanel: true, onClick: () => navigate('/guides') },
         { id: 'trade', label: 'Trade', hasPanel: false, onClick: () => onTradeClick() },
         { id: 'about', label: 'About', hasPanel: false, onClick: () => navigate('/about') },
       ];
@@ -5835,6 +5863,7 @@
                       {chevronRight}
                     </button>
                   </div>
+                  <a href="#" onClick={e => { e.preventDefault(); navigate('/guides'); onClose(); }}>Guides</a>
                 </div>
 
                 <div className="mobile-nav-eyebrow">Shop</div>
