@@ -301,18 +301,23 @@ export function validateSku({ product_id, vendor_sku, internal_sku, variant_name
   let cleanInternalSku = internal_sku.trim();
   let cleanVariantName = variant_name ? variant_name.trim().replace(/\s{2,}/g, ' ') : null;
 
-  // Validate sell_by enum
-  let cleanSellBy = sell_by || 'box';
-  if (!VALID_SELL_BY.includes(cleanSellBy)) {
-    warnings.push(`Invalid sell_by "${cleanSellBy}", defaulting to "box"`);
-    cleanSellBy = 'box';
-  }
-
   // Validate variant_type enum
   let cleanVariantType = variant_type || null;
   if (cleanVariantType && !VALID_VARIANT_TYPES.includes(cleanVariantType)) {
     warnings.push(`Invalid variant_type "${cleanVariantType}", setting to null`);
     cleanVariantType = null;
+  }
+
+  // Validate sell_by enum. The omitted-value default is per-piece 'unit' for
+  // accessories (trim/bullnose/deco), 'box' for everything else — the blanket
+  // 'box' default paired with upsertPricing's per_sqft default is what minted
+  // the box+per_sqft accessory class that overcosts vendor POs 11×
+  // (see fix-accessory-price-basis-2026-09.mjs). Explicit values always win.
+  const defaultSellBy = cleanVariantType === 'accessory' ? 'unit' : 'box';
+  let cleanSellBy = sell_by || defaultSellBy;
+  if (!VALID_SELL_BY.includes(cleanSellBy)) {
+    warnings.push(`Invalid sell_by "${cleanSellBy}", defaulting to "${defaultSellBy}"`);
+    cleanSellBy = defaultSellBy;
   }
 
   return {
@@ -579,7 +584,10 @@ export async function upsertSku(pool, rawData, opts = {}) {
       variant_type = EXCLUDED.variant_type,
       updated_at = CURRENT_TIMESTAMP
     RETURNING id, (xmax = 0) AS is_new
-  `, [product_id, vendor_sku, internal_sku, variant_name || null, sell_by || 'box', variant_type || null, sellByAuthoritative]);
+  `, [product_id, vendor_sku, internal_sku, variant_name || null,
+    // sell_by arrives pre-defaulted by validateSku: per-piece 'unit' for
+    // accessories, 'box' otherwise (see the comment there).
+    sell_by, variant_type || null, sellByAuthoritative]);
 
   const row = result.rows[0];
   // When a SKU moves to a new product, clean up orphaned media_assets from the old product
@@ -719,9 +727,28 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
   }
 
   const { cost, retail_price, price_basis: explicitBasis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, map_price } = cleaned;
+
+  // SKU context, resolved once: category slug drives the tile/mosaic margin
+  // floors below; variant_type drives the accessory basis default.
+  let catSlug = null, skuVariantType = null;
+  try {
+    const cr = await pool.query(
+      `SELECT c.slug, s.variant_type
+         FROM skus s JOIN products p ON s.product_id = p.id
+         LEFT JOIN categories c ON p.category_id = c.id
+        WHERE s.id = $1`, [sku_id]);
+    if (cr.rows.length) { catSlug = cr.rows[0].slug; skuVariantType = cr.rows[0].variant_type; }
+  } catch { /* no sku context → category margin / accessory default simply don't apply */ }
+
   // Effective basis for the floor/keystone logic below: an omitted basis behaves
-  // as the legacy per_sqft default. Only explicitBasis is ever WRITTEN on update.
-  const price_basis = explicitBasis || 'per_sqft';
+  // as the default for the SKU's kind. Accessories are per-piece goods, so a NEW
+  // accessory row defaults to per_unit — the legacy blanket per_sqft default is
+  // what minted the box+per_sqft accessory class whose piece cost the PO math
+  // multiplies by the box area (11× overcost, see
+  // fix-accessory-price-basis-2026-09.mjs). Only explicitBasis is ever WRITTEN
+  // on update; the default applies to the INSERT alone.
+  const defaultBasis = skuVariantType === 'accessory' ? 'per_unit' : 'per_sqft';
+  const price_basis = explicitBasis || defaultBasis;
 
   // Keystone reprice guard (2026-07, retuned 2026-09-22 to 1.70x): the store's
   // standard markup is retail = 1.70x cost. Scrapers/imports still hand us retail =
@@ -773,13 +800,6 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
   const TILE_FLOOR_SLUGS = new Set(['tile', 'backsplash-tile', 'ceramic-tile',
     'commercial-tile', 'fluted-tile', 'large-format-tile', 'pool-tile',
     'porcelain-tile', 'talavera-tile', 'terrazzo-tile', 'wood-look-tile']);
-  let catSlug = null;
-  try {
-    const cr = await pool.query(
-      'SELECT c.slug FROM skus s JOIN products p ON s.product_id = p.id JOIN categories c ON p.category_id = c.id WHERE s.id = $1',
-      [sku_id]);
-    catSlug = cr.rows.length ? cr.rows[0].slug : null;
-  } catch { /* no category yet → category margin simply doesn't apply */ }
   const isMosaicCat = catSlug === 'mosaic-tile';
   const isTileCat = TILE_FLOOR_SLUGS.has(catSlug);
   // The $4.50 margin is a per-SHEET minimum (per_unit). A mosaic sold by area, and
@@ -849,7 +869,7 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
   // UPDATE uses COALESCE($N, pricing.col) so NULL params preserve existing values.
   await pool.query(`
     INSERT INTO pricing (sku_id, cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, map_price)
-    VALUES ($1, COALESCE($2, 0::numeric), COALESCE($3, 0::numeric), COALESCE($4, 'per_sqft'), $5, $6, $7, $8, $9, $10)
+    VALUES ($1, COALESCE($2, 0::numeric), COALESCE($3, 0::numeric), COALESCE($4, $12), $5, $6, $7, $8, $9, $10)
     ON CONFLICT (sku_id) DO UPDATE SET
       cost = COALESCE($2, pricing.cost),
       -- retail_locked rows (e.g. Home-Depot-matched prices) keep their retail no
@@ -860,8 +880,8 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
       retail_price = CASE WHEN pricing.retail_locked THEN GREATEST(pricing.retail_price, COALESCE($11, 0::numeric)) ELSE COALESCE($3, pricing.retail_price) END,
       -- Basis only moves when the caller EXPLICITLY sends one — the old
       -- unconditional 'per_sqft' default re-clobbered manual basis fixes on every
-      -- rescrape (e.g. per-piece accessories retagged per_unit). New rows still
-      -- default to per_sqft via the INSERT COALESCE above.
+      -- rescrape (e.g. per-piece accessories retagged per_unit). New rows default
+      -- via $12 (per_unit for accessories, per_sqft otherwise) in the INSERT.
       price_basis = COALESCE($4, pricing.price_basis),
       cut_price = COALESCE($5, pricing.cut_price),
       roll_price = COALESCE($6, pricing.roll_price),
@@ -869,7 +889,7 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
       roll_cost = COALESCE($8, pricing.roll_cost),
       roll_min_sqft = COALESCE($9, pricing.roll_min_sqft),
       map_price = COALESCE($10, pricing.map_price)
-  `, [sku_id, cost != null ? cost : null, retailAdj != null ? retailAdj : null, explicitBasis || null, cutAdj || null, rollAdj || null, cut_cost || null, roll_cost || null, roll_min_sqft || null, map_price || null, coveringFloorValue != null ? coveringFloorValue : null]);
+  `, [sku_id, cost != null ? cost : null, retailAdj != null ? retailAdj : null, explicitBasis || null, cutAdj || null, rollAdj || null, cut_cost || null, roll_cost || null, roll_min_sqft || null, map_price || null, coveringFloorValue != null ? coveringFloorValue : null, defaultBasis]);
 }
 
 /**

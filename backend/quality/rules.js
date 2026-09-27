@@ -477,6 +477,39 @@ export const RULES = [
   },
 
   {
+    key: 'accessory-box-per-sqft',
+    title: 'Accessory tagged box/per_sqft with box area — PO overcost risk',
+    severity: 'error',
+    async run(pool, { vendorId }) {
+      // Accessories (trim/bullnose/deco/mosaic accents) are per-piece goods:
+      // the platform convention is sell_by='unit' + price_basis='per_unit'. A
+      // row tagged box+per_sqft with a real box area carries a per-piece cost
+      // that computePoLineCost multiplies by sqft_per_box — the RD-10032 class
+      // that overcosts vendor POs 11×–50× (swept 2026-09-17/25, see
+      // fix-accessory-price-basis-2026-09.mjs). base.js now defaults omitted
+      // accessory sell_by/basis to unit/per_unit, so any hit here is fresh
+      // drift from a caller that EXPLICITLY sends the box convention. AZT is
+      // excluded — its price lists are genuinely SF/BX rate-based (retagging
+      // its pattern sets would UNDERcost POs instead).
+      const { rows } = await pool.query(`
+        SELECT s.id AS sku_id, p.id AS product_id, v.id AS vendor_id, v.code AS vendor_code,
+               p.name, s.variant_name, s.sell_by, pr.price_basis, pr.cost, pk.sqft_per_box
+        ${SKU_FROM}
+          AND s.variant_type = 'accessory'
+          AND s.sell_by = 'box'
+          AND pr.price_basis IN ('per_sqft', 'sqft')
+          AND COALESCE(pk.sqft_per_box, 0) > 1
+          AND v.code <> 'AZT'
+      `, [vendorId]);
+      return rows.map(r => ({
+        sku_id: r.sku_id, product_id: r.product_id, vendor_id: r.vendor_id,
+        summary: `${r.vendor_code}: accessory "${r.name}${r.variant_name ? ' — ' + r.variant_name : ''}" tagged box/per_sqft with ${r.sqft_per_box} sqft/box — a PO would multiply its piece cost by the box area`,
+        detail: { sell_by: r.sell_by, price_basis: r.price_basis, cost: r.cost, sqft_per_box: r.sqft_per_box },
+      }));
+    },
+  },
+
+  {
     key: 'missing-box-packaging',
     title: 'Sold per sqft by the box but sqft_per_box missing',
     severity: 'error',
