@@ -3167,6 +3167,21 @@
         window.scrollTo(0, 0);
         return;
       }
+      if (path === "/guides") {
+        setGuideSlug(null);
+        setView("guides-index");
+        history.pushState({ view: "guides-index" }, "", "/guides");
+        window.scrollTo(0, 0);
+        return;
+      }
+      if (path.startsWith("/guides/")) {
+        const gslug = decodeURIComponent(path.replace("/guides/", "").split(/[/?]/)[0] || "");
+        setGuideSlug(gslug);
+        setView("guide");
+        history.pushState({ view: "guide", guideSlug: gslug }, "", path);
+        window.scrollTo(0, 0);
+        return;
+      }
       const servicePages = {
         "/design-services": "Design Services"
       };
@@ -3792,6 +3807,7 @@
           if (state.view === "visit-recap" && state.token) setVisitRecapToken(state.token);
           if (state.view === "estimate-view" && state.token) setEstimateToken(state.token);
           if (state.view === "quote-view" && state.token) setQuoteToken(state.token);
+          if (state.view === "guide" && state.guideSlug) setGuideSlug(state.guideSlug);
           if (state.view === "coming-soon" && state.title) setComingSoonTitle(state.title);
         } else {
           window.scrollTo(0, 0);
