@@ -5331,8 +5331,8 @@
         { id: 'shop', label: 'Shop', hasPanel: true, onClick: () => goBrowse() },
         { id: 'brands', label: 'Brands', hasPanel: false, onClick: () => navigate('/brands') },
         { id: 'services', label: 'Services', hasPanel: true, onClick: () => navigate('/cabinets') },
-        { id: 'guides', label: 'Guides', hasPanel: true, onClick: () => navigate('/guides') },
         { id: 'trade', label: 'Trade', hasPanel: false, onClick: () => onTradeClick() },
+        { id: 'guides', label: 'Guides', hasPanel: true, onClick: () => navigate('/guides') },
         { id: 'about', label: 'About', hasPanel: false, onClick: () => navigate('/about') },
       ];
 
