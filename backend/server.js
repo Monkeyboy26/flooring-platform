@@ -22098,8 +22098,10 @@ app.post('/api/rep/orders/:id/payments/:paymentId/refund', repAuth, async (req, 
     if (!payResult.rows.length) return res.status(404).json({ error: 'Refundable payment not found on this order' });
     const payment = payResult.rows[0];
 
-    if (Date.now() - new Date(payment.created_at).getTime() > 24 * 60 * 60 * 1000) {
-      return res.status(403).json({ error: 'Counter refunds are limited to payments collected in the last 24 hours. Ask a manager to refund this from the admin dashboard.' });
+    // Rep-portal managers can refund tenders of any age; regular reps only
+    // what they collected in the last 24 hours.
+    if (!req.rep.is_manager && Date.now() - new Date(payment.created_at).getTime() > 24 * 60 * 60 * 1000) {
+      return res.status(403).json({ error: 'Counter refunds are limited to payments collected in the last 24 hours. Ask a manager to refund this.' });
     }
 
     const remaining = await tenderRemainingRefundable(pool, payment);

@@ -11206,7 +11206,7 @@
       }
     });
     const tenderRemaining = (p) => parseFloat((parseFloat(p.amount) - (refundedByTender[p.id] || 0)).toFixed(2));
-    const canCounterRefund = (p) => ["charge", "additional_charge"].includes(p.payment_type) && parseFloat(p.amount) > 0 && p.status === "completed" && Date.now() - new Date(p.created_at).getTime() <= 24 * 60 * 60 * 1e3 && tenderRemaining(p) > 0;
+    const canCounterRefund = (p) => ["charge", "additional_charge"].includes(p.payment_type) && parseFloat(p.amount) > 0 && p.status === "completed" && (repInfo.is_manager || Date.now() - new Date(p.created_at).getTime() <= 24 * 60 * 60 * 1e3) && tenderRemaining(p) > 0;
     const tenderMethod = (p) => p.payment_method || (p.stripe_payment_intent_id ? "card" : "offline");
     const pendingPayment = payments.find((p) => parseFloat(p.amount) > 0 && p.status === "pending");
     const pendingIsCheck = pendingPayment && /check/i.test(pendingPayment.description || pendingPayment.payment_method || "");

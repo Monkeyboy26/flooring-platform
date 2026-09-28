@@ -16799,7 +16799,7 @@
       const canCounterRefund = (p) =>
         ['charge', 'additional_charge'].includes(p.payment_type) && parseFloat(p.amount) > 0 &&
         p.status === 'completed' &&
-        Date.now() - new Date(p.created_at).getTime() <= 24 * 60 * 60 * 1000 &&
+        (repInfo.is_manager || Date.now() - new Date(p.created_at).getTime() <= 24 * 60 * 60 * 1000) &&
         tenderRemaining(p) > 0;
       const tenderMethod = (p) => p.payment_method || (p.stripe_payment_intent_id ? 'card' : 'offline');
 
