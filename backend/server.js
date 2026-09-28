@@ -13750,11 +13750,15 @@ app.post('/api/trade/register', registrationLimiter, async (req, res) => {
     }
 
     const { hash, salt } = await hashPassword(password);
-    await pool.query(
+    const ins = await pool.query(
       `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone, created_via)
-       VALUES ($1, $2, $3, $4, $5, $6, 'self')`,
+       VALUES ($1, $2, $3, $4, $5, $6, 'self') RETURNING id`,
       [email.toLowerCase().trim(), hash, salt, collapse(company_name), titleCaseName(contact_name), formatPhone(phone) || null]
     );
+
+    // Every trade account gets an owning rep from day one (random active rep;
+    // the retail-exists guard above means there's no retail rep to inherit).
+    await assignRepForStorefront(pool, { trade_customer_id: ins.rows[0].id, customer_email: email, reason: 'Auto-assigned on trade registration' });
 
     res.json({ success: true, message: 'Registration submitted. Your account is pending approval.' });
   } catch (err) {
@@ -14006,6 +14010,10 @@ app.post('/api/trade/register/enhanced', registrationLimiter, async (req, res) =
       );
     }
 
+    // Every trade account gets an owning rep from day one (random active rep;
+    // the retail-exists guard above means there's no retail rep to inherit).
+    await assignRepForStorefront(client, { trade_customer_id: customerId, customer_email: email, reason: 'Auto-assigned on trade registration' });
+
     await client.query('COMMIT');
     res.json({ success: true, message: 'Registration submitted. Your account is pending approval.' });
   } catch (err) {
@@ -14094,6 +14102,10 @@ app.post('/api/customer/trade-upgrade', customerAuth, async (req, res) => {
       await client.query('UPDATE trade_documents SET trade_customer_id = $1 WHERE id = ANY($2) AND trade_customer_id IS NULL', [tradeId, document_ids]);
     }
     await client.query('UPDATE customers SET trade_customer_id = $1 WHERE id = $2', [tradeId, cust.id]);
+
+    // Give the trade account an owning rep now — the retail account's existing
+    // rep when set, else a random active rep assigned to both records.
+    await assignRepForStorefront(client, { trade_customer_id: tradeId, customer_id: cust.id, customer_email: cust.email, reason: 'Auto-assigned on trade upgrade request' });
 
     await client.query('COMMIT');
     await logAudit(null, 'trade.upgrade_requested', 'trade_customers', tradeId, { customer_id: cust.id, email: cust.email }, req.ip);
@@ -14189,6 +14201,11 @@ app.post('/api/admin/trade-customers/:id/approve', staffAuth, requireRole('admin
     await client.query('COMMIT');
 
     if (staffId) await logAudit(staffId, 'trade.approve', 'trade_customers', id, { margin_tier_id: tierId, tax_exempt: taxExempt }, req.ip);
+
+    // Safety net for accounts that predate assign-on-registration: make sure an
+    // owning rep exists by approval time (email-matched retail rep, else random).
+    const ensuredRep = await assignRepForStorefront(pool, { trade_customer_id: id, customer_email: tc.email, reason: 'Auto-assigned on trade approval' });
+    if (ensuredRep && !tc.assigned_rep_id) tc.assigned_rep_id = ensuredRep.id;
 
     // Send approval email
     try {
@@ -14900,7 +14917,7 @@ async function getNextAvailableRep() {
 // persisted on the customer record (retail or trade) so all of that customer's
 // future activity routes to the same person. Accepts a txn client or the pool;
 // returns null only when there are no active reps at all. Never throws.
-async function assignRepForStorefront(db, { customer_id, trade_customer_id, customer_email } = {}) {
+async function assignRepForStorefront(db, { customer_id, trade_customer_id, customer_email, reason = 'Auto-assigned on storefront activity' } = {}) {
   try {
     const REP = 'sa.id, sa.email, sa.first_name, sa.last_name';
     const one = async (sql, val) => (await db.query(sql, [val])).rows[0] || null;
@@ -14909,14 +14926,22 @@ async function assignRepForStorefront(db, { customer_id, trade_customer_id, cust
     if (trade_customer_id) owner = await one(`SELECT ${REP} FROM staff_accounts sa JOIN trade_customers tc ON tc.assigned_rep_id = sa.id WHERE tc.id = $1 AND sa.is_active = true`, trade_customer_id);
     if (!owner && customer_id) owner = await one(`SELECT ${REP} FROM staff_accounts sa JOIN customers c ON c.assigned_rep_id = sa.id WHERE c.id = $1 AND sa.is_active = true`, customer_id);
     if (!owner && customer_email) owner = await one(`SELECT ${REP} FROM staff_accounts sa JOIN customers c ON c.assigned_rep_id = sa.id WHERE LOWER(c.email) = LOWER($1) AND sa.is_active = true`, String(customer_email).toLowerCase());
-    if (owner) return owner;
+    if (owner) {
+      // An owner found via the retail-account match isn't on the trade record
+      // yet — stamp a still-unassigned trade record so it keeps the same rep.
+      if (trade_customer_id) {
+        const u = await db.query('UPDATE trade_customers SET assigned_rep_id = $1, assigned_at = CURRENT_TIMESTAMP WHERE id = $2 AND assigned_rep_id IS NULL', [owner.id, trade_customer_id]);
+        if (u.rowCount) await db.query("INSERT INTO customer_rep_history (trade_customer_id, from_rep_id, to_rep_id, reason) VALUES ($1, NULL, $2, $3)", [trade_customer_id, owner.id, reason]);
+      }
+      return owner;
+    }
 
     // 2) Unowned — pick a random active rep and persist ownership.
     const rep = await getNextAvailableRep();
     if (!rep) return null;
     if (trade_customer_id) {
       const u = await db.query('UPDATE trade_customers SET assigned_rep_id = $1, assigned_at = CURRENT_TIMESTAMP WHERE id = $2 AND assigned_rep_id IS NULL', [rep.id, trade_customer_id]);
-      if (u.rowCount) await db.query("INSERT INTO customer_rep_history (trade_customer_id, from_rep_id, to_rep_id, reason) VALUES ($1, NULL, $2, 'Auto-assigned on storefront activity')", [trade_customer_id, rep.id]);
+      if (u.rowCount) await db.query("INSERT INTO customer_rep_history (trade_customer_id, from_rep_id, to_rep_id, reason) VALUES ($1, NULL, $2, $3)", [trade_customer_id, rep.id, reason]);
     }
     if (customer_id) {
       await db.query('UPDATE customers SET assigned_rep_id = $1, assigned_at = CURRENT_TIMESTAMP WHERE id = $2 AND assigned_rep_id IS NULL', [rep.id, customer_id]);
@@ -16840,6 +16865,11 @@ app.post('/api/rep/trade-customers/:id/approve', repAuth, requireRepManager, asy
     const repName = `${req.rep.first_name} ${req.rep.last_name}`.trim();
     await logAudit(null, 'trade.approve', 'trade_customers', id,
       { margin_tier_id: tierId, tax_exempt: taxExempt, approved_by_rep: req.rep.id, approved_by_name: repName }, req.ip);
+
+    // Safety net for accounts that predate assign-on-registration: make sure an
+    // owning rep exists by approval time (email-matched retail rep, else random).
+    const ensuredRep = await assignRepForStorefront(pool, { trade_customer_id: id, customer_email: tc.email, reason: 'Auto-assigned on trade approval' });
+    if (ensuredRep && !tc.assigned_rep_id) tc.assigned_rep_id = ensuredRep.id;
 
     // Send approval email
     try {
