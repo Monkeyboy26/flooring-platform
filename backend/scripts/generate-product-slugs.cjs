@@ -44,9 +44,21 @@ async function main() {
     let updated = 0;
     let collisions = 0;
 
+    // Canonical collection/name de-echo (same helper the title composer uses).
+    // The original naive `collection + ' ' + name` concat minted doubled slugs
+    // whenever the stored name repeats the collection ("Inter Penny"/"Inter
+    // Penny" → inter-penny-inter-penny) — the 2026-09 AZT legacy-slug wart.
+    // New slugs must never bake the echo in: de-echo the name first, then only
+    // prefix the collection when the name doesn't already start with it.
+    const { dedupeStoredName } = await import('../lib/productName.js');
+
     for (const p of products) {
-      const displayName = p.display_name || p.name;
-      const base = slugify((p.collection ? p.collection + ' ' : '') + displayName);
+      const displayName = dedupeStoredName(p.collection, p.display_name || p.name) || p.name;
+      const nSlug = slugify(displayName);
+      const cSlug = slugify(p.collection || '');
+      const base = (!cSlug || nSlug === cSlug || nSlug.startsWith(cSlug + '-'))
+        ? nSlug
+        : `${cSlug}-${nSlug}`;
 
       if (!base) {
         console.log(`  SKIP (empty slug): id=${p.id} name="${p.name}" collection="${p.collection}"`);
