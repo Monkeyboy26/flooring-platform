@@ -5,10 +5,10 @@ import { emailShell, heroSection, ctaButton, warmCard, section, T, SERIF, SANS, 
 
 // Fallback discounts, used only if the DB tiers can't be loaded. Live values
 // come from margin_tiers via emailService.loadTradeTiers, passed in as `tiers`.
-const DEFAULT_TIER_DISCOUNTS = { Silver: '12.5%', Gold: '18.75%', Platinum: '21.875%' };
+const DEFAULT_TIER_DISCOUNTS = { Silver: '13%', Gold: '19%', Platinum: '22%' };
 
-// numeric(6,3) like 18.750 → "18.75%"; trailing zeros dropped by parseFloat.
-const fmtPct = (v) => `${parseFloat(v)}%`;
+// numeric(6,3) like 17.647 → "18%"; rounded UP to a clean whole number.
+const fmtPct = (v) => `${Math.ceil(parseFloat(v) || 0)}%`;
 
 export function generateTierPromotionHTML(customer, tierName, tiers = []) {
   const siteUrl = process.env.SITE_URL || 'http://localhost:3000';

@@ -19,8 +19,8 @@ const DEFAULT_TIERS = [
   { name: 'Platinum', discount_percent: 21.875, spend_threshold: 20000, tier_level: 2 },
 ];
 
-// numeric(6,3) like 12.500 → "12.5"; trailing zeros dropped by parseFloat.
-const fmtPct = (v) => `${parseFloat(v)}%`;
+// numeric(6,3) like 11.765 → "12%"; rounded UP to a clean whole number.
+const fmtPct = (v) => `${Math.ceil(parseFloat(v) || 0)}%`;
 
 // The three-step "what approval looks like" ladder. `orderWord` is 'next' for
 // customers with order history, 'first' for never-ordered prospects.
