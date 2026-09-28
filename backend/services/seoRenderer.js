@@ -325,7 +325,25 @@ async function fetchSkuRedirectSlugs(pool, skuId) {
     LEFT JOIN categories c ON c.id = p.category_id
     WHERE s.id = $1
   `, [skuId]);
-  if (!result.rows.length) return null;
+  if (!result.rows.length) {
+    // Legacy sitemap fallback URLs put PRODUCT ids in the /shop/sku/{id} path
+    // (category-less products, pre-2026-09 fix). Resolve those to the canonical
+    // product URL too so the ~6.8K crawled 404s in GSC become 301s.
+    const byProduct = await pool.query(`
+      SELECT p.slug as product_slug, c.slug as category_slug
+      FROM products p
+      LEFT JOIN categories c ON c.id = p.category_id
+      WHERE p.id = $1 AND p.status = 'active'
+        AND EXISTS (
+          SELECT 1 FROM skus s
+          WHERE s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
+        )
+    `, [skuId]);
+    if (!byProduct.rows.length) return null;
+    const { product_slug, category_slug } = byProduct.rows[0];
+    if (!product_slug || !category_slug) return null;
+    return { productSlug: product_slug, categorySlug: category_slug };
+  }
   const { product_slug, category_slug } = result.rows[0];
   if (!product_slug || !category_slug) return null;
   return { productSlug: product_slug, categorySlug: category_slug };
