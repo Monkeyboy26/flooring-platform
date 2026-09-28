@@ -12049,7 +12049,19 @@
       const amt = parseFloat(p.amount);
       const state = p.status === "pending" ? "Clearing" : p.status === "failed" ? "Failed" : p.payment_type === "refund" || amt < 0 ? "Refunded" : "Captured";
       const stateColor = state === "Clearing" ? "#5c6e94" : state === "Failed" || state === "Refunded" ? "var(--rod-red)" : "var(--rod-green)";
-      return /* @__PURE__ */ React.createElement("div", { className: "rov-pay-row", key: p.id }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { font: "400 13px/1.25 Inter, sans-serif", color: "var(--rod-ink)" } }, p.description || ({ card: "Card", cash: "Cash", check: "Check", ach: "ACH" }[p.payment_method] || p.payment_method || "Payment")), /* @__PURE__ */ React.createElement(RovMicro, { style: { marginTop: 3 } }, rodFmtDT(p.created_at), p.stripe_payment_intent_id ? " \xB7 " + p.stripe_payment_intent_id.slice(0, 18) : p.initiated_by_name ? " \xB7 by " + p.initiated_by_name : "")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right" } }, /* @__PURE__ */ React.createElement("div", { style: { font: '400 16px/1 "Cormorant Garamond", serif', color: amt < 0 ? "var(--rod-red)" : "var(--rod-ink)" } }, amt < 0 ? "-" : "", "$", Math.abs(amt).toFixed(2)), /* @__PURE__ */ React.createElement(RovMicro, { color: stateColor, style: { marginTop: 3 } }, state)));
+      return /* @__PURE__ */ React.createElement("div", { className: "rov-pay-row", key: p.id }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { font: "400 13px/1.25 Inter, sans-serif", color: "var(--rod-ink)" } }, p.description || ({ card: "Card", cash: "Cash", check: "Check", ach: "ACH" }[p.payment_method] || p.payment_method || "Payment")), /* @__PURE__ */ React.createElement(RovMicro, { style: { marginTop: 3 } }, rodFmtDT(p.created_at), p.stripe_payment_intent_id ? " \xB7 " + p.stripe_payment_intent_id.slice(0, 18) : p.initiated_by_name ? " \xB7 by " + p.initiated_by_name : "")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right" } }, /* @__PURE__ */ React.createElement("div", { style: { font: '400 16px/1 "Cormorant Garamond", serif', color: amt < 0 ? "var(--rod-red)" : "var(--rod-ink)" } }, amt < 0 ? "-" : "", "$", Math.abs(amt).toFixed(2)), /* @__PURE__ */ React.createElement(RovMicro, { color: stateColor, style: { marginTop: 3 } }, state), canCounterRefund(p) && !refundTarget && /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "rod-mini-btn",
+          style: { marginTop: 6 },
+          onClick: () => {
+            setRefundTarget(p);
+            setRefundAmount(tenderRemaining(p).toFixed(2));
+            setRefundReason("");
+          }
+        },
+        "Refund"
+      )));
     }), refundTarget && /* @__PURE__ */ React.createElement("div", { style: { padding: "12px 20px", borderTop: "0.5px solid rgba(28,25,23,0.13)", background: "var(--rod-warm)" } }, /* @__PURE__ */ React.createElement(RovMicro, null, "Refund \xB7 ", refundTarget.description || tenderMethod(refundTarget)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 8, alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { font: '400 16px/1 "Cormorant Garamond", serif', color: "var(--rod-ink)" } }, "$"), /* @__PURE__ */ React.createElement(
       "input",
       {

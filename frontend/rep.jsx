@@ -18095,6 +18095,12 @@
                             {amt < 0 ? '-' : ''}${Math.abs(amt).toFixed(2)}
                           </div>
                           <RovMicro color={stateColor} style={{ marginTop: 3 }}>{state}</RovMicro>
+                          {canCounterRefund(p) && !refundTarget && (
+                            <button className="rod-mini-btn" style={{ marginTop: 6 }}
+                              onClick={() => { setRefundTarget(p); setRefundAmount(tenderRemaining(p).toFixed(2)); setRefundReason(''); }}>
+                              Refund
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
