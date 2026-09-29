@@ -1078,6 +1078,10 @@ ALTER TABLE quotes ADD COLUMN IF NOT EXISTS promo_code TEXT;
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10,2) DEFAULT 0;
 -- Sidemark / job reference; carried onto the order's job_name at conversion.
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS sidemark VARCHAR(200);
+-- Sales tax carried on the quote so the quote total, the converted order, and the
+-- pay-link amount all agree (mirrors orders/estimates). Resolved by recalcQuoteTotals.
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS tax_rate DECIMAL(5,4) DEFAULT 0;
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS tax_amount DECIMAL(10,2) DEFAULT 0;
 
 -- ==================== PO Enhancements ====================
 

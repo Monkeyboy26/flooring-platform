@@ -24,7 +24,7 @@ import { spawn } from 'child_process';
 import sharp from 'sharp';
 import { pool } from './db.js';
 import { createAuthMiddleware } from './lib/auth.js';
-import { calculateSalesTax, isTradeTaxExempt, isPickupOnly, getNextBusinessDay, CA_TAX_RATES } from './lib/helpers.js';
+import { calculateSalesTax, isTradeTaxExempt, isPickupOnly, getNextBusinessDay, CA_TAX_RATES, NY_TAX_RATES } from './lib/helpers.js';
 import { recalculateBalance, recalcOrderTotals, logOrderActivity, recalculateCommission, syncOrderPaymentToInvoice, getStoreCreditBalance, grantStoreCredit, redeemStoreCredit } from './lib/orderHelpers.js';
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
 import { getEstimateBundle, bundleSections, effectiveStatus, depositAmount, computeSchedule, LABOR_CATEGORY_LABELS, laborUnitShort, laborDisplayName } from './lib/estimateBundle.js';
@@ -4517,11 +4517,16 @@ app.post('/api/calculate', async (req, res) => {
 // Cart routes — extracted to routes/cart.js
 app.use(createCartRoutes({ pool, calculateSalesTax, isPickupOnly, optionalTradeAuth }));
 
-// CA sales-tax table (zip prefix → rate) so frontends estimate with the same
-// rates calculateSalesTax applies at order creation
+// Sales-tax table (zip prefix → rate) so frontends estimate with the same rates
+// calculateSalesTax applies at order creation. Merged across every registered
+// state; CA (9xx) and NY (005/1xx) prefixes don't overlap, so a flat map is safe.
+// Non-numeric metadata keys in the source JSON are stripped.
+const TAX_RATES_MERGED = Object.fromEntries(
+  Object.entries({ ...NY_TAX_RATES, ...CA_TAX_RATES }).filter(([k]) => /^\d{3}$/.test(k))
+);
 app.get('/api/tax-rates', (req, res) => {
   res.set('Cache-Control', 'public, max-age=86400');
-  res.json(CA_TAX_RATES);
+  res.json(TAX_RATES_MERGED);
 });
 
 // ==================== Shipping API ====================
@@ -5637,6 +5642,37 @@ async function getNextOrderNumber() {
 
 async function getNextQuoteNumber() {
   return nextRdFamilyNumber(pool, 'RDQ-');
+}
+
+// Single source of truth for a quote's money columns. Recomputes subtotal from
+// the quote's items, resolves sales tax on the post-discount merchandise subtotal
+// (destination = ship-to ZIP, or the ship-from origin for pickup), and writes
+// subtotal/tax_rate/tax_amount/total together. Every quote-mutation endpoint
+// routes through this so tax can never be silently dropped (the rep quote→order→
+// pay-link flow previously stored no tax at all). `db` is a pool or txn client.
+async function recalcQuoteTotals(db, quoteId) {
+  const qr = await db.query(
+    `SELECT shipping, discount_amount, shipping_zip, delivery_method, customer_email
+       FROM quotes WHERE id = $1`, [quoteId]);
+  if (!qr.rows.length) return null;
+  const q = qr.rows[0];
+  const sub = await db.query(
+    'SELECT COALESCE(SUM(subtotal), 0) AS s FROM quote_items WHERE quote_id = $1', [quoteId]);
+  const subtotal = parseFloat(parseFloat(sub.rows[0].s).toFixed(2));
+  const discount = parseFloat(q.discount_amount || 0);
+  const isPickup = q.delivery_method === 'pickup';
+  const shippingVal = isPickup ? 0 : parseFloat(q.shipping || 0);
+  // Pickup is sourced at the store (origin), so tax uses the ship-from ZIP.
+  const destZip = isPickup ? SHIP_FROM.zip : (q.shipping_zip || '');
+  const exempt = await isTradeTaxExempt(db, { email: q.customer_email });
+  const taxable = Math.max(0, subtotal - discount);
+  const { rate, amount } = calculateSalesTax(taxable, destZip, exempt);
+  const total = parseFloat(Math.max(0, subtotal + shippingVal - discount + amount).toFixed(2));
+  await db.query(
+    `UPDATE quotes SET subtotal = $1, tax_rate = $2, tax_amount = $3, total = $4,
+       updated_at = CURRENT_TIMESTAMP WHERE id = $5`,
+    [subtotal.toFixed(2), rate, amount.toFixed(2), total.toFixed(2), quoteId]);
+  return { subtotal, tax_rate: rate, tax_amount: amount, shipping: shippingVal, discount, total };
 }
 
 // Append a lifecycle/engagement event to a quote's thread. Never throws —
@@ -26078,11 +26114,12 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
       }
 
       const shipAmt = parseFloat(shipping) || 0;
-      const total = subtotal + shipAmt - discountAmount;
       await client.query(
-        'UPDATE quotes SET subtotal = $1, total = $2, shipping = $3, promo_code_id = $4, promo_code = $5, discount_amount = $6 WHERE id = $7',
-        [subtotal.toFixed(2), total.toFixed(2), shipAmt.toFixed(2), promoCodeId, promoCodeStr, discountAmount.toFixed(2), quote.id]
+        'UPDATE quotes SET shipping = $1, promo_code_id = $2, promo_code = $3, discount_amount = $4 WHERE id = $5',
+        [shipAmt.toFixed(2), promoCodeId, promoCodeStr, discountAmount.toFixed(2), quote.id]
       );
+      // Compute + persist tax and the final total (subtotal/tax/total together).
+      await recalcQuoteTotals(client, quote.id);
 
       // Record promo usage
       if (promoCodeId && discountAmount > 0) {
@@ -26276,10 +26313,15 @@ app.put('/api/rep/quotes/:id', repAuth, async (req, res) => {
       );
     }
 
-    // Recalculate total
-    const total = parseFloat((parseFloat(q.subtotal || 0) + parseFloat(q.shipping || 0) - discountAmount).toFixed(2));
-    await pool.query('UPDATE quotes SET total = $1 WHERE id = $2', [total.toFixed(2), id]);
-    q.total = total.toFixed(2);
+    // Recompute subtotal/tax/total after any address, shipping, or promo change
+    // (a ship-to ZIP edit can change the tax jurisdiction).
+    const totals = await recalcQuoteTotals(pool, id);
+    if (totals) {
+      q.subtotal = totals.subtotal.toFixed(2);
+      q.tax_rate = totals.tax_rate;
+      q.tax_amount = totals.tax_amount.toFixed(2);
+      q.total = totals.total.toFixed(2);
+    }
     q.discount_amount = discountAmount.toFixed(2);
     q.promo_code_id = promoCodeId;
     q.promo_code = promoCodeStr;
@@ -26335,19 +26377,8 @@ app.post('/api/rep/quotes/:id/items', repAuth, async (req, res) => {
         rug ? (rug.cost != null ? parseFloat(rug.cost).toFixed(2) : null) : (customCost != null ? customCost.toFixed(2) : null),
         rug ? true : false, rug ? rug.custom_width_ft : null, rug ? rug.custom_length_ft : null]);
 
-    // Recalculate quote totals
-    const totals = await client.query(
-      'SELECT COALESCE(SUM(subtotal), 0) as sub FROM quote_items WHERE quote_id = $1', [id]
-    );
-    const newSubtotal = parseFloat(parseFloat(totals.rows[0].sub).toFixed(2));
-    const quoteRow = await client.query('SELECT shipping FROM quotes WHERE id = $1', [id]);
-    const shippingVal = parseFloat(quoteRow.rows[0].shipping || 0);
-    const newTotal = parseFloat((newSubtotal + shippingVal).toFixed(2));
-
-    await client.query(
-      'UPDATE quotes SET subtotal = $1, total = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
-      [newSubtotal.toFixed(2), newTotal.toFixed(2), id]
-    );
+    // Recompute subtotal/tax/total from the current line items.
+    await recalcQuoteTotals(client, id);
 
     await client.query('COMMIT');
     res.json({ item: itemResult.rows[0] });
@@ -26390,19 +26421,8 @@ app.put('/api/rep/quotes/:id/items/:itemId', repAuth, async (req, res) => {
       return res.status(404).json({ error: 'Quote item not found' });
     }
 
-    // Recalculate
-    const totals = await client.query(
-      'SELECT COALESCE(SUM(subtotal), 0) as sub FROM quote_items WHERE quote_id = $1', [id]
-    );
-    const newSubtotal = parseFloat(parseFloat(totals.rows[0].sub).toFixed(2));
-    const quoteRow = await client.query('SELECT shipping FROM quotes WHERE id = $1', [id]);
-    const shippingVal = parseFloat(quoteRow.rows[0].shipping || 0);
-    const newTotal = parseFloat((newSubtotal + shippingVal).toFixed(2));
-
-    await client.query(
-      'UPDATE quotes SET subtotal = $1, total = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
-      [newSubtotal.toFixed(2), newTotal.toFixed(2), id]
-    );
+    // Recompute subtotal/tax/total from the current line items.
+    await recalcQuoteTotals(client, id);
 
     await client.query('COMMIT');
     res.json({ item: result.rows[0] });
@@ -26429,19 +26449,8 @@ app.delete('/api/rep/quotes/:id/items/:itemId', repAuth, async (req, res) => {
       return res.status(404).json({ error: 'Quote item not found' });
     }
 
-    // Recalculate
-    const totals = await client.query(
-      'SELECT COALESCE(SUM(subtotal), 0) as sub FROM quote_items WHERE quote_id = $1', [id]
-    );
-    const newSubtotal = parseFloat(parseFloat(totals.rows[0].sub).toFixed(2));
-    const quoteRow = await client.query('SELECT shipping FROM quotes WHERE id = $1', [id]);
-    const shippingVal = parseFloat(quoteRow.rows[0].shipping || 0);
-    const newTotal = parseFloat((newSubtotal + shippingVal).toFixed(2));
-
-    await client.query(
-      'UPDATE quotes SET subtotal = $1, total = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
-      [newSubtotal.toFixed(2), newTotal.toFixed(2), id]
-    );
+    // Recompute subtotal/tax/total from the remaining line items.
+    await recalcQuoteTotals(client, id);
 
     await client.query('COMMIT');
     res.json({ deleted: itemId });
@@ -26720,7 +26729,13 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
 
     const isPickupQuote = q.delivery_method === 'pickup';
     const quoteShipping = isPickupQuote ? '0.00' : q.shipping;
-    const quoteTotal = isPickupQuote ? parseFloat(parseFloat(q.subtotal || 0).toFixed(2)).toFixed(2) : q.total;
+    // Tax was already resolved on the quote (origin ZIP for pickup, ship-to
+    // otherwise) by recalcQuoteTotals, so carry it straight through. Pickup drops
+    // shipping only — subtotal − discount + tax still applies.
+    const quoteTax = parseFloat(q.tax_amount || 0);
+    const quoteTotal = isPickupQuote
+      ? Math.max(0, parseFloat(q.subtotal || 0) - parseFloat(q.discount_amount || 0) + quoteTax).toFixed(2)
+      : q.total;
     const totalNum = parseFloat(quoteTotal);
 
     // Copy promo code from quote to order
@@ -26732,8 +26747,8 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
       INSERT INTO orders (order_number, customer_email, customer_name, phone,
         shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
         subtotal, shipping, total, status, sales_rep_id, payment_method, quote_id, stripe_payment_intent_id, delivery_method,
-        promo_code_id, promo_code, discount_amount, amount_paid, customer_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+        promo_code_id, promo_code, discount_amount, amount_paid, customer_id, tax_rate, tax_amount)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
       RETURNING *
     `, [orderNumber, q.customer_email, q.customer_name, q.phone,
         isPickupQuote ? null : (q.shipping_address_line1 || ''),
@@ -26744,7 +26759,8 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
         q.subtotal, quoteShipping, quoteTotal, orderStatus, req.rep.id, payment_method, id, stripePaymentIntentId,
         q.delivery_method || 'shipping',
         quotePromoCodeId, quotePromoCode, quoteDiscount.toFixed(2),
-        paidInStore ? totalNum.toFixed(2) : '0.00', cust.id]);
+        paidInStore ? totalNum.toFixed(2) : '0.00', cust.id,
+        parseFloat(q.tax_rate || 0), parseFloat(q.tax_amount || 0).toFixed(2)]);
 
     const order = orderResult.rows[0];
 
@@ -28321,15 +28337,8 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
           item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
     }
 
-    // Recalculate quote totals
-    const totals = await client.query(
-      'SELECT COALESCE(SUM(subtotal), 0) as sub FROM quote_items WHERE quote_id = $1', [quote.id]
-    );
-    const quoteSubtotal = parseFloat(parseFloat(totals.rows[0].sub).toFixed(2));
-    await client.query(
-      'UPDATE quotes SET subtotal = $1, total = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
-      [quoteSubtotal.toFixed(2), quoteSubtotal.toFixed(2), quote.id]
-    );
+    // Recompute subtotal/tax/total from the copied line items.
+    await recalcQuoteTotals(client, quote.id);
 
     // Update estimate status
     await client.query(
@@ -28545,12 +28554,13 @@ async function convertQuoteToOrderTx(client, q, items, opts) {
     INSERT INTO orders (order_number, customer_email, customer_name, phone,
       shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
       subtotal, shipping, total, status, sales_rep_id, payment_method, quote_id, delivery_method,
-      promo_code_id, promo_code, discount_amount, amount_paid, customer_id, trade_customer_id)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending',$13,'stripe',$14,$15,$16,$17,$18,0,$19,$20) RETURNING *
+      promo_code_id, promo_code, discount_amount, amount_paid, customer_id, trade_customer_id, tax_rate, tax_amount)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending',$13,'stripe',$14,$15,$16,$17,$18,0,$19,$20,$21,$22) RETURNING *
   `, [orderNumber, q.customer_email, q.customer_name, q.phone,
       q.shipping_address_line1, q.shipping_address_line2, q.shipping_city, q.shipping_state, q.shipping_zip,
       q.subtotal, q.shipping || 0, q.total, q.sales_rep_id, q.id, q.delivery_method || 'shipping',
-      q.promo_code_id || null, q.promo_code || null, q.discount_amount || 0, customerId, tradeCustomerId]);
+      q.promo_code_id || null, q.promo_code || null, q.discount_amount || 0, customerId, tradeCustomerId,
+      parseFloat(q.tax_rate || 0), parseFloat(q.tax_amount || 0).toFixed(2)]);
   const order = orderResult.rows[0];
   if (q.sidemark && String(q.sidemark).trim()) {
     await client.query('UPDATE orders SET job_name = $1 WHERE id = $2', [String(q.sidemark).trim().slice(0, 200), order.id]);
@@ -35824,6 +35834,17 @@ async function runMigrations() {
       );
     `);
     console.log('Migrations: showroom_items table applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
+
+  // Quotes now carry sales tax so the rep quote→order→pay-link total matches the
+  // storefront (previously the rep flow stored no tax at all). Mirrors the
+  // tax_rate/tax_amount columns already on orders and estimates.
+  try {
+    await pool.query('ALTER TABLE quotes ADD COLUMN IF NOT EXISTS tax_rate DECIMAL(5,4) DEFAULT 0');
+    await pool.query('ALTER TABLE quotes ADD COLUMN IF NOT EXISTS tax_amount DECIMAL(10,2) DEFAULT 0');
+    console.log('Migrations: quotes tax columns applied');
   } catch (err) {
     console.error('Migration warning:', err.message);
   }
