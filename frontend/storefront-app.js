@@ -2634,6 +2634,16 @@
         track("product_view", { sku_id: selectedSkuId });
       }
     }, [view, selectedSkuId]);
+    useEffect(() => {
+      const onTelClick = (e) => {
+        const a = e.target && e.target.closest ? e.target.closest('a[href^="tel:"]') : null;
+        if (!a) return;
+        track("phone_click", { href: a.getAttribute("href"), path: window.location.pathname });
+        gaEvent("generate_lead", { lead_source: "phone_call" });
+      };
+      document.addEventListener("click", onTelClick, true);
+      return () => document.removeEventListener("click", onTelClick, true);
+    }, []);
     const tradeHeaders = () => {
       const h = {};
       const t = localStorage.getItem("trade_token");
@@ -13299,6 +13309,18 @@
       try {
         window.dispatchEvent(new CustomEvent("cookie-consent", { detail: choice }));
       } catch (e) {
+      }
+      if (choice === "declined") {
+        try {
+          (window.dataLayer || []).forEach((a) => {
+            if (a && a[0] === "config" && typeof a[1] === "string") window["ga-disable-" + a[1]] = true;
+          });
+        } catch (e) {
+        }
+        try {
+          if (window.clarity) window.clarity("stop");
+        } catch (e) {
+        }
       }
       setVisible(false);
     };

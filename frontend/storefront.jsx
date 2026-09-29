@@ -2939,6 +2939,21 @@
         }
       }, [view, selectedSkuId]);
 
+      // Phone-call clicks are leads — for a showroom they're the highest-value
+      // conversion, and without this they're invisible to GA4/Google Ads. One
+      // delegated listener covers every tel: link (header, PDP call-for-price,
+      // install pages, footer) instead of 18 per-link handlers.
+      useEffect(() => {
+        const onTelClick = (e) => {
+          const a = e.target && e.target.closest ? e.target.closest('a[href^="tel:"]') : null;
+          if (!a) return;
+          track('phone_click', { href: a.getAttribute('href'), path: window.location.pathname });
+          gaEvent('generate_lead', { lead_source: 'phone_call' });
+        };
+        document.addEventListener('click', onTelClick, true);
+        return () => document.removeEventListener('click', onTelClick, true);
+      }, []);
+
       const tradeHeaders = () => {
         const h = {};
         const t = localStorage.getItem('trade_token');
@@ -20304,6 +20319,20 @@
           localStorage.setItem('cookie_consent_at', new Date().toISOString());
         } catch (e) {}
         try { window.dispatchEvent(new CustomEvent('cookie-consent', { detail: choice })); } catch (e) {}
+        if (choice === 'declined') {
+          // Future page loads never inject /api/analytics (storefront.html gates
+          // on cookie_consent); this stops the tags already running in THIS
+          // session so a decline takes effect immediately, as the privacy
+          // policy promises. ga-disable-<id> is gtag's own opt-out flag; the
+          // measurement ID is read back out of the dataLayer config entries so
+          // nothing is hardcoded here.
+          try {
+            (window.dataLayer || []).forEach((a) => {
+              if (a && a[0] === 'config' && typeof a[1] === 'string') window['ga-disable-' + a[1]] = true;
+            });
+          } catch (e) {}
+          try { if (window.clarity) window.clarity('stop'); } catch (e) {}
+        }
         setVisible(false);
       };
       if (!visible) return null;
