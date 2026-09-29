@@ -5614,6 +5614,23 @@ async function nextRdFamilyNumber(db, prefix, floor = 10000) {
   return prefix + String(Math.max(result.rows[0].maxnum || 0, floor) + 1);
 }
 
+// Fixed key for a transaction-scoped advisory lock that serializes RD-family
+// number allocation. Numbering is MAX-based (no stored counter), so two creators
+// running concurrently could read the same MAX and collide on a per-table UNIQUE
+// constraint — the loser previously surfaced as a generic 500. Callers take this
+// lock right after BEGIN and allocate + INSERT within the SAME transaction; the
+// lock is held until COMMIT/ROLLBACK, so the next waiter's MAX scan (READ
+// COMMITTED, the default) sees the just-committed row and gets a fresh number.
+const RD_FAMILY_LOCK_KEY = 559140; // arbitrary stable constant
+
+// Allocate the next RD-family number inside an OPEN transaction, serialized via
+// the advisory lock above. MUST be called on a client that has already issued
+// BEGIN, and the row that consumes the number must be INSERTed before COMMIT.
+async function allocRdFamilyNumber(client, prefix) {
+  await client.query('SELECT pg_advisory_xact_lock($1)', [RD_FAMILY_LOCK_KEY]);
+  return nextRdFamilyNumber(client, prefix);
+}
+
 async function getNextOrderNumber() {
   return nextRdFamilyNumber(pool, 'RD-');
 }
@@ -25959,9 +25976,11 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
       return res.status(400).json({ error: 'A valid 10-digit phone number is required' });
     }
 
-    const quoteNumber = await getNextQuoteNumber();
-
     await client.query('BEGIN');
+
+    // Serialized RD-family allocation: number is drawn and consumed inside this
+    // transaction so concurrent quote creates can't collide on quote_number.
+    const quoteNumber = await allocRdFamilyNumber(client, 'RDQ-');
 
     // Auto-create customer
     const nameParts = (customer_name || '').split(' ');
@@ -28245,7 +28264,9 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
 
     await client.query('BEGIN');
 
-    const quoteNumber = await getNextQuoteNumber();
+    // Serialized RD-family allocation (see allocRdFamilyNumber) — avoids a
+    // quote_number collision if another quote is being created concurrently.
+    const quoteNumber = await allocRdFamilyNumber(client, 'RDQ-');
 
     // Quotes stay materials-only documents: labor is summarized in the notes.
     // (Use convert-to-order to bill labor through the system.)
