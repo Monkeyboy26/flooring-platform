@@ -151,7 +151,11 @@
           });
         });
         if (reg.waiting && navigator.serviceWorker.controller) promote();
-        reg.update();
+        // update() returns its own promise; on flaky iOS Safari the update-fetch
+        // rejects with "Script sw.js load failed". Catch it — the register().catch
+        // below never sees this one (it's not chained), so it would otherwise be an
+        // unhandled rejection (Sentry STOREFRONT-2).
+        reg.update().catch(function() {});
       }).catch(function() {
         // Registration fails for bots (Google Read-Aloud, headless scrapers our
         // nginx 403s) and flaky Safari sessions — the site works fine without a
