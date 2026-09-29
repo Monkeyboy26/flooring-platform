@@ -1,5 +1,5 @@
 (() => {
-  const { useState, useEffect, useRef, useCallback, useMemo } = React;
+  const { useState, useEffect, useRef, useCallback, useMemo, startTransition } = React;
   const API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://localhost:3001" : "";
   document.addEventListener("wheel", (e) => {
     const el = document.activeElement;
@@ -2713,15 +2713,17 @@
             const data = await r.json();
             clearTimeout(timer);
             if (job.cancelled) return;
-            setSkus(data.skus || []);
-            setTotalSkus(data.total || 0);
             if (pendingSearchTrack.current != null) {
               track("search", { query: pendingSearchTrack.current, results_count: data.total || 0 });
               pendingSearchTrack.current = null;
             }
-            setSearchDidYouMean(data.didYouMean || null);
-            setSearchTimeMs(data.searchTimeMs != null ? data.searchTimeMs : null);
-            setLoadingSkus(false);
+            startTransition(() => {
+              setSkus(data.skus || []);
+              setTotalSkus(data.total || 0);
+              setSearchDidYouMean(data.didYouMean || null);
+              setSearchTimeMs(data.searchTimeMs != null ? data.searchTimeMs : null);
+              setLoadingSkus(false);
+            });
             if (restoreScroll != null && viewRef.current === "browse") {
               requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, restoreScroll)));
             }
@@ -2775,10 +2777,12 @@
         if (!r.ok) throw new Error("HTTP " + r.status);
         return r.json();
       }).then((data) => {
-        setFacets(data.facets || []);
-        setVendorFacets(data.brands || data.vendors || []);
-        setTagFacets(data.tags || []);
-        if (data.priceRange) setPriceRange(data.priceRange);
+        startTransition(() => {
+          setFacets(data.facets || []);
+          setVendorFacets(data.brands || data.vendors || []);
+          setTagFacets(data.tags || []);
+          if (data.priceRange) setPriceRange(data.priceRange);
+        });
       }).catch((err) => {
         if (err.name !== "AbortError") console.error(err);
       });
@@ -5647,6 +5651,53 @@
       onQuickView();
     } }, /* @__PURE__ */ React.createElement("button", { className: "sku-card-qv-btn" }, "Quick View"))), /* @__PURE__ */ React.createElement("div", { className: "sku-card-body" }, /* @__PURE__ */ React.createElement("div", { className: "sku-card-meta-row" }, /* @__PURE__ */ React.createElement("span", null, catName), stockLabel && /* @__PURE__ */ React.createElement("span", { className: "sku-card-stock " + stockClass }, "\u25CF", " ", stockLabel)), /* @__PURE__ */ React.createElement("div", { className: "sku-card-name" }, fullProductName(sku.variant_type === "accessory" ? sku : { ...sku, variant_name: null })), hasVariants && variantImages.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "sku-card-variant-swatches" }, variantImages.slice(0, 5).map((vi, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "sku-card-variant-dot" }, vi.image ? /* @__PURE__ */ React.createElement("img", { src: optimizeImg(vi.image, 60), alt: "", loading: "lazy", decoding: "async", width: 22, height: 22 }) : null)), variantImages.length > 5 && /* @__PURE__ */ React.createElement("span", { className: "sku-card-variant-more" }, "+", variantImages.length - 5)), /* @__PURE__ */ React.createElement("div", { className: "sku-card-vendor" }, variantLabel && vendorLabel ? variantLabel + " \xB7 " + vendorLabel : vendorLabel || variantLabel, !variantLabel && !vendorLabel && hasVariants && sku.variant_count + " " + ((sku.attributes || []).some((a) => a.slug === "color") ? "colors" : "options")), /* @__PURE__ */ React.createElement("div", { className: "sku-card-price-row" }, /* @__PURE__ */ React.createElement("div", { className: "sku-card-price" }, price ? /* @__PURE__ */ React.createElement(React.Fragment, null, sku.trade_price && basePrice && /* @__PURE__ */ React.createElement("span", { className: "sku-card-trade-strike" }, "$", cardPriceOf(sku, basePrice).toFixed(2)), onSale && /* @__PURE__ */ React.createElement("span", { className: "sale-original-price" }, "$", cardPriceOf(sku, basePrice).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: onSale ? "sale-price-text" : "" }, "$", cardPriceOf(sku, price).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "price-suffix" }, cardPriceSuffix(sku))) : "Call for Price"), /* @__PURE__ */ React.createElement("span", { className: "sku-card-view-link" }, "View \u2192"))));
   }
+  function PdpLightbox({ images, index, onIndex, onClose, alt }) {
+    const touchX = useRef(null);
+    const go = useCallback((delta) => {
+      onIndex((index + delta + images.length) % images.length);
+    }, [index, images.length, onIndex]);
+    useEffect(() => {
+      const onKey = (e) => {
+        if (e.key === "Escape") onClose();
+        else if (e.key === "ArrowRight") go(1);
+        else if (e.key === "ArrowLeft") go(-1);
+      };
+      document.addEventListener("keydown", onKey);
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.removeEventListener("keydown", onKey);
+        document.body.style.overflow = "";
+      };
+    }, [go, onClose]);
+    const img = images[index] || images[0];
+    if (!img) return null;
+    return ReactDOM.createPortal(
+      /* @__PURE__ */ React.createElement("div", { className: "pdp-lightbox", onClick: onClose, role: "dialog", "aria-modal": "true", "aria-label": "Image viewer" }, /* @__PURE__ */ React.createElement("button", { className: "pdp-lightbox-close", "aria-label": "Close", onClick: onClose }, "\xD7"), images.length > 1 && /* @__PURE__ */ React.createElement("button", { className: "pdp-lightbox-arrow prev", "aria-label": "Previous image", onClick: (e) => {
+        e.stopPropagation();
+        go(-1);
+      } }, "\u2039"), /* @__PURE__ */ React.createElement(
+        "img",
+        {
+          src: optimizeImg(img.url, 1600),
+          alt: alt || "",
+          onClick: (e) => e.stopPropagation(),
+          onTouchStart: (e) => {
+            touchX.current = e.touches[0].clientX;
+          },
+          onTouchEnd: (e) => {
+            if (touchX.current == null) return;
+            const dx = e.changedTouches[0].clientX - touchX.current;
+            touchX.current = null;
+            if (Math.abs(dx) > 48) go(dx < 0 ? 1 : -1);
+          }
+        }
+      ), images.length > 1 && /* @__PURE__ */ React.createElement("button", { className: "pdp-lightbox-arrow next", "aria-label": "Next image", onClick: (e) => {
+        e.stopPropagation();
+        go(1);
+      } }, "\u203A"), images.length > 1 && /* @__PURE__ */ React.createElement("div", { className: "pdp-lightbox-count" }, index + 1, " / ", images.length)),
+      document.body
+    );
+  }
   function SkuDetailView({ skuId, goBack, addToCart, cart, onSkuClick, onRequestInstall, tradeCustomer, wishlist, toggleWishlist: toggleWishlist2, recentlyViewed, addRecentlyViewed, customer, customerToken, onShowAuth, showToast, categories, onCollectionClick, onBrandClick, onCategoryClick }) {
     const [sku, setSku] = useState(null);
     const [tierInfo, setTierInfo] = useState(null);
@@ -5661,6 +5712,7 @@
     const [productTags, setProductTags] = useState([]);
     const [countertopImage, setCountertopImage] = useState(null);
     const [selectedImage, setSelectedImage] = useState(0);
+    const [lightboxOpen, setLightboxOpen] = useState(false);
     const [expandedAdexCats, setExpandedAdexCats] = useState(/* @__PURE__ */ new Set());
     const [loading, setLoading] = useState(true);
     const [fetchError, setFetchError] = useState(null);
@@ -6294,16 +6346,23 @@
     })();
     const slabSizeItems = _slabSize.items;
     const slabSizeIsPrefab = _slabSize.isPrefab && slabSizeItems.length > 0;
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pdp-section-nav", ref: navRef }, navSections.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.key, "data-section": s.key, className: "pdp-section-nav-btn" + (s.key === "details" ? " active" : ""), onClick: () => scrollToSection(s.key) }, s.label))), /* @__PURE__ */ React.createElement("div", { key: sku.sku_id, className: "sku-detail" + (images.every((img) => /swatch|alternate/i.test(img.asset_type || "")) ? " sku-detail--contain" : ""), "data-sku": sku.vendor_sku || sku.internal_sku, style: loading ? { opacity: 0.6, pointerEvents: "none", transition: "opacity 0.15s ease" } : { animation: "pdpFadeIn 280ms ease-out both" } }, /* @__PURE__ */ React.createElement("button", { className: "pdp-back-btn", onClick: goBack, "aria-label": "Back" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round", style: { width: 18, height: 18 } }, /* @__PURE__ */ React.createElement("path", { d: "M19 12H5" }), /* @__PURE__ */ React.createElement("path", { d: "M12 19l-7-7 7-7" }))), /* @__PURE__ */ React.createElement("div", { className: "pdp-breadcrumbs" }, /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pdp-section-nav", ref: navRef }, navSections.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.key, "data-section": s.key, className: "pdp-section-nav-btn" + (s.key === "details" ? " active" : ""), onClick: () => scrollToSection(s.key) }, s.label))), /* @__PURE__ */ React.createElement("div", { key: sku.sku_id, className: "sku-detail" + (images.every((img) => /swatch|alternate/i.test(img.asset_type || "")) ? " sku-detail--contain" : "") + (loading ? " is-loading" : ""), "data-sku": sku.vendor_sku || sku.internal_sku, style: loading ? { opacity: 0.6, pointerEvents: "none", transition: "opacity 0.15s ease" } : { animation: "pdpFadeIn 280ms ease-out both" } }, /* @__PURE__ */ React.createElement("button", { className: "pdp-back-btn", onClick: goBack, "aria-label": "Back" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round", style: { width: 18, height: 18 } }, /* @__PURE__ */ React.createElement("path", { d: "M19 12H5" }), /* @__PURE__ */ React.createElement("path", { d: "M12 19l-7-7 7-7" }))), /* @__PURE__ */ React.createElement("div", { className: "pdp-breadcrumbs" }, /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
       e.preventDefault();
       goBack();
     } }, "Shop"), /* @__PURE__ */ React.createElement("span", { className: "pdp-crumb" }), sku.category_name && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
       e.preventDefault();
       goBack();
-    } }, sku.category_name), /* @__PURE__ */ React.createElement("span", { className: "pdp-crumb" })), /* @__PURE__ */ React.createElement("span", { style: { color: "var(--stone-900)" } }, fullProductName(sku))), /* @__PURE__ */ React.createElement("div", { className: "sku-detail-main", ref: sectionRefs.details }, /* @__PURE__ */ React.createElement("div", { className: "sku-detail-gallery", ref: galleryRef }, /* @__PURE__ */ React.createElement("div", { className: "sku-detail-image" }, mainImage && /* @__PURE__ */ React.createElement("img", { className: "pdp-hero-lowres", "aria-hidden": "true", src: optimizeImg(mainImage.url, 400), alt: "", decoding: "async" }), mainImage && /* @__PURE__ */ React.createElement("img", { key: mainImage.url, ref: markHeroLoadedIfComplete, className: "pdp-hero-main", onLoad: (e) => {
+    } }, sku.category_name), /* @__PURE__ */ React.createElement("span", { className: "pdp-crumb" })), /* @__PURE__ */ React.createElement("span", { style: { color: "var(--stone-900)" } }, fullProductName(sku))), /* @__PURE__ */ React.createElement("div", { className: "sku-detail-main", ref: sectionRefs.details }, /* @__PURE__ */ React.createElement("div", { className: "sku-detail-gallery", ref: galleryRef }, /* @__PURE__ */ React.createElement("div", { className: "sku-detail-image", onClick: () => {
+      if (mainImage) setLightboxOpen(true);
+    }, role: "button", tabIndex: 0, "aria-label": "View image full screen", onKeyDown: (e) => {
+      if ((e.key === "Enter" || e.key === " ") && mainImage) {
+        e.preventDefault();
+        setLightboxOpen(true);
+      }
+    } }, mainImage && /* @__PURE__ */ React.createElement("img", { className: "pdp-hero-lowres", "aria-hidden": "true", src: optimizeImg(mainImage.url, 400), alt: "", decoding: "async" }), mainImage && /* @__PURE__ */ React.createElement("img", { key: mainImage.url, ref: markHeroLoadedIfComplete, className: "pdp-hero-main", onLoad: (e) => {
       e.currentTarget.classList.add("is-loaded");
       handleProductImgLoad(e);
-    }, src: optimizeImg(mainImage.url, 800), ...optimizeSrcSet(mainImage.url, [400, 600, 800, 1200]), sizes: "(max-width: 768px) 100vw, 50vw", alt: sku.product_name, fetchPriority: "high", decoding: "async" })), images.length > 1 && /* @__PURE__ */ React.createElement("div", { className: "gallery-thumbs" }, images.map((img, i) => {
+    }, src: optimizeImg(mainImage.url, 800), ...optimizeSrcSet(mainImage.url, [400, 600, 800, 1200]), sizes: "(max-width: 768px) 100vw, 50vw", alt: sku.product_name, fetchPriority: "high", decoding: "async" }), mainImage && /* @__PURE__ */ React.createElement("span", { className: "pdp-zoom-hint", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round" }, /* @__PURE__ */ React.createElement("circle", { cx: "11", cy: "11", r: "7" }), /* @__PURE__ */ React.createElement("path", { d: "M21 21l-4.35-4.35" }), /* @__PURE__ */ React.createElement("path", { d: "M11 8v6M8 11h6" })))), lightboxOpen && images.length > 0 && /* @__PURE__ */ React.createElement(PdpLightbox, { images, index: Math.min(selectedImage, images.length - 1), onIndex: setSelectedImage, onClose: () => setLightboxOpen(false), alt: sku.product_name }), images.length > 1 && /* @__PURE__ */ React.createElement("div", { className: "gallery-thumbs" }, images.map((img, i) => {
       return /* @__PURE__ */ React.createElement("div", { key: img.id, className: "gallery-thumb" + (i === selectedImage ? " active" : ""), onClick: () => setSelectedImage(i) }, /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(img.url, 120), alt: "", loading: "lazy", decoding: "async", width: "80", height: "80" }));
     })), (() => {
       const HIDDEN_SLUGS = /* @__PURE__ */ new Set(["price_list", "material_class", "style_code", "companion_skus", "subcategory", "msrp", "top_ref_sku", "sink_ref_sku", "optional_accessories", "group_number"]);
@@ -6364,7 +6423,23 @@
       const linkStyle = { background: "none", border: "none", padding: 0, margin: 0, font: "inherit", color: "inherit", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "2px" };
       const showColl = sku.collection && sku.collection !== sku.category_name;
       return /* @__PURE__ */ React.createElement(React.Fragment, null, sku.category_name && sku.category_slug ? /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => onCategoryClick && onCategoryClick(sku.category_slug), title: "Browse all " + sku.category_name, style: linkStyle }, sku.category_name) : sku.category_name, showColl && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => onCollectionClick && onCollectionClick(sku.collection, sku.vendor_id), title: "Browse the " + sku.collection + " collection", style: linkStyle }, sku.collection)));
-    })()), /* @__PURE__ */ React.createElement("div", { className: "pdp-title-row" }, /* @__PURE__ */ React.createElement("h1", { className: "sku-detail-title-row" }, fullProductName(sku)), /* @__PURE__ */ React.createElement("button", { className: "pdp-wishlist-heart" + (wishlist.includes(sku.sku_id) ? " active" : ""), onClick: () => toggleWishlist2(sku.sku_id), "aria-label": wishlist.includes(sku.sku_id) ? "Remove from wishlist" : "Add to wishlist" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: wishlist.includes(sku.sku_id) ? "currentColor" : "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 18, height: 18 } }, /* @__PURE__ */ React.createElement("path", { d: "M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" })))), /* @__PURE__ */ React.createElement("div", { className: "pdp-sku-line" }, sku.vendor_sku && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { style: { color: "var(--stone-500)" } }, "SKU"), " ", /* @__PURE__ */ React.createElement("span", { style: { margin: "0 0.25rem", color: "var(--stone-400)" } }, "\xB7"), " ", /* @__PURE__ */ React.createElement("span", { className: "pdp-sku-val" }, (sku.vendor_sku || "").toUpperCase()), /* @__PURE__ */ React.createElement("span", { className: "pdp-sku-sep" })), publicBrand(sku) ? sku.brand_hidden ? /* @__PURE__ */ React.createElement("span", { className: "pdp-sku-val" }, publicBrand(sku)) : /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => onBrandClick && onBrandClick(publicBrand(sku)), title: "Browse all " + publicBrand(sku), style: { background: "none", border: "none", padding: 0, margin: 0, font: "inherit", color: "inherit", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "2px" } }, publicBrand(sku)) : null), productTags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "product-tag-badges" }, productTags.map((t) => /* @__PURE__ */ React.createElement("span", { key: t.slug, className: "product-tag-badge" }, t.name))), /* @__PURE__ */ React.createElement("div", { className: "sku-detail-price" }, isRollPriced(sku) ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pdp-price-main" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-price-amount" }, "$", parseFloat(sku.cut_price).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-suffix" }, "/sqyd \xB7 $", carpetSqftPrice(sku.cut_price), "/sqft"), tradePrice && /* @__PURE__ */ React.createElement("span", { className: "pdp-price-badge trade" }, "Trade")), sku.roll_price && parseFloat(sku.roll_price) < parseFloat(sku.cut_price) && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-roll-badge" }, "Roll $", parseFloat(sku.roll_price).toFixed(2), "/sqyd", sku.roll_min_sqft ? " \xB7 " + parseFloat(sku.roll_min_sqft).toFixed(0) + " sqft min" : "")) : tradePrice ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pdp-price-main" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-price-amount" }, "$", perSqftOf(tradePrice).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-suffix" }, perPiece ? "/sqft" : priceSuffix(sku)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-strike" }, "$", perSqftOf(retailPrice).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-badge trade" }, "Trade")), !isPerUnit && sqftPerBox > 0 && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-per-box" }, "$", (tradePrice * sqftPerBox).toFixed(2), " per ", boxLabel, " \xB7 ", sqftPerBox, " sqft", sku.pieces_per_box ? " \xB7 " + sku.pieces_per_box + " pieces" : ""), perPiece && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-per-box" }, "$", tradePrice.toFixed(2), " /pc \xB7 ", sqftPerBox, " sqft per piece")) : salePrice ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pdp-price-main" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-price-amount" }, "$", perSqftOf(salePrice).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-suffix" }, perPiece ? "/sqft" : priceSuffix(sku)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-strike" }, "$", perSqftOf(retailPrice).toFixed(2)), retailPrice > 0 && /* @__PURE__ */ React.createElement("span", { className: "pdp-price-badge sale" }, Math.round((1 - salePrice / retailPrice) * 100), "% off")), !isPerUnit && sqftPerBox > 0 && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-per-box" }, "$", (salePrice * sqftPerBox).toFixed(2), " per ", boxLabel, " \xB7 ", sqftPerBox, " sqft", sku.pieces_per_box ? " \xB7 " + sku.pieces_per_box + " pieces" : ""), perPiece && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-per-box" }, "$", salePrice.toFixed(2), " /pc \xB7 ", sqftPerBox, " sqft per piece")) : retailPrice > 0 ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pdp-price-main" }, msrpPrice && msrpPrice > retailPrice && /* @__PURE__ */ React.createElement("span", { className: "pdp-price-strike" }, "$", perSqftOf(msrpPrice).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-amount" }, "$", perSqftOf(retailPrice).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-suffix" }, perPiece ? "/sqft" : priceSuffix(sku))), !isPerUnit && sqftPerBox > 0 && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-per-box" }, "$", (retailPrice * sqftPerBox).toFixed(2), " per ", boxLabel, " \xB7 ", sqftPerBox, " sqft", sku.pieces_per_box ? " \xB7 " + sku.pieces_per_box + " pieces" : ""), perPiece && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-per-box" }, "$", retailPrice.toFixed(2), " /pc \xB7 ", sqftPerBox, " sqft per piece")) : /* @__PURE__ */ React.createElement("div", { className: "pdp-price-main" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-price-amount", style: { fontSize: "1.5rem" } }, "Call for Price"))), slabSizeItems.length > 0 && (() => {
+    })()), /* @__PURE__ */ React.createElement("div", { className: "pdp-title-row" }, /* @__PURE__ */ React.createElement("h1", { className: "sku-detail-title-row" }, fullProductName(sku)), /* @__PURE__ */ React.createElement("button", { className: "pdp-wishlist-heart" + (wishlist.includes(sku.sku_id) ? " active" : ""), onClick: () => toggleWishlist2(sku.sku_id), "aria-label": wishlist.includes(sku.sku_id) ? "Remove from wishlist" : "Add to wishlist" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: wishlist.includes(sku.sku_id) ? "currentColor" : "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 18, height: 18 } }, /* @__PURE__ */ React.createElement("path", { d: "M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" })))), /* @__PURE__ */ React.createElement("div", { className: "pdp-sku-line" }, sku.vendor_sku && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { style: { color: "var(--stone-500)" } }, "SKU"), " ", /* @__PURE__ */ React.createElement("span", { style: { margin: "0 0.25rem", color: "var(--stone-400)" } }, "\xB7"), " ", /* @__PURE__ */ React.createElement("span", { className: "pdp-sku-val" }, (sku.vendor_sku || "").toUpperCase()), /* @__PURE__ */ React.createElement("span", { className: "pdp-sku-sep" })), publicBrand(sku) ? sku.brand_hidden ? /* @__PURE__ */ React.createElement("span", { className: "pdp-sku-val" }, publicBrand(sku)) : /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => onBrandClick && onBrandClick(publicBrand(sku)), title: "Browse all " + publicBrand(sku), style: { background: "none", border: "none", padding: 0, margin: 0, font: "inherit", color: "inherit", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "2px" } }, publicBrand(sku)) : null), productTags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "product-tag-badges" }, productTags.map((t) => /* @__PURE__ */ React.createElement("span", { key: t.slug, className: "product-tag-badge" }, t.name))), /* @__PURE__ */ React.createElement("div", { className: "sku-detail-price" }, isRollPriced(sku) ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pdp-price-main" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-price-amount" }, "$", parseFloat(sku.cut_price).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-suffix" }, "/sqyd \xB7 $", carpetSqftPrice(sku.cut_price), "/sqft"), tradePrice && /* @__PURE__ */ React.createElement("span", { className: "pdp-price-badge trade" }, "Trade")), sku.roll_price && parseFloat(sku.roll_price) < parseFloat(sku.cut_price) && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-roll-badge" }, "Roll $", parseFloat(sku.roll_price).toFixed(2), "/sqyd", sku.roll_min_sqft ? " \xB7 " + parseFloat(sku.roll_min_sqft).toFixed(0) + " sqft min" : "")) : tradePrice ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pdp-price-main" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-price-amount" }, "$", perSqftOf(tradePrice).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-suffix" }, perPiece ? "/sqft" : priceSuffix(sku)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-strike" }, "$", perSqftOf(retailPrice).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-badge trade" }, "Trade")), !isPerUnit && sqftPerBox > 0 && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-per-box" }, "$", (tradePrice * sqftPerBox).toFixed(2), " per ", boxLabel, " \xB7 ", sqftPerBox, " sqft", sku.pieces_per_box ? " \xB7 " + sku.pieces_per_box + " pieces" : ""), perPiece && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-per-box" }, "$", tradePrice.toFixed(2), " /pc \xB7 ", sqftPerBox, " sqft per piece")) : salePrice ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pdp-price-main" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-price-amount" }, "$", perSqftOf(salePrice).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-suffix" }, perPiece ? "/sqft" : priceSuffix(sku)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-strike" }, "$", perSqftOf(retailPrice).toFixed(2)), retailPrice > 0 && /* @__PURE__ */ React.createElement("span", { className: "pdp-price-badge sale" }, Math.round((1 - salePrice / retailPrice) * 100), "% off")), !isPerUnit && sqftPerBox > 0 && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-per-box" }, "$", (salePrice * sqftPerBox).toFixed(2), " per ", boxLabel, " \xB7 ", sqftPerBox, " sqft", sku.pieces_per_box ? " \xB7 " + sku.pieces_per_box + " pieces" : ""), perPiece && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-per-box" }, "$", salePrice.toFixed(2), " /pc \xB7 ", sqftPerBox, " sqft per piece")) : retailPrice > 0 ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pdp-price-main" }, msrpPrice && msrpPrice > retailPrice && /* @__PURE__ */ React.createElement("span", { className: "pdp-price-strike" }, "$", perSqftOf(msrpPrice).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-amount" }, "$", perSqftOf(retailPrice).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-suffix" }, perPiece ? "/sqft" : priceSuffix(sku))), !isPerUnit && sqftPerBox > 0 && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-per-box" }, "$", (retailPrice * sqftPerBox).toFixed(2), " per ", boxLabel, " \xB7 ", sqftPerBox, " sqft", sku.pieces_per_box ? " \xB7 " + sku.pieces_per_box + " pieces" : ""), perPiece && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-per-box" }, "$", retailPrice.toFixed(2), " /pc \xB7 ", sqftPerBox, " sqft per piece")) : /* @__PURE__ */ React.createElement("div", { className: "pdp-price-main" }, /* @__PURE__ */ React.createElement(
+      "a",
+      {
+        className: "pdp-price-amount pdp-price-callforprice",
+        href: "tel:7149990009",
+        style: { fontSize: "1.5rem" },
+        onClick: (e) => {
+          const b = document.querySelector(".pdp-inquiry-banner");
+          if (b) {
+            e.preventDefault();
+            b.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }
+      },
+      /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("path", { d: "M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" })),
+      "Call for Price"
+    ))), slabSizeItems.length > 0 && (() => {
       const current = slabSizeItems.find((it) => it.is_current);
       return /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group pdp-size-selector" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Size", current ? /* @__PURE__ */ React.createElement("span", null, current.label) : null), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, slabSizeItems.map((it) => /* @__PURE__ */ React.createElement("button", { key: it.sku_id, className: "attr-pill" + (it.is_current ? " active" : ""), onClick: () => {
         if (!it.is_current) onSkuClick(it.sku_id);

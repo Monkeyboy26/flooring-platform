@@ -1,4 +1,4 @@
-    const { useState, useEffect, useRef, useCallback, useMemo } = React;
+    const { useState, useEffect, useRef, useCallback, useMemo, startTransition } = React;
 
     // Dev: talk to the API container directly. Production: same-origin — nginx
     // proxies /api/* to the backend; port 3001 is not exposed publicly.
@@ -3026,16 +3026,21 @@
               const data = await r.json();
               clearTimeout(timer);
               if (job.cancelled) return;
-              setSkus(data.skus || []);
-              setTotalSkus(data.total || 0);
               // Log the deferred search event now that we know how many matched.
               if (pendingSearchTrack.current != null) {
                 track('search', { query: pendingSearchTrack.current, results_count: data.total || 0 });
                 pendingSearchTrack.current = null;
               }
-              setSearchDidYouMean(data.didYouMean || null);
-              setSearchTimeMs(data.searchTimeMs != null ? data.searchTimeMs : null);
-              setLoadingSkus(false);
+              // Low-priority commit: swapping 24+ cards is the most expensive render
+              // in the app (~136ms even on a desktop). A transition keeps the main
+              // thread responsive to input mid-render instead of janking (INP).
+              startTransition(() => {
+                setSkus(data.skus || []);
+                setTotalSkus(data.total || 0);
+                setSearchDidYouMean(data.didYouMean || null);
+                setSearchTimeMs(data.searchTimeMs != null ? data.searchTimeMs : null);
+                setLoadingSkus(false);
+              });
               // Restore the saved browse scroll — but only if the user is still on
               // the grid. This fetch can resolve seconds late (queued behind PDP
               // image requests), and firing then would yank a freshly-opened PDP
@@ -3085,10 +3090,14 @@
         fetch(API + '/api/storefront/facets?' + params.toString(), { signal: facetController.signal })
           .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => {
-            setFacets(data.facets || []);
-            setVendorFacets(data.brands || data.vendors || []);
-            setTagFacets(data.tags || []);
-            if (data.priceRange) setPriceRange(data.priceRange);
+            // Same INP treatment as the grid swap — the facet sidebar is hundreds
+            // of checkbox rows and re-renders on every filter change.
+            startTransition(() => {
+              setFacets(data.facets || []);
+              setVendorFacets(data.brands || data.vendors || []);
+              setTagFacets(data.tags || []);
+              if (data.priceRange) setPriceRange(data.priceRange);
+            });
           })
           .catch(err => { if (err.name !== 'AbortError') console.error(err); });
       }, [selectedCategory, selectedCollection, selectedCollectionVendor, searchQuery, filters, vendorFilters, userPriceRange, tagFilters]);
@@ -7466,6 +7475,55 @@
       );
     }
 
+    // Fullscreen viewer for the PDP gallery. Clarity showed users tapping the hero
+    // image expecting zoom (dead clicks) — this gives the tap somewhere to go.
+    function PdpLightbox({ images, index, onIndex, onClose, alt }) {
+      const touchX = useRef(null);
+      const go = useCallback((delta) => {
+        onIndex((index + delta + images.length) % images.length);
+      }, [index, images.length, onIndex]);
+      useEffect(() => {
+        const onKey = (e) => {
+          if (e.key === 'Escape') onClose();
+          else if (e.key === 'ArrowRight') go(1);
+          else if (e.key === 'ArrowLeft') go(-1);
+        };
+        document.addEventListener('keydown', onKey);
+        document.body.style.overflow = 'hidden';
+        return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
+      }, [go, onClose]);
+      const img = images[index] || images[0];
+      if (!img) return null;
+      // Portal: the PDP container animates with fill-mode:both, which leaves it a
+      // stacking context — a position:fixed overlay rendered inside it gets trapped
+      // under the sticky header. Mounting on body escapes that.
+      return ReactDOM.createPortal(
+        <div className="pdp-lightbox" onClick={onClose} role="dialog" aria-modal="true" aria-label="Image viewer">
+          <button className="pdp-lightbox-close" aria-label="Close" onClick={onClose}>&times;</button>
+          {images.length > 1 && (
+            <button className="pdp-lightbox-arrow prev" aria-label="Previous image" onClick={e => { e.stopPropagation(); go(-1); }}>&lsaquo;</button>
+          )}
+          <img
+            src={optimizeImg(img.url, 1600)}
+            alt={alt || ''}
+            onClick={e => e.stopPropagation()}
+            onTouchStart={e => { touchX.current = e.touches[0].clientX; }}
+            onTouchEnd={e => {
+              if (touchX.current == null) return;
+              const dx = e.changedTouches[0].clientX - touchX.current;
+              touchX.current = null;
+              if (Math.abs(dx) > 48) go(dx < 0 ? 1 : -1);
+            }}
+          />
+          {images.length > 1 && (
+            <button className="pdp-lightbox-arrow next" aria-label="Next image" onClick={e => { e.stopPropagation(); go(1); }}>&rsaquo;</button>
+          )}
+          {images.length > 1 && <div className="pdp-lightbox-count">{index + 1} / {images.length}</div>}
+        </div>,
+        document.body
+      );
+    }
+
     // ==================== SKU Detail View ====================
 
     function SkuDetailView({ skuId, goBack, addToCart, cart, onSkuClick, onRequestInstall, tradeCustomer, wishlist, toggleWishlist, recentlyViewed, addRecentlyViewed, customer, customerToken, onShowAuth, showToast, categories, onCollectionClick, onBrandClick, onCategoryClick }) {
@@ -7482,6 +7540,7 @@
       const [productTags, setProductTags] = useState([]);
       const [countertopImage, setCountertopImage] = useState(null);
       const [selectedImage, setSelectedImage] = useState(0);
+      const [lightboxOpen, setLightboxOpen] = useState(false);
       const [expandedAdexCats, setExpandedAdexCats] = useState(new Set());
       const [loading, setLoading] = useState(true);
       const [fetchError, setFetchError] = useState(null);
@@ -8302,7 +8361,7 @@
               </button>
             ))}
           </div>
-          <div key={sku.sku_id} className={'sku-detail' + (images.every(img => /swatch|alternate/i.test(img.asset_type || '')) ? ' sku-detail--contain' : '')} data-sku={sku.vendor_sku || sku.internal_sku} style={loading ? { opacity: 0.6, pointerEvents: 'none', transition: 'opacity 0.15s ease' } : { animation: 'pdpFadeIn 280ms ease-out both' }}>
+          <div key={sku.sku_id} className={'sku-detail' + (images.every(img => /swatch|alternate/i.test(img.asset_type || '')) ? ' sku-detail--contain' : '') + (loading ? ' is-loading' : '')} data-sku={sku.vendor_sku || sku.internal_sku} style={loading ? { opacity: 0.6, pointerEvents: 'none', transition: 'opacity 0.15s ease' } : { animation: 'pdpFadeIn 280ms ease-out both' }}>
             <button className="pdp-back-btn" onClick={goBack} aria-label="Back">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
             </button>
@@ -8315,12 +8374,20 @@
 
             <div className="sku-detail-main" ref={sectionRefs.details}>
             <div className="sku-detail-gallery" ref={galleryRef}>
-              <div className="sku-detail-image">
+              <div className="sku-detail-image" onClick={() => { if (mainImage) setLightboxOpen(true); }} role="button" tabIndex={0} aria-label="View image full screen" onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && mainImage) { e.preventDefault(); setLightboxOpen(true); } }}>
                 {/* Blur-up: the 400px variant is already warm (grid/quick-view fetched it),
                     so it paints instantly while the full-size hero streams in over it. */}
                 {mainImage && <img className="pdp-hero-lowres" aria-hidden="true" src={optimizeImg(mainImage.url, 400)} alt="" decoding="async" />}
                 {mainImage && <img key={mainImage.url} ref={markHeroLoadedIfComplete} className="pdp-hero-main" onLoad={e => { e.currentTarget.classList.add('is-loaded'); handleProductImgLoad(e); }} src={optimizeImg(mainImage.url, 800)} {...optimizeSrcSet(mainImage.url, [400, 600, 800, 1200])} sizes="(max-width: 768px) 100vw, 50vw" alt={sku.product_name} fetchPriority="high" decoding="async" />}
+                {mainImage && (
+                  <span className="pdp-zoom-hint" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/><path d="M11 8v6M8 11h6"/></svg>
+                  </span>
+                )}
               </div>
+              {lightboxOpen && images.length > 0 && (
+                <PdpLightbox images={images} index={Math.min(selectedImage, images.length - 1)} onIndex={setSelectedImage} onClose={() => setLightboxOpen(false)} alt={sku.product_name} />
+              )}
               {images.length > 1 && (
                 <div className="gallery-thumbs">
                   {images.map((img, i) => {
@@ -8531,7 +8598,13 @@
                   </>
                 ) : (
                   <div className="pdp-price-main">
-                    <span className="pdp-price-amount" style={{ fontSize: '1.5rem' }}>Call for Price</span>
+                    {/* Clarity dead-click fix: users tap "Call for Price" expecting action.
+                        Route the tap to the inquiry banner when one is rendered, else dial. */}
+                    <a className="pdp-price-amount pdp-price-callforprice" href="tel:7149990009" style={{ fontSize: '1.5rem' }}
+                      onClick={e => { const b = document.querySelector('.pdp-inquiry-banner'); if (b) { e.preventDefault(); b.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+                      Call for Price
+                    </a>
                   </div>
                 )}
               </div>

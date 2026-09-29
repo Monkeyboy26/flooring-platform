@@ -1,5 +1,18 @@
 import { Router } from 'express';
 
+// Crawlers execute the storefront JS and fire real analytics beacons — GoogleOther
+// alone posted ~640 sessions on 2026-09-28 and showed up as a fake traffic spike in
+// the admin dashboard. Checked against the request header (not the client-reported
+// body value) so a spoofed payload can't sneak past. Clarity/GA4 filter these
+// upstream; this keeps our first-party numbers comparable.
+const BOT_UA_RE = /bot|crawl|spider|slurp|scrape|headless|lighthouse|pagespeed|pingdom|gtmetrix|prerender|screaming frog|facebookexternalhit|embedly|quora link preview|outbrain|vkshare|w3c_validator|googleother|google-inspectiontool|mediapartners-google|apis-google|feedfetcher|python-requests|python-urllib|aiohttp|httpx|axios|node-fetch|go-http-client|curl\/|wget\/|phantomjs|puppeteer|playwright|selenium/i;
+
+function isBotRequest(req) {
+  const headerUa = req.headers['user-agent'] || '';
+  const bodyUa = typeof req.body?.user_agent === 'string' ? req.body.user_agent : '';
+  return BOT_UA_RE.test(headerUa) || BOT_UA_RE.test(bodyUa);
+}
+
 const ALLOWED_EVENT_TYPES = new Set([
   'page_view', 'product_view', 'add_to_cart', 'remove_from_cart', 'checkout_started',
   'order_completed', 'search', 'filter_toggle', 'sort_change', 'category_select',
@@ -15,6 +28,7 @@ export default function createAnalyticsRoutes(ctx) {
 
   router.post('/api/analytics/event', (req, res) => {
     res.json({ ok: true });
+    if (isBotRequest(req)) return;
     setImmediate(async () => {
       try {
         const events = Array.isArray(req.body.events) ? req.body.events.slice(0, 50) : [];
@@ -52,6 +66,7 @@ export default function createAnalyticsRoutes(ctx) {
 
   router.post('/api/analytics/session', (req, res) => {
     res.json({ ok: true });
+    if (isBotRequest(req)) return;
     setImmediate(async () => {
       try {
         const { session_id, visitor_id, user_agent, referrer, device_type, utm_source, utm_medium, utm_campaign } = req.body;
