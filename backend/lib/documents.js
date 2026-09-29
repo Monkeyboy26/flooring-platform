@@ -691,6 +691,31 @@ async function launchPdfBrowser() {
   });
 }
 
+// Warm the /api/img disk cache for every swatch the document references BEFORE
+// Chromium starts. A cold swatch is a vendor download + resize; several of them
+// can outlast the 15s networkidle0 budget below, and Chromium then prints with
+// whichever images happened to finish — thumbnails silently missing from the
+// PDF. Warming first (bounded, failures ignored) makes the in-render fetches
+// disk-cache hits, so the budget comfortably holds.
+async function prewarmDocImages(html) {
+  const srcs = [...new Set([...html.matchAll(/src="(http:\/\/localhost:[^"]*\/api\/img\?[^"]*)"/g)].map(m => m[1].replace(/&amp;/g, '&')))];
+  if (!srcs.length) return;
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < srcs.length) {
+      const src = srcs[cursor++];
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 8000);
+      try { await (await fetch(src, { signal: ctrl.signal })).arrayBuffer(); } catch { /* swatch stays gradient */ }
+      clearTimeout(t);
+    }
+  };
+  await Promise.race([
+    Promise.all(Array.from({ length: 6 }, worker)),
+    new Promise(r => setTimeout(r, 20000)), // hard ceiling — never hold a doc hostage
+  ]);
+}
+
 export async function generatePDF(html, filename, req, res, options = {}) {
   // Preview mode: return HTML directly for iframe rendering
   if (req.query.preview === 'true') {
@@ -700,6 +725,7 @@ export async function generatePDF(html, filename, req, res, options = {}) {
   const defaultMargin = { top: '0.6in', bottom: '0.6in', left: '0.65in', right: '0.65in' };
   const margin = options.margin || defaultMargin;
   try {
+    await prewarmDocImages(html);
     const browser = await launchPdfBrowser();
     const page = await browser.newPage();
     // If a straggling asset keeps the network busy past the timeout, render
@@ -725,6 +751,7 @@ export async function generatePDF(html, filename, req, res, options = {}) {
 export async function generatePDFBuffer(html, options = {}) {
   const defaultMargin = { top: '0.6in', bottom: '0.6in', left: '0.65in', right: '0.65in' };
   const margin = options.margin || defaultMargin;
+  await prewarmDocImages(html);
   const browser = await launchPdfBrowser();
   const page = await browser.newPage();
   await page.setContent(html, { waitUntil: 'networkidle0', timeout: 15000 })

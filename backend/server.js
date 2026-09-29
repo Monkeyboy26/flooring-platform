@@ -294,6 +294,26 @@ async function isWidenPlaceholder(buf) {
   } catch { return false; }
 }
 
+// Magic-byte sniff: vendors sometimes answer an image URL with an HTML error
+// page, a challenge page, or a PDF — with status 200. Caching that as an
+// "original" poisons every future resize of the URL (sharp throws
+// "unsupported image format" forever). Gate on the first bytes, not the
+// Content-Type header, which vendors get wrong in both directions.
+function looksLikeImage(buf) {
+  if (!buf || buf.length < 12) return false;
+  const h = buf.subarray(0, 12);
+  if (h[0] === 0xff && h[1] === 0xd8) return true;                          // jpeg
+  if (h[0] === 0x89 && h[1] === 0x50 && h[2] === 0x4e && h[3] === 0x47) return true; // png
+  if (h[0] === 0x47 && h[1] === 0x49 && h[2] === 0x46 && h[3] === 0x38) return true; // gif
+  if (h[0] === 0x52 && h[1] === 0x49 && h[2] === 0x46 && h[3] === 0x46) return true; // riff/webp
+  if ((h[0] === 0x49 && h[1] === 0x49 && h[2] === 0x2a) || (h[0] === 0x4d && h[1] === 0x4d && h[2] === 0x00)) return true; // tiff
+  if (h[0] === 0x42 && h[1] === 0x4d) return true;                          // bmp
+  if (h[4] === 0x66 && h[5] === 0x74 && h[6] === 0x79 && h[7] === 0x70) return true; // ftyp → avif/heic
+  const head = buf.subarray(0, 256).toString('latin1').trimStart().toLowerCase();
+  if (head.startsWith('<svg') || head.startsWith('<?xml')) return true;     // svg
+  return false;
+}
+
 // True if an IP literal (v4 or v6) falls in a private/loopback/link-local/reserved range.
 function isPrivateIp(ip) {
   const v = String(ip).toLowerCase();
@@ -432,6 +452,12 @@ app.get('/api/img', imgLimiter, async (req, res) => {
                       return null;
                     }
                     buf = Buffer.from(await resp.arrayBuffer());
+                    // Never accept (or cache) a body that isn't actually an image —
+                    // a 200 HTML/PDF error page here used to poison the origin cache.
+                    if (!looksLikeImage(buf)) {
+                      if (attempt < maxAttempts - 1) { await new Promise(r => setTimeout(r, 300)); continue; }
+                      return null;
+                    }
                     // Reject Widen placeholders before accepting — by hash AND by the
                     // 300×300 tell-tale (catches variants the hash list misses). Retry
                     // in case the CDN was mid-processing; on the last attempt return
@@ -455,6 +481,18 @@ app.get('/api/img', imgLimiter, async (req, res) => {
             inputBuffer = await imgOrigInflight.get(origKey);
           }
           if (!inputBuffer) return null;
+        }
+        // Self-heal pre-guard poisoned cache entries: an original that isn't an
+        // image can only be a bad cached body — evict it so the next request
+        // re-fetches instead of failing the resize forever. (Local /uploads
+        // reads can also hit this for e.g. a stray PDF; those just 502.)
+        if (!looksLikeImage(inputBuffer)) {
+          if (!url.startsWith('/uploads/') && !url.startsWith('/assets/')) {
+            const origKey = crypto.createHash('sha256').update(url).digest('hex');
+            fs.unlink(path.join(IMG_ORIG_CACHE_DIR, origKey), () => {});
+            console.warn(`[img] Evicted non-image original from cache: ${url}`);
+          }
+          return null;
         }
         // Reject known bad/error images (e.g. Armstrong CDN meme)
         const inputHash = crypto.createHash('md5').update(inputBuffer).digest('hex');
