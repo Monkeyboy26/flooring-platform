@@ -45,6 +45,38 @@ import createCustomerRoutes from './routes/customer.js';
 import createAnalyticsRoutes from './routes/analytics.js';
 import createBrandRoutes from './routes/brands.js';
 
+// Backend error reporting (separate Sentry project from the browser SDK, hence
+// SENTRY_DSN_BACKEND — never reuse the frontend DSN or the two error streams mix).
+// Loaded via a guarded dynamic import so a missing/broken @sentry/node (e.g. the
+// node_modules anon-volume didn't re-seed after a dep bump) degrades to a no-op
+// instead of crashing the API on boot. `Sentry` stays null until/unless init
+// succeeds; every call site null-checks it.
+let Sentry = null;
+async function initSentry() {
+  const dsn = process.env.SENTRY_DSN_BACKEND || '';
+  if (!/^https:\/\/[\w@.:\/-]+$/.test(dsn)) return; // unset/malformed → disabled
+  try {
+    const mod = await import('@sentry/node');
+    mod.init({
+      dsn,
+      environment: process.env.NODE_ENV || 'development',
+      // Errors only — no perf tracing (keeps overhead/quota negligible).
+      tracesSampleRate: 0,
+      // We keep our own process-level uncaughtException/unhandledRejection
+      // handlers (they write /app/_cache/exit.log for crash forensics). Drop
+      // Sentry's versions so it can't call process.exit() out from under them.
+      integrations: (defaults) => defaults.filter(
+        (i) => i.name !== 'OnUncaughtException' && i.name !== 'OnUnhandledRejection'
+      ),
+    });
+    Sentry = mod;
+    console.log('[Sentry] backend error reporting enabled');
+  } catch (err) {
+    console.error('[Sentry] init skipped:', err.message);
+  }
+}
+await initSentry();
+
 const { staffAuth, staffDocAuth, repAuth, tradeAuth, optionalTradeAuth, customerAuth, optionalCustomerAuth, requireRole, requireRepManager, hashPassword, verifyPassword, validatePassword, hashToken, logAudit } = createAuthMiddleware(pool);
 const { findOrCreateCustomer } = createCustomerHelpers(hashPassword, sendWelcomeSetPassword);
 
@@ -5868,7 +5900,7 @@ async function generatePurchaseOrders(orderId, client) {
   // PO. One-off vendor lines (custom_vendor text, no vendor_id) never do.
   const customItemsResult = await client.query(`
     SELECT oi.id as order_item_id, oi.product_name, oi.num_boxes as qty, oi.unit_price,
-           oi.sqft_needed, oi.sell_by, oi.description, oi.cost as custom_cost,
+           oi.sqft_needed, oi.sell_by, oi.description, oi.cost as custom_cost, oi.vendor_sku,
            oi.vendor_id, v.code as vendor_code, v.public_code as vendor_public_code, v.name as vendor_name
     FROM order_items oi
     JOIN vendors v ON v.id = oi.vendor_id
@@ -5907,7 +5939,7 @@ async function generatePurchaseOrders(orderId, client) {
       ...item,
       is_custom_line: true,
       sku_id: null,
-      vendor_sku: null,
+      vendor_sku: item.vendor_sku || null,  // rep-entered vendor item # → PO1/VP on the 850
       vendor_cost: item.custom_cost != null ? item.custom_cost : item.unit_price,
       price_basis: item.sell_by === 'roll' ? 'per_sqyd' : 'per_box',
       cut_cost: null,
@@ -8112,7 +8144,7 @@ app.get('/api/admin/products', staffAuth, requireRole('admin', 'manager'), async
 // Public storefront base for the QR code target. Domain still points at the legacy
 // WordPress site pre-deploy, so QR links won't resolve until the storefront is live —
 // override with PUBLIC_SITE_URL to test against a reachable host.
-const LABEL_SITE_BASE = (process.env.PUBLIC_SITE_URL || process.env.SITE_URL || 'https://www.romaflooringdesigns.com').replace(/\/+$/, '');
+const LABEL_SITE_BASE = (process.env.PUBLIC_SITE_URL || process.env.SITE_URL || 'https://romaflooringdesigns.com').replace(/\/+$/, '');
 const MAX_LABELS = 200;
 
 // Expand product IDs to their labelable SKUs (active, non-sample, non-accessory) — so
@@ -8311,12 +8343,16 @@ async function respondWithSingleLabel(req, res) {
 }
 
 // Batch labels — accepts ?skuIds=a,b,c and/or ?productIds=x,y (products expand to their
-// labelable SKUs). See sendLabels() for the ?format options.
+// labelable SKUs), or ?showroom=1 for the persisted showroom set (optionally
+// ?vendorId= to print one vendor's wall, ?offset=&limit= to chunk a large set
+// under MAX_LABELS — ordering is stable: vendor, product, variant).
+// See sendLabels() for the ?format options.
 async function respondWithLabelSheet(req, res) {
   try {
     let skuIds = String(req.query.skuIds || '').split(',').map(s => s.trim()).filter(Boolean);
     const productIds = String(req.query.productIds || '').split(',').map(s => s.trim()).filter(Boolean);
     if (productIds.length) skuIds = skuIds.concat(await expandProductIdsToSkuIds(productIds));
+    if (req.query.showroom === '1') skuIds = skuIds.concat(await showroomSkuIds(req.query));
     skuIds = [...new Set(skuIds)];
     if (!skuIds.length) return res.status(400).json({ error: 'No SKUs to label. Provide skuIds or productIds.' });
     if (skuIds.length > MAX_LABELS) return res.status(400).json({ error: `Too many labels (${skuIds.length}); max ${MAX_LABELS}. Narrow your selection.` });
@@ -8333,6 +8369,99 @@ app.get('/api/admin/skus/:skuId/label', staffAuth, requireRole('admin', 'manager
 app.get('/api/admin/labels', staffAuth, requireRole('admin', 'manager'), respondWithLabelSheet);
 app.get('/api/rep/skus/:skuId/label', repAuth, respondWithSingleLabel);
 app.get('/api/rep/labels', repAuth, respondWithLabelSheet);
+
+// ==================== Showroom ====================
+// Persisted set of SKUs (specific colors) physically on display in the showroom.
+// The catalog has thousands of SKUs; reps toggle the few hundred displayed ones
+// in/out here, then the Showroom view batch-prints labels for the whole set
+// (via ?showroom=1 on the /labels routes above).
+
+// The showroom's sku ids in stable print order (vendor → product → variant),
+// optionally filtered to one vendor. Shared by the list endpoint and ?showroom=1.
+async function showroomSkuIds(query) {
+  const params = [];
+  let where = '';
+  if (query.vendorId) { params.push(query.vendorId); where = ` AND p.vendor_id = $${params.length}`; }
+  const { rows } = await pool.query(`
+    SELECT si.sku_id
+    FROM showroom_items si
+    JOIN skus s ON s.id = si.sku_id
+    JOIN products p ON p.id = s.product_id
+    LEFT JOIN vendors v ON v.id = p.vendor_id
+    LEFT JOIN brands br ON br.id = p.brand_id
+    WHERE 1=1${where}
+    ORDER BY COALESCE(br.name, v.name), p.name, s.variant_name, si.sku_id
+  `, params);
+  let ids = rows.map(r => r.sku_id);
+  // Optional chunk window so a large showroom prints as sequential PDFs under MAX_LABELS
+  const offset = parseInt(query.offset, 10);
+  const limit = parseInt(query.limit, 10);
+  if (Number.isFinite(offset) && offset > 0) ids = ids.slice(offset);
+  if (Number.isFinite(limit) && limit > 0) ids = ids.slice(0, limit);
+  return ids;
+}
+
+// Full showroom list for the management view — grouped client-side by vendor.
+async function respondWithShowroomList(req, res) {
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        si.sku_id, si.added_at, s.internal_sku, s.variant_name, s.product_id,
+        p.name AS product_name, p.collection, p.vendor_id,
+        COALESCE(br.name, v.name) AS vendor_name,
+        (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+           WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1) AS color,
+        (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+           WHERE sa.sku_id = s.id AND a.slug = 'size' LIMIT 1) AS size,
+        (SELECT pr.retail_price FROM pricing pr WHERE pr.sku_id = s.id LIMIT 1) AS retail_price,
+        s.sell_by,
+        (SELECT ma.url FROM media_assets ma
+          WHERE (ma.sku_id = s.id OR (ma.product_id = s.product_id AND ma.sku_id IS NULL))
+            AND ma.asset_type = 'primary'
+          ORDER BY CASE WHEN ma.sku_id = s.id THEN 0 ELSE 1 END, ma.sort_order LIMIT 1) AS primary_image
+      FROM showroom_items si
+      JOIN skus s ON s.id = si.sku_id
+      JOIN products p ON p.id = s.product_id
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
+      ORDER BY COALESCE(br.name, v.name), p.name, s.variant_name, si.sku_id
+    `);
+    res.json({ items: rows, total: rows.length });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// Toggle membership: body { add: [skuIds], remove: [skuIds] }. Adds are validated
+// against skus so a stale id can't 500 the whole batch; both are idempotent.
+async function respondWithShowroomToggle(req, res) {
+  try {
+    const add = Array.isArray(req.body?.add) ? req.body.add.filter(Boolean) : [];
+    const remove = Array.isArray(req.body?.remove) ? req.body.remove.filter(Boolean) : [];
+    if (!add.length && !remove.length) return res.status(400).json({ error: 'Provide add and/or remove sku id arrays' });
+    let added = 0, removed = 0;
+    if (add.length) {
+      const r = await pool.query(`
+        INSERT INTO showroom_items (sku_id)
+        SELECT id FROM skus WHERE id = ANY($1::uuid[])
+        ON CONFLICT (sku_id) DO NOTHING
+      `, [add]);
+      added = r.rowCount;
+    }
+    if (remove.length) {
+      const r = await pool.query(`DELETE FROM showroom_items WHERE sku_id = ANY($1::uuid[])`, [remove]);
+      removed = r.rowCount;
+    }
+    res.json({ added, removed });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+app.get('/api/rep/showroom', repAuth, respondWithShowroomList);
+app.post('/api/rep/showroom', repAuth, respondWithShowroomToggle);
+app.get('/api/admin/showroom', staffAuth, requireRole('admin', 'manager'), respondWithShowroomList);
+app.post('/api/admin/showroom', staffAuth, requireRole('admin', 'manager'), respondWithShowroomToggle);
 
 // Bulk update product status
 app.patch('/api/admin/products/bulk/status', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -10770,6 +10899,8 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
     const customVendorEmail = req.body.custom_vendor_email ? String(req.body.custom_vendor_email).trim() : '';
     const customCost = req.body.cost != null && !isNaN(parseFloat(req.body.cost)) && parseFloat(req.body.cost) > 0
       ? parseFloat(req.body.cost) : null;
+    // Custom-line vendor item # — lets the line carry a PO1/VP identifier on EDI 850s
+    const customVendorSku = req.body.vendor_sku ? String(req.body.vendor_sku).trim().slice(0, 64) || null : null;
 
     const isCustom = !sku_id;
     if (isCustom) {
@@ -10940,13 +11071,13 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       const insertResult = await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
           sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, description,
-          vendor_id, custom_vendor, cost)
-        VALUES ($1, NULL, NULL, $2, NULL, $3, $4, $5, $6, false, $7, $8, $9, $10, $11)
+          vendor_id, custom_vendor, vendor_sku, cost)
+        VALUES ($1, NULL, NULL, $2, NULL, $3, $4, $5, $6, false, $7, $8, $9, $10, $11, $12)
         RETURNING id
       `, [id, product_name.trim(), isCustomCarpet ? num_boxes : (sqft_needed || null),
           isCustomCarpet ? 1 : num_boxes, unitPrice.toFixed(2),
           itemSubtotal.toFixed(2), customSellBy || null, description || null,
-          itemVendorId, customVendorName || null,
+          itemVendorId, customVendorName || null, customVendorSku,
           customCost != null ? customCost.toFixed(2) : null]);
       newItemId = insertResult.rows[0].id;
     }
@@ -11038,7 +11169,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
           poQty = num_boxes;
           poSubtotal = poCost * num_boxes;
         }
-        poVendorSku = null;
+        poVendorSku = customVendorSku;
         poProductName = product_name.trim();
       }
 
@@ -19658,6 +19789,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
           is_sample: false,
           vendor_id: customVendorId,
           custom_vendor: oneOffName || null,
+          vendor_sku: item.vendor_sku ? String(item.vendor_sku).trim().slice(0, 64) || null : null,
           cost: customCost
         });
       } else {
@@ -19795,13 +19927,14 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
     for (const item of resolvedItems) {
       await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description,
-          sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, cost,
+          sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, vendor_sku, cost,
           is_custom_rug, custom_width_ft, custom_length_ft)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection,
           item.description || null, item.sqft_needed, item.num_boxes,
           item.unit_price.toFixed(2), item.subtotal.toFixed(2), item.sell_by || null, item.is_sample,
-          item.vendor_id || null, item.custom_vendor || null, item.cost != null ? item.cost.toFixed(2) : null,
+          item.vendor_id || null, item.custom_vendor || null, item.vendor_sku || null,
+          item.cost != null ? item.cost.toFixed(2) : null,
           item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
     }
 
@@ -21358,6 +21491,8 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
     const customVendorEmail = req.body.custom_vendor_email ? String(req.body.custom_vendor_email).trim() : '';
     const customCost = req.body.cost != null && !isNaN(parseFloat(req.body.cost)) && parseFloat(req.body.cost) > 0
       ? parseFloat(req.body.cost) : null;
+    // Custom-line vendor item # — lets the line carry a PO1/VP identifier on EDI 850s
+    const customVendorSku = req.body.vendor_sku ? String(req.body.vendor_sku).trim().slice(0, 64) || null : null;
 
     const isCustom = !sku_id;
     if (isCustom) {
@@ -21524,13 +21659,13 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       const insertResult = await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
           sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, description,
-          vendor_id, custom_vendor, cost)
-        VALUES ($1, NULL, NULL, $2, NULL, $3, $4, $5, $6, false, $7, $8, $9, $10, $11)
+          vendor_id, custom_vendor, vendor_sku, cost)
+        VALUES ($1, NULL, NULL, $2, NULL, $3, $4, $5, $6, false, $7, $8, $9, $10, $11, $12)
         RETURNING id
       `, [id, product_name.trim(), isCustomCarpet ? num_boxes : (sqft_needed || null),
           isCustomCarpet ? 1 : num_boxes, unitPrice.toFixed(2),
           itemSubtotal.toFixed(2), customSellBy || null, description || null,
-          itemVendorId, customVendorName || null,
+          itemVendorId, customVendorName || null, customVendorSku,
           customCost != null ? customCost.toFixed(2) : null]);
       newItemId = insertResult.rows[0].id;
     }
@@ -21619,7 +21754,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
           poQty = num_boxes;
           poSubtotal = poCost * num_boxes;
         }
-        poVendorSku = null;
+        poVendorSku = customVendorSku;
         poProductName = product_name.trim();
       }
 
@@ -25540,6 +25675,23 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
       return res.status(400).json({ error: 'Vendor has no email configured and EDI is not enabled.' });
     }
 
+    // EDI 850 lines are identified by vendor item # (PO1/VP). A line without one
+    // (a custom item missing its vendor item #) can't be matched by the vendor's
+    // order system — hold EDI for this PO and fall back to the emailed PDF.
+    let ediBlockReason = null;
+    if (ediEnabled) {
+      const noSku = await pool.query(
+        `SELECT product_name FROM purchase_order_items
+         WHERE purchase_order_id = $1 AND COALESCE(status, 'pending') <> 'cancelled'
+           AND (vendor_sku IS NULL OR btrim(vendor_sku) = '')`, [poId]);
+      if (noSku.rows.length) {
+        ediBlockReason = 'missing vendor item # on: ' + noSku.rows.map(r => r.product_name).filter(Boolean).slice(0, 5).join(', ');
+        if (!toEmail) {
+          return res.status(400).json({ error: "This PO has line(s) without a vendor item #, so it can't be sent via EDI, and the vendor has no email for a PDF fallback. Add the vendor item # to the line or an email to the vendor." });
+        }
+      }
+    }
+
     const newRevision = (po.revision || 0) + 1;
     const isRevised = newRevision > 1;
 
@@ -25553,10 +25705,11 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
 
     let sentVia = 'email';
     let emailSent = false;
-    let ediDetails = null;
+    let ediDetails = ediBlockReason ? { edi_skipped: true, reason: ediBlockReason, fallback: 'email' } : null;
+    if (ediBlockReason) console.warn(`[Rep PO Approve] EDI skipped for ${po.po_number} — ${ediBlockReason}; sending by email`);
 
     // EDI path: generate 850 and upload via SFTP or FTP
-    if (ediEnabled) {
+    if (ediEnabled && !ediBlockReason) {
       let ediSuccess = false;
       try {
         const docs = await generate850(pool, poId, ediConfig);
@@ -25856,8 +26009,8 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
         const rugCost = rug ? (rug.cost != null ? parseFloat(rug.cost).toFixed(2) : null)
           : (item.cost != null && item.cost !== '' && !isNaN(parseFloat(item.cost)) && parseFloat(item.cost) >= 0 ? parseFloat(item.cost).toFixed(2) : null);
         await client.query(`
-          INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, cost, is_custom_rug, custom_width_ft, custom_length_ft)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+          INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, vendor_sku, cost, is_custom_rug, custom_width_ft, custom_length_ft)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
         `, [quote.id, item.product_id || null, item.sku_id || null,
             item.product_name || null, item.collection || null,
             item.description || null,
@@ -25868,6 +26021,7 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
             item.is_sample || false,
             itemVendorId,
             oneOffName || null,
+            (!item.sku_id && item.vendor_sku) ? String(item.vendor_sku).trim().slice(0, 64) || null : null,
             rugCost,
             item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
       }
@@ -26136,6 +26290,8 @@ app.post('/api/rep/quotes/:id/items', repAuth, async (req, res) => {
     const customVendorEmail = req.body.custom_vendor_email ? String(req.body.custom_vendor_email).trim() : '';
     const customCost = req.body.cost != null && !isNaN(parseFloat(req.body.cost)) && parseFloat(req.body.cost) > 0
       ? parseFloat(req.body.cost) : null;
+    // Custom-line vendor item # — lets the line carry a PO1/VP identifier on EDI 850s
+    const customVendorSku = req.body.vendor_sku ? String(req.body.vendor_sku).trim().slice(0, 64) || null : null;
     // One-off vendor with an email → create/reuse the vendor record now so the
     // PO is sendable when the quote converts. Email optional at quote stage.
     let quoteItemVendorId = (!sku_id && req.body.vendor_id) || null;
@@ -26143,8 +26299,8 @@ app.post('/api/rep/quotes/:id/items', repAuth, async (req, res) => {
       quoteItemVendorId = await findOrCreateOneOffVendor(client, customVendorName, customVendorEmail);
     }
     const itemResult = await client.query(`
-      INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, cost, is_custom_rug, custom_width_ft, custom_length_ft)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, vendor_sku, cost, is_custom_rug, custom_width_ft, custom_length_ft)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       RETURNING *
     `, [id, rug ? rug.product_id : (product_id || null), rug ? rug.sku_id : (sku_id || null),
         rug ? rug.product_name : (product_name || null), rug ? rug.collection : (collection || null),
@@ -26156,6 +26312,7 @@ app.post('/api/rep/quotes/:id/items', repAuth, async (req, res) => {
         rug ? false : (is_sample || false),
         rug ? null : quoteItemVendorId,
         rug ? null : (!sku_id ? (customVendorName || null) : null),
+        (rug || sku_id) ? null : customVendorSku,
         rug ? (rug.cost != null ? parseFloat(rug.cost).toFixed(2) : null) : (customCost != null ? customCost.toFixed(2) : null),
         rug ? true : false, rug ? rug.custom_width_ft : null, rug ? rug.custom_length_ft : null]);
 
@@ -26587,12 +26744,12 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
     // Copy quote items to order items (incl. custom-line vendor + cost + custom rug)
     for (const item of itemsResult.rows) {
       await client.query(`
-        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, parent_collection, parent_color, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, cost, is_custom_rug, custom_width_ft, custom_length_ft)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, parent_collection, parent_color, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, vendor_sku, cost, is_custom_rug, custom_width_ft, custom_length_ft)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
       `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection,
           item.parent_collection || null, item.parent_color || null,
           item.description, item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample,
-          item.vendor_id || null, item.custom_vendor || null, item.cost || null,
+          item.vendor_id || null, item.custom_vendor || null, item.vendor_sku || null, item.cost || null,
           item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
     }
 
@@ -28382,11 +28539,11 @@ async function convertQuoteToOrderTx(client, q, items, opts) {
   }
   for (const item of items) {
     await client.query(`
-      INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, parent_collection, parent_color, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, cost, is_custom_rug, custom_width_ft, custom_length_ft)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+      INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, parent_collection, parent_color, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, vendor_sku, cost, is_custom_rug, custom_width_ft, custom_length_ft)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
     `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection, item.parent_collection || null, item.parent_color || null, item.description,
         item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample,
-        item.vendor_id || null, item.custom_vendor || null,
+        item.vendor_id || null, item.custom_vendor || null, item.vendor_sku || null,
         item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
   }
   // Carry the quote's internal notes onto the order (multi-entry, author+time
@@ -31072,6 +31229,23 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
       return res.status(400).json({ error: 'Vendor has no email configured and EDI is not enabled. Edit the vendor to add an email address.' });
     }
 
+    // EDI 850 lines are identified by vendor item # (PO1/VP). A line without one
+    // (a custom item missing its vendor item #) can't be matched by the vendor's
+    // order system — hold EDI for this PO and fall back to the emailed PDF.
+    let ediBlockReason = null;
+    if (ediEnabled) {
+      const noSku = await pool.query(
+        `SELECT product_name FROM purchase_order_items
+         WHERE purchase_order_id = $1 AND COALESCE(status, 'pending') <> 'cancelled'
+           AND (vendor_sku IS NULL OR btrim(vendor_sku) = '')`, [poId]);
+      if (noSku.rows.length) {
+        ediBlockReason = 'missing vendor item # on: ' + noSku.rows.map(r => r.product_name).filter(Boolean).slice(0, 5).join(', ');
+        if (!po.vendor_email) {
+          return res.status(400).json({ error: "This PO has line(s) without a vendor item #, so it can't be sent via EDI, and the vendor has no email for a PDF fallback. Add the vendor item # to the line or an email to the vendor." });
+        }
+      }
+    }
+
     let action = 'sent';
 
     if (po.status === 'draft') {
@@ -31089,10 +31263,11 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
 
     let sentVia = 'email';
     let emailResult = { sent: false };
-    let ediDetails = null;
+    let ediDetails = ediBlockReason ? { edi_skipped: true, reason: ediBlockReason, fallback: 'email' } : null;
+    if (ediBlockReason) console.warn(`[PO Send] EDI skipped for ${po.po_number} — ${ediBlockReason}; sending by email`);
 
     // EDI path: generate 850 and upload via SFTP or FTP
-    if (ediEnabled) {
+    if (ediEnabled && !ediBlockReason) {
       let ediSuccess = false;
       try {
         const docs = await generate850(pool, poId, ediConfig);
@@ -34023,7 +34198,7 @@ async function checkAndSendStockAlerts(skuId, newQtyOnHand) {
       WHERE sa.sku_id = $1 AND sa.status = 'active'
     `, [skuId]);
     for (const alert of alerts.rows) {
-      const productUrl = (process.env.SITE_URL || 'https://www.romaflooringdesigns.com') + '/shop/sku/' + alert.sku_id;
+      const productUrl = (process.env.SITE_URL || 'https://romaflooringdesigns.com') + '/shop/sku/' + alert.sku_id;
       await sendStockAlert({
         product_name: alert.product_name,
         variant_name: alert.variant_name,
@@ -35084,6 +35259,20 @@ async function runMigrations() {
     `);
     console.log('Migrations: FK constraints updated');
 
+    // Custom (off-catalog) lines can carry a vendor item # so they ride EDI 850s
+    // with a real PO1/VP identifier instead of description-only lines.
+    await pool.query(`
+      ALTER TABLE order_items ADD COLUMN IF NOT EXISTS vendor_sku TEXT;
+      ALTER TABLE quote_items ADD COLUMN IF NOT EXISTS vendor_sku TEXT;
+    `);
+    // Hard/soft 850 split is a Shaw-specific requirement — gate it behind an
+    // explicit edi_config flag so other EDI vendors (Daltile/EF/TW) get ONE 850.
+    await pool.query(`
+      UPDATE vendors SET edi_config = edi_config || '{"split_hard_soft": true}'::jsonb
+      WHERE code = 'SHAW' AND edi_config IS NOT NULL AND NOT (edi_config ? 'split_hard_soft');
+    `);
+    console.log('Migrations: custom-line vendor_sku + EDI split flag applied');
+
     // PO enhancements: item status, revision tracking, nullable order_item_id
     await pool.query(`
       ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending';
@@ -35602,6 +35791,21 @@ async function runMigrations() {
   } catch (err) {
     console.error('Migration warning:', err.message);
   }
+
+  // Showroom items: which SKUs (specific colors) are physically on display in
+  // the showroom. Drives the rep dashboard's Showroom view and its batch label
+  // printing — the site has thousands of SKUs, the showroom only a few hundred.
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS showroom_items (
+        sku_id UUID PRIMARY KEY REFERENCES skus(id) ON DELETE CASCADE,
+        added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('Migrations: showroom_items table applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
 }
 
 // ==================== Review Requests ====================
@@ -36049,6 +36253,11 @@ app.get('/api/dev/email-preview/:name', (req, res) => {
 // Centralized error handler — prevent stack traces leaking to clients
 app.use((err, req, res, _next) => {
   console.error('Unhandled error:', err);
+  // Report 5xx to Sentry (client 4xx are expected, not defects). Attach request
+  // context so the issue shows the offending route/method.
+  if (Sentry && (err.status || 500) >= 500) {
+    Sentry.captureException(err, { tags: { path: req.path, method: req.method } });
+  }
   res.status(err.status || 500).json({ error: 'Internal server error' });
 });
 
@@ -36072,11 +36281,15 @@ process.on('uncaughtException', (err) => {
   const msg = `[PROCESS UNCAUGHT] ${err.stack}\n`;
   try { fs.appendFileSync('/app/_cache/exit.log', msg); } catch {}
   process.stderr.write(msg);
+  // Best-effort report + flush (2s cap). We don't exit here — that's the
+  // pre-existing behavior — so flush() shouldn't block the loop indefinitely.
+  if (Sentry) { try { Sentry.captureException(err); Sentry.flush(2000).catch(() => {}); } catch {} }
 });
 process.on('unhandledRejection', (reason) => {
   const msg = `[PROCESS UNHANDLED REJECTION] ${reason?.stack || reason}\n`;
   try { fs.appendFileSync('/app/_cache/exit.log', msg); } catch {}
   process.stderr.write(msg);
+  if (Sentry) { try { Sentry.captureException(reason); Sentry.flush(2000).catch(() => {}); } catch {} }
 });
 
 runMigrations().then(() => {

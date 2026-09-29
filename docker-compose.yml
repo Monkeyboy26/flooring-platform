@@ -104,7 +104,11 @@ services:
       # tracker only loads when its ID is set. See .env.example.
       GA4_MEASUREMENT_ID: ${GA4_MEASUREMENT_ID:-}
       CLARITY_PROJECT_ID: ${CLARITY_PROJECT_ID:-}
+      # SENTRY_DSN = browser SDK (served to storefront.html). SENTRY_DSN_BACKEND =
+      # server-side @sentry/node — a SEPARATE Sentry project so the two error
+      # streams don't mix. Empty = disabled (guarded init no-ops).
       SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_DSN_BACKEND: ${SENTRY_DSN_BACKEND:-}
       PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
       PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
       MSI_PORTAL_USERNAME: ${MSI_PORTAL_USERNAME:-}
