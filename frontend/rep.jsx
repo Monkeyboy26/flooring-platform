@@ -18290,6 +18290,13 @@
                       <div style={{ fontSize: 10, lineHeight: 1.4, color: 'var(--rod-muted)' }}>Set to 0 to remove. Re-issues the invoice as revised if it was already sent.</div>
                     </div>
                   )}
+                  {parseFloat(order.tax_amount || 0) > 0 && (() => {
+                    // Rate derived from stored amounts so it reads the exact destination
+                    // rate (e.g. 8.375%), not the DECIMAL(5,4)-rounded tax_rate column.
+                    const taxable = Math.max(0, parseFloat(order.subtotal || 0) - parseFloat(order.discount_amount || 0));
+                    const pct = taxable > 0 ? (parseFloat(order.tax_amount) / taxable * 100) : 0;
+                    return <RovRow l={'Tax · ' + pct.toFixed(3).replace(/\.?0+$/, '') + '%'} v={'$' + parseFloat(order.tax_amount).toFixed(2)} />;
+                  })()}
                   <RovRow l="Amount paid" v={'$' + amountPaid.toFixed(2)} c="var(--rod-green)" />
                   <div className="rov-total-row">
                     <span style={{ font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--rod-ink)' }}>Total</span>
