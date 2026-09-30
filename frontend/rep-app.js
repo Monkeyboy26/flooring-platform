@@ -106,7 +106,7 @@
   })();
   let TAX_RATES = null;
   let notifyTaxRates = null;
-  const loadTaxRates = () => fetch(API + "/api/tax-rates").then((r) => r.ok ? r.json() : null).then((d) => {
+  const loadTaxRates = () => fetch(API + "/api/tax-rates?nyfix=1").then((r) => r.ok ? r.json() : null).then((d) => {
     if (d) {
       TAX_RATES = d;
       if (notifyTaxRates) notifyTaxRates();

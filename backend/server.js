@@ -4525,7 +4525,10 @@ const TAX_RATES_MERGED = Object.fromEntries(
   Object.entries({ ...NY_TAX_RATES, ...CA_TAX_RATES }).filter(([k]) => /^\d{3}$/.test(k))
 );
 app.get('/api/tax-rates', (req, res) => {
-  res.set('Cache-Control', 'public, max-age=86400');
+  // Short cache + revalidate: a day-long cache once stranded reps on a stale
+  // CA-only table after NY was added. 10 min keeps it cheap but lets rate/state
+  // changes propagate; the frontend also cache-busts its fetch URL.
+  res.set('Cache-Control', 'public, max-age=600, must-revalidate');
   res.json(TAX_RATES_MERGED);
 });
 

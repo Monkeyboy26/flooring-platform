@@ -117,7 +117,8 @@
     let notifyTaxRates = null;
     // Deferred off the initial load: only used in post-login order/quote flows,
     // so it must not compete with the login render on the critical path.
-    const loadTaxRates = () => fetch(API + '/api/tax-rates').then(r => r.ok ? r.json() : null).then(d => { if (d) { TAX_RATES = d; if (notifyTaxRates) notifyTaxRates(); } }).catch(() => {});
+    // ?nyfix busts any stale day-long-cached CA-only copy from before NY was added.
+    const loadTaxRates = () => fetch(API + '/api/tax-rates?nyfix=1').then(r => r.ok ? r.json() : null).then(d => { if (d) { TAX_RATES = d; if (notifyTaxRates) notifyTaxRates(); } }).catch(() => {});
     (window.requestIdleCallback || ((cb) => setTimeout(cb, 1500)))(loadTaxRates);
     function caTaxRate(zip) {
       if (!zip || zip.length < 3) return 0;
