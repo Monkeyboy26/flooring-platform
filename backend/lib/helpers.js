@@ -2,18 +2,15 @@ import { createRequire } from 'module';
 
 const __require = createRequire(import.meta.url);
 export const CA_TAX_RATES = __require('../data/ca-tax-rates.json');
-export const NY_TAX_RATES = __require('../data/ny-tax-rates.json');
 
-// States where Roma is registered to collect sales tax. Each destination ZIP is
-// routed to the state whose 3-digit-prefix table it falls in; a ZIP outside every
-// registered state gets 0 tax (no nexus → don't collect). Rates are the combined
-// state+local rate for the destination (both CA and NY are destination-based).
-// `fallback` covers a destination prefix not yet enumerated in that state's table.
+// States where Roma is REGISTERED to collect sales tax. Roma has nexus/registration
+// in CA only, so we tax CA destinations and charge $0 everywhere else (no nexus →
+// don't collect; charging tax in an unregistered state is a liability, not
+// compliance). Each destination ZIP routes to the state whose 3-digit-prefix range
+// it falls in; `fallback` covers a CA prefix not enumerated in the table. To add a
+// state later (after registering there), add its table + an entry here.
 const TAX_JURISDICTIONS = [
   { name: 'CA', table: CA_TAX_RATES, fallback: 0.0725, match: (p, n) => n >= 900 && n <= 966 },
-  // NY prefixes span 100–149 (plus 005 Holtsville). Fallback = 4% state + 0.375%
-  // MCTD; enumerate localities in ny-tax-rates.json for the correct combined rate.
-  { name: 'NY', table: NY_TAX_RATES, fallback: 0.04375, match: (p, n) => p === '005' || (n >= 100 && n <= 149) },
 ];
 
 export function calculateSalesTax(subtotal, shippingZip, isTaxExempt) {

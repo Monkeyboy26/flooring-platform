@@ -24,7 +24,7 @@ import { spawn } from 'child_process';
 import sharp from 'sharp';
 import { pool } from './db.js';
 import { createAuthMiddleware } from './lib/auth.js';
-import { calculateSalesTax, isTradeTaxExempt, isPickupOnly, getNextBusinessDay, CA_TAX_RATES, NY_TAX_RATES } from './lib/helpers.js';
+import { calculateSalesTax, isTradeTaxExempt, isPickupOnly, getNextBusinessDay, CA_TAX_RATES } from './lib/helpers.js';
 import { recalculateBalance, recalcOrderTotals, logOrderActivity, recalculateCommission, syncOrderPaymentToInvoice, getStoreCreditBalance, grantStoreCredit, redeemStoreCredit } from './lib/orderHelpers.js';
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
 import { getEstimateBundle, bundleSections, effectiveStatus, depositAmount, computeSchedule, LABOR_CATEGORY_LABELS, laborUnitShort, laborDisplayName } from './lib/estimateBundle.js';
@@ -4518,18 +4518,13 @@ app.post('/api/calculate', async (req, res) => {
 app.use(createCartRoutes({ pool, calculateSalesTax, isPickupOnly, optionalTradeAuth }));
 
 // Sales-tax table (zip prefix → rate) so frontends estimate with the same rates
-// calculateSalesTax applies at order creation. Merged across every registered
-// state; CA (9xx) and NY (005/1xx) prefixes don't overlap, so a flat map is safe.
-// Non-numeric metadata keys in the source JSON are stripped.
-const TAX_RATES_MERGED = Object.fromEntries(
-  Object.entries({ ...NY_TAX_RATES, ...CA_TAX_RATES }).filter(([k]) => /^\d{3}$/.test(k))
-);
+// calculateSalesTax applies at order creation. Roma is registered in CA only, so
+// this serves the CA table; out-of-state destinations get $0 (no nexus).
 app.get('/api/tax-rates', (req, res) => {
-  // Short cache + revalidate: a day-long cache once stranded reps on a stale
-  // CA-only table after NY was added. 10 min keeps it cheap but lets rate/state
-  // changes propagate; the frontend also cache-busts its fetch URL.
+  // Short cache + revalidate so rate/registration changes propagate quickly; the
+  // frontend also cache-busts its fetch URL.
   res.set('Cache-Control', 'public, max-age=600, must-revalidate');
-  res.json(TAX_RATES_MERGED);
+  res.json(CA_TAX_RATES);
 });
 
 // ==================== Shipping API ====================

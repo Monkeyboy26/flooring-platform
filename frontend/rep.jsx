@@ -121,12 +121,11 @@
     const loadTaxRates = () => fetch(API + '/api/tax-rates?nyfix=1').then(r => r.ok ? r.json() : null).then(d => { if (d) { TAX_RATES = d; if (notifyTaxRates) notifyTaxRates(); } }).catch(() => {});
     (window.requestIdleCallback || ((cb) => setTimeout(cb, 1500)))(loadTaxRates);
     function caTaxRate(zip) {
-      if (!zip || zip.length < 3) return 0;
-      const p = zip.substring(0, 3), n = parseInt(p, 10);
+      // Roma is registered in CA only → tax CA destinations, $0 everywhere else.
+      if (!zip || !zip.startsWith('9')) return 0;
+      const p = zip.substring(0, 3);
       if (TAX_RATES && TAX_RATES[p] != null) return TAX_RATES[p];
-      if (zip.startsWith('9')) return 0.0725;                     // CA fallback
-      if (p === '005' || (n >= 100 && n <= 149)) return 0.04375;  // NY fallback
-      return 0;                                                    // no nexus
+      return 0.0725; // CA fallback
     }
 
     // ========== Stock Display Helper ==========
