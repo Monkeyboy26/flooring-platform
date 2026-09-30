@@ -21608,6 +21608,9 @@
       const displaySubtotal = quote ? parseFloat(quote.subtotal) : calcSubtotal;
       const displayDiscount = promoResult && promoResult.discount_amount > 0 ? promoResult.discount_amount : 0;
       const displayShipping = quote ? parseFloat(quote.shipping || 0) : 0;
+      // Tax is resolved + stored on the quote by the backend (recalcQuoteTotals);
+      // quote.total already includes it. Only shown once the quote is saved.
+      const displayTax = quote ? parseFloat(quote.tax_amount || 0) : 0;
       const displayTotal = (quote ? parseFloat(quote.total) : calcSubtotal) - (promoResult && !quote ? promoResult.discount_amount : 0);
       const initials = (form.customer_name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
       const canConvert = editId && quote && ['draft', 'sent', 'accepted'].includes(quote.status) && !isExpired;
@@ -22389,6 +22392,11 @@
                   {displayShipping > 0 && (
                     <RovRow l="Shipping" v={'$' + displayShipping.toFixed(2)} />
                   )}
+                  {displayTax > 0 && (() => {
+                    const taxable = Math.max(0, displaySubtotal - displayDiscount);
+                    const pct = taxable > 0 ? (displayTax / taxable * 100) : 0;
+                    return <RovRow l={'Tax · ' + pct.toFixed(3).replace(/\.?0+$/, '') + '%'} v={'$' + displayTax.toFixed(2)} />;
+                  })()}
                 </div>
 
                 {/* Promo code — lives with the totals it affects */}
