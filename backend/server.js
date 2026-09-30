@@ -6496,7 +6496,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
       // assigned now (and persisted on the customer for future activity).
       const assignedRep = await assignRepForStorefront(client, { customer_id: srCustomerId, customer_email });
 
-      const srNumber = await getNextSampleNumber();
+      const srNumber = await allocRdFamilyNumber(client, 'RDS-');
       const dm = isPickup ? 'pickup' : 'shipping';
       // The customer paid sampleShipping ($12) now; record it + the PaymentIntent
       // on the request so it can be refunded from the rep sample workspace.
@@ -6715,7 +6715,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     // Create sample request if there are sample items
     let sampleRequest = null;
     if (sampleItems.length > 0) {
-      const srNumber = await getNextSampleNumber();
+      const srNumber = await allocRdFamilyNumber(client, 'RDS-');
 
       // Resolve customer_id: use existing customer, newly created customer, or find/create one
       let srCustomerId = existingCustomerId;
@@ -18257,7 +18257,7 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
       phone: customer_phone, companyName, repId: req.rep.id, createdVia: 'sample_request'
     });
 
-    const request_number = await getNextSampleNumber();
+    const request_number = await allocRdFamilyNumber(client, 'RDS-');
 
     const srRes = await client.query(`
       INSERT INTO sample_requests (request_number, rep_id, customer_name, customer_email, customer_phone,
@@ -22551,7 +22551,7 @@ async function processReturn(client, { id, order, lines, refund_splits = [], sto
   const isFull = allItemsRes.rows.length > 0 && allItemsRes.rows.every(it =>
     (parseFloat(it.prior_returned) + (addNow[it.id] || 0)) + 0.001 >= parseFloat(it.num_boxes || 0));
 
-  const cmNumber = await getNextCreditMemoNumber(client);
+  const cmNumber = await allocRdFamilyNumber(client, 'CM-');
   const settlement = [
     ...refund_splits.filter(r => (parseFloat(r.amount) || 0) > 0).map(r => {
       const p = paymentsById[r.payment_id];
@@ -22577,7 +22577,7 @@ async function processReturn(client, { id, order, lines, refund_splits = [], sto
       [creditMemo.id, c.oi.id, c.oi.sku_id, c.oi.product_name, c.returnQty, c.unitPrice.toFixed(2), c.restockPct, c.restockFee.toFixed(2), c.refundLine.toFixed(2), i]);
   }
 
-  const rmaNumber = await getNextRMANumber(client);
+  const rmaNumber = await allocRdFamilyNumber(client, 'RMA-');
   const retRes = await client.query(`
     INSERT INTO returns (rma_number, order_id, credit_memo_id, customer_email, customer_name, status,
       reason_summary, customer_note, restock_total, tax_refund, refund_total, is_partial, created_by, created_by_name)
@@ -22882,7 +22882,7 @@ async function processRelease(client, { id, order, lines, release_method, recipi
     computed.push({ oi, qty });
   }
 
-  const releaseNumber = await getNextReleaseNumber(client);
+  const releaseNumber = await allocRdFamilyNumber(client, 'REL-');
   const relRes = await client.query(`
     INSERT INTO material_releases (release_number, order_id, status, release_method, recipient_name, notes, released_by, released_by_name, vendor_id, po_number)
     VALUES ($1,$2,'released',$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
