@@ -104,18 +104,24 @@
       return '';
     })();
 
-    // ========== CA Sales Tax Estimate ==========
+    // ========== Sales Tax Estimate ==========
     // Mirrors backend lib/helpers.js calculateSalesTax: zip-prefix rate table
-    // fetched from the API, 7.25% fallback. Tax applies to the pre-discount
-    // subtotal (same basis the backend uses at order creation).
-    let CA_TAX_RATES = null;
+    // fetched from the API (merged across registered states — CA + NY), with a
+    // per-state fallback. Tax applies to the pre-discount subtotal (same basis the
+    // backend uses at order creation). This is a preview only — the saved order's
+    // tax_amount from the server is authoritative.
+    let TAX_RATES = null;
     // Deferred off the initial load: only used in post-login order/quote flows,
     // so it must not compete with the login render on the critical path.
-    const loadTaxRates = () => fetch(API + '/api/tax-rates').then(r => r.ok ? r.json() : null).then(d => { CA_TAX_RATES = d; }).catch(() => {});
+    const loadTaxRates = () => fetch(API + '/api/tax-rates').then(r => r.ok ? r.json() : null).then(d => { TAX_RATES = d; }).catch(() => {});
     (window.requestIdleCallback || ((cb) => setTimeout(cb, 1500)))(loadTaxRates);
     function caTaxRate(zip) {
-      if (!zip || !zip.startsWith('9')) return 0;
-      return (CA_TAX_RATES && CA_TAX_RATES[zip.substring(0, 3)]) || 0.0725;
+      if (!zip || zip.length < 3) return 0;
+      const p = zip.substring(0, 3), n = parseInt(p, 10);
+      if (TAX_RATES && TAX_RATES[p] != null) return TAX_RATES[p];
+      if (zip.startsWith('9')) return 0.0725;                     // CA fallback
+      if (p === '005' || (n >= 100 && n <= 149)) return 0.04375;  // NY fallback
+      return 0;                                                    // no nexus
     }
 
     // ========== Stock Display Helper ==========

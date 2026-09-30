@@ -104,15 +104,19 @@
     if (h === "localhost" || h === "127.0.0.1") return "http://localhost:3001";
     return "";
   })();
-  let CA_TAX_RATES = null;
+  let TAX_RATES = null;
   const loadTaxRates = () => fetch(API + "/api/tax-rates").then((r) => r.ok ? r.json() : null).then((d) => {
-    CA_TAX_RATES = d;
+    TAX_RATES = d;
   }).catch(() => {
   });
   (window.requestIdleCallback || ((cb) => setTimeout(cb, 1500)))(loadTaxRates);
   function caTaxRate(zip) {
-    if (!zip || !zip.startsWith("9")) return 0;
-    return CA_TAX_RATES && CA_TAX_RATES[zip.substring(0, 3)] || 0.0725;
+    if (!zip || zip.length < 3) return 0;
+    const p = zip.substring(0, 3), n = parseInt(p, 10);
+    if (TAX_RATES && TAX_RATES[p] != null) return TAX_RATES[p];
+    if (zip.startsWith("9")) return 0.0725;
+    if (p === "005" || n >= 100 && n <= 149) return 0.04375;
+    return 0;
   }
   function fmtQty(n) {
     if (n >= 1e4) {
