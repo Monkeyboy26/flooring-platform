@@ -111,9 +111,13 @@
     // backend uses at order creation). This is a preview only — the saved order's
     // tax_amount from the server is authoritative.
     let TAX_RATES = null;
+    // caTaxRate reads this module-level table, which is NOT React state — so when
+    // the async fetch lands, App re-renders once (via notifyTaxRates) or every open
+    // tax estimate stays frozen on the per-state fallback rate. [[rep-quote-tax-multistate]]
+    let notifyTaxRates = null;
     // Deferred off the initial load: only used in post-login order/quote flows,
     // so it must not compete with the login render on the critical path.
-    const loadTaxRates = () => fetch(API + '/api/tax-rates').then(r => r.ok ? r.json() : null).then(d => { TAX_RATES = d; }).catch(() => {});
+    const loadTaxRates = () => fetch(API + '/api/tax-rates').then(r => r.ok ? r.json() : null).then(d => { if (d) { TAX_RATES = d; if (notifyTaxRates) notifyTaxRates(); } }).catch(() => {});
     (window.requestIdleCallback || ((cb) => setTimeout(cb, 1500)))(loadTaxRates);
     function caTaxRate(zip) {
       if (!zip || zip.length < 3) return 0;
@@ -1065,6 +1069,15 @@
     function App() {
       const [authed, setAuthed] = useState(false);
       const [checking, setChecking] = useState(true);
+
+      // Force one app-wide re-render when the async tax-rate table arrives, so tax
+      // estimates recompute off the real rates instead of the fallback.
+      const [, bumpTaxRates] = useState(0);
+      useEffect(() => {
+        if (TAX_RATES) return;
+        notifyTaxRates = () => bumpTaxRates(v => v + 1);
+        return () => { notifyTaxRates = null; };
+      }, []);
 
       useEffect(() => {
         const token = sessionStorage.getItem('rep_token');

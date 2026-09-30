@@ -105,8 +105,12 @@
     return "";
   })();
   let TAX_RATES = null;
+  let notifyTaxRates = null;
   const loadTaxRates = () => fetch(API + "/api/tax-rates").then((r) => r.ok ? r.json() : null).then((d) => {
-    TAX_RATES = d;
+    if (d) {
+      TAX_RATES = d;
+      if (notifyTaxRates) notifyTaxRates();
+    }
   }).catch(() => {
   });
   (window.requestIdleCallback || ((cb) => setTimeout(cb, 1500)))(loadTaxRates);
@@ -890,6 +894,14 @@
   function App() {
     const [authed, setAuthed] = useState(false);
     const [checking, setChecking] = useState(true);
+    const [, bumpTaxRates] = useState(0);
+    useEffect(() => {
+      if (TAX_RATES) return;
+      notifyTaxRates = () => bumpTaxRates((v) => v + 1);
+      return () => {
+        notifyTaxRates = null;
+      };
+    }, []);
     useEffect(() => {
       const token = sessionStorage.getItem("rep_token");
       if (!token) {
