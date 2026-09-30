@@ -6033,7 +6033,7 @@ async function generatePurchaseOrders(orderId, client) {
 
   for (const group of Object.values(vendorGroups)) {
     if (vendorsWithLivePO.has(String(group.vendor_id))) continue;
-    const poNumber = await getNextPONumber(client);
+    const poNumber = await allocRdFamilyNumber(client, 'RDP-');
 
     // Calculate subtotal — cost per box * qty (boxes), or cost per sqyd * sqyd for carpet
     let poSubtotal = 0;
@@ -6546,9 +6546,11 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
       return;
     }
 
-    const orderNumber = await getNextOrderNumber();
-
     await client.query('BEGIN');
+
+    // Serialized RD-family allocation (advisory lock) so concurrent order creates
+    // can't collide on order_number.
+    const orderNumber = await allocRdFamilyNumber(client, 'RD-');
 
     // ACH sits in awaiting_payment like a bank transfer — it settles days later and
     // the payment_intent.succeeded webhook flips it to confirmed + cuts POs.
@@ -11155,7 +11157,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
         // Create new draft PO for this vendor
         const vendorResult = await client.query('SELECT code FROM vendors WHERE id = $1', [itemVendorId]);
         const vendorCode = vendorResult.rows[0]?.code || 'CUST';
-        const poNumber = await getNextPONumber(client);
+        const poNumber = await allocRdFamilyNumber(client, 'RDP-');
         const newPO = await client.query(
           `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal)
            VALUES ($1, $2, $3, 'draft', 0) RETURNING id`,
@@ -15698,9 +15700,12 @@ app.post('/api/trade/bulk-order/confirm', tradeAuth, async (req, res) => {
     if (!items || !items.length) return res.status(400).json({ error: 'Items are required' });
 
     const total = items.reduce((sum, i) => sum + (parseFloat(i.subtotal) || 0), 0);
-    const orderNumber = await getNextOrderNumber();
 
     await client.query('BEGIN');
+
+    // Serialized RD-family allocation (advisory lock) — no order_number collision
+    // with a concurrent order create.
+    const orderNumber = await allocRdFamilyNumber(client, 'RD-');
 
     const orderResult = await client.query(`
       INSERT INTO orders (order_number, customer_email, customer_name, subtotal, total, status, trade_customer_id, po_number, project_id)
@@ -19892,7 +19897,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Order total must be greater than zero for this payment method' });
     }
-    const orderNumber = await getNextOrderNumber();
+    const orderNumber = await allocRdFamilyNumber(client, 'RD-');
     const paidInStore = ['cash', 'check', 'card', 'offline'].includes(payment_method);
     // Order-first: a not-finalized create stays 'pending' even when paid in store —
     // /finalize confirms it later. Default (finalize=true) keeps the original behavior.
@@ -21740,7 +21745,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       } else {
         const vendorResult = await client.query('SELECT code FROM vendors WHERE id = $1', [itemVendorId]);
         const vendorCode = vendorResult.rows[0]?.code || 'CUST';
-        const poNumber = await getNextPONumber(client);
+        const poNumber = await allocRdFamilyNumber(client, 'RDP-');
         const newPO = await client.query(
           `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal)
            VALUES ($1, $2, $3, 'draft', 0) RETURNING id`,
@@ -25069,13 +25074,25 @@ app.post('/api/rep/purchase-orders', repAuth, async (req, res) => {
     if (!vendor.rows.length) return res.status(404).json({ error: 'Vendor not found' });
 
     const vendorCode = vendor.rows[0].code || 'XX';
-    const poNumber = await getNextPONumber();
-
-    const result = await pool.query(
-      `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal, notes, ship_to, expected_delivery, recipient_email, cc_emails, fulfillment_method)
-       VALUES ($1, $2, $3, 'draft', 0, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [order_id || null, vendor_id, poNumber, notes || null, ship_to || null, expected_delivery || null, recipient_email || null, cc_emails || '{}', fulfillment_method === 'pickup' ? 'pickup' : 'ship']
-    );
+    // Allocate the PO number and INSERT in one transaction so two concurrent PO
+    // creates can't collide on po_number (advisory lock held until COMMIT).
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      const poNumber = await allocRdFamilyNumber(client, 'RDP-');
+      result = await client.query(
+        `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal, notes, ship_to, expected_delivery, recipient_email, cc_emails, fulfillment_method)
+         VALUES ($1, $2, $3, 'draft', 0, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        [order_id || null, vendor_id, poNumber, notes || null, ship_to || null, expected_delivery || null, recipient_email || null, cc_emails || '{}', fulfillment_method === 'pickup' ? 'pickup' : 'ship']
+      );
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
 
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
     await pool.query(
@@ -26694,7 +26711,7 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
       phone: q.phone, repId: req.rep.id, createdVia: 'quote_convert'
     });
 
-    const orderNumber = await getNextOrderNumber();
+    const orderNumber = await allocRdFamilyNumber(client, 'RD-');
     const paidInStore = ['cash', 'check', 'card', 'offline'].includes(payment_method);
     const orderStatus = paidInStore ? 'confirmed' : 'pending';
 
@@ -27480,11 +27497,14 @@ app.post('/api/rep/estimates', repAuth, async (req, res) => {
       return res.status(400).json({ error: 'A valid 10-digit phone number is required' });
     }
 
-    const estimateNumber = await getNextEstimateNumber();
     // Validity window is set on SEND (14 days), not creation — drafts don't
     // expire, matching the quote's expiration logic.
 
     await client.query('BEGIN');
+
+    // Serialized RD-family allocation (advisory lock) so concurrent estimate creates
+    // can't collide on estimate_number.
+    const estimateNumber = await allocRdFamilyNumber(client, 'RDE-');
 
     // Link/create the customer only when an email was supplied.
     let custId = null;
@@ -28398,7 +28418,7 @@ async function convertEstimateToOrderTx(client, e, materialItems, laborItems, op
     phone: e.phone, repId: salesRepId, createdVia: 'estimate_convert'
   });
 
-  const orderNumber = await getNextOrderNumber();
+  const orderNumber = await allocRdFamilyNumber(client, 'RD-');
   // A rep either collects money now (in-store methods) or starts the job "on
   // terms" (no payment yet, bill the balance later) — both commit the job, so
   // the order is 'confirmed' and POs draft. Online deposits use 'stripe' → the
@@ -28547,7 +28567,7 @@ async function convertEstimateToOrderTx(client, e, materialItems, laborItems, op
 async function convertQuoteToOrderTx(client, q, items, opts) {
   const { scope = 'customer', customerId = null, tradeCustomerId = null,
     termsAccepted = false, actor = 'customer', actorName = null } = opts || {};
-  const orderNumber = await getNextOrderNumber();
+  const orderNumber = await allocRdFamilyNumber(client, 'RD-');
   const orderResult = await client.query(`
     INSERT INTO orders (order_number, customer_email, customer_name, phone,
       shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
@@ -31002,13 +31022,25 @@ app.post('/api/admin/purchase-orders', staffAuth, requireRole('admin', 'manager'
     if (!vendor.rows.length) return res.status(404).json({ error: 'Vendor not found' });
 
     const vendorCode = vendor.rows[0].code || 'XX';
-    const poNumber = await getNextPONumber();
-
-    const result = await pool.query(
-      `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal, notes, fulfillment_method)
-       VALUES (NULL, $1, $2, 'draft', 0, $3, $4) RETURNING *`,
-      [vendor_id, poNumber, notes || null, fulfillment_method === 'pickup' ? 'pickup' : 'ship']
-    );
+    // Allocate the PO number and INSERT in one transaction so two concurrent PO
+    // creates can't collide on po_number (advisory lock held until COMMIT).
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      const poNumber = await allocRdFamilyNumber(client, 'RDP-');
+      result = await client.query(
+        `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal, notes, fulfillment_method)
+         VALUES (NULL, $1, $2, 'draft', 0, $3, $4) RETURNING *`,
+        [vendor_id, poNumber, notes || null, fulfillment_method === 'pickup' ? 'pickup' : 'ship']
+      );
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
 
     const staffName = req.staff.first_name + ' ' + req.staff.last_name;
     await pool.query(
