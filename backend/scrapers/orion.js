@@ -727,6 +727,28 @@ const colorConflicts = (fileStr, wanted) => {
   return fc.size > 0 && ![...fc].some(t => wanted.has(t));
 };
 
+// Correct a colour word in the vendor's description that conflicts with the product
+// colour. Orion clones one colour's copy across a whole collection — every ONI
+// description reads "Its rich blue color" even on Pearl/Coral/White. Without this,
+// a re-scrape re-clobbers any manual correction (upsertProduct COALESCEs the vendor
+// text). Swaps only standalone colour words that conflict with the product colour;
+// non-colour prose and the already-correct colour are left untouched.
+function correctDescriptionColor(desc, color) {
+  if (!desc || !color) return desc;
+  const wanted = colorTokens(color);
+  if (wanted.size === 0) return desc;
+  const repl = (color.split(/\s+/)[0] || '').toLowerCase();
+  if (!repl || !KNOWN_COLORS.has(repl)) return desc;
+  return desc.replace(/[A-Za-z]+/g, (m) => {
+    const low = m.toLowerCase();
+    if (!KNOWN_COLORS.has(low)) return m;
+    if (wanted.has(COLOR_SYNONYMS[low] || low)) return m;   // already the right colour
+    return m[0] === m[0].toUpperCase()
+      ? repl.charAt(0).toUpperCase() + repl.slice(1)
+      : repl;
+  });
+}
+
 /**
  * Post-scrape image-integrity pass for Orion (idempotent).
  *
@@ -1383,12 +1405,15 @@ export async function run(pool, job, source) {
         const { sellBy, variantType, priceBasis } = classifyProduct(data.category, data.title, productName, categorySlug);
 
         // ── Upsert Product ──
+        // Fix vendor descriptions that name the wrong colour (Orion clones one
+        // colour's copy across a collection — ONI Pearl/Coral/White all say "blue").
+        const productColor = parsed.color || COLOR_OVERRIDES[productName.toLowerCase()] || null;
         const product = await upsertProduct(pool, {
           vendor_id,
           name: productName,
           collection: parsed.collection,
           category_id: categoryId,
-          description_long: data.description,
+          description_long: correctDescriptionColor(data.description, productColor),
         });
 
         if (product.is_new) stats.created++;
