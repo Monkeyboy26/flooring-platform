@@ -16150,6 +16150,7 @@
           refund_issued: 'Refund Issued', item_added: 'Item Added', item_removed: 'Item Removed',
           payment_request_sent: 'Payment Request', payment_request_cancelled: 'Request Cancelled',
           payment_collected: 'Payment Collected', payment_received: 'Payment Received',
+          payment_cancelled: 'Payment Cancelled',
           payment_processing: 'Payment Processing', payment_failed: 'Payment Failed',
           rep_assigned: 'Rep Assigned', price_adjusted: 'Price Adjusted', cost_updated: 'Cost Updated',
           item_ready: 'Item Ready', item_unready: 'Item Unmarked',
@@ -19529,10 +19530,12 @@
       const [committing, setCommitting] = useState(false);
       const [result, setResult] = useState(null);
       const [error, setError] = useState('');
+      const [cancelingPay, setCancelingPay] = useState(false);
 
-      useEffect(() => {
-        if (!editId) return;
-        repFetch('/api/rep/orders/' + editId + '/release-context')
+      const loadCtx = useCallback(() => {
+        if (!editId) return Promise.resolve();
+        setLoading(true);
+        return repFetch('/api/rep/orders/' + editId + '/release-context')
           .then(data => {
             setCtx(data);
             // Install jobs fulfill by delivery to the job site — default the method
@@ -19550,7 +19553,24 @@
             setLoading(false);
           })
           .catch(err => { setError(err.message || 'Failed to load'); setLoading(false); });
-      }, [editId]);
+      }, [editId, initialMethod]);
+
+      useEffect(() => { loadCtx(); }, [loadCtx]);
+
+      // Cancel an abandoned ACH/bank payment stuck in 'processing' — it never
+      // settled or failed (no Stripe failure webhook), so it blocks release even
+      // after the customer paid another way. Marks it failed, then reloads so the
+      // release unblocks. [[material-releases]]
+      const cancelStuckPayment = useCallback(async () => {
+        if (!window.confirm('Cancel the payment still processing on this order? Use this only when the customer paid another way (e.g. by check) — it marks that payment failed so materials can be released.')) return;
+        setCancelingPay(true);
+        try {
+          const r = await repFetch('/api/rep/orders/' + editId + '/cancel-stuck-payment', { method: 'POST', body: JSON.stringify({}) });
+          if (r && r.success) { await loadCtx(); }
+          else window.alert((r && r.error) || 'Could not cancel the payment.');
+        } catch (e) { window.alert('Could not cancel the payment.'); }
+        setCancelingPay(false);
+      }, [editId, loadCtx]);
 
       const order = ctx && ctx.order;
       const items = (ctx && ctx.items) || [];
@@ -19706,10 +19726,21 @@
                 </RodCard>
               </div>
             </div>
-          ) : !ctx.releasable ? (
+          ) : !['confirmed', 'shipped', 'ready_for_pickup', 'delivered'].includes(order.status) ? (
             <RodCard title="Not releasable yet">
               <div className="rod-card-body-padded" style={{ font: "400 13px/1.6 'Inter', sans-serif", color: 'var(--rod-muted)' }}>
                 Materials can only be released once the order is confirmed (paid). This order is <strong style={{ color: 'var(--rod-ink)' }}>{order.status}</strong>.
+              </div>
+            </RodCard>
+          ) : ctx.unsettled ? (
+            <RodCard title="Payment still clearing">
+              <div className="rod-card-body-padded" style={{ font: "400 13px/1.6 'Inter', sans-serif", color: 'var(--rod-muted)' }}>
+                A bank (ACH) payment{ctx.unsettled_amount ? <React.Fragment> of <strong style={{ color: 'var(--rod-ink)' }}>${parseFloat(ctx.unsettled_amount).toFixed(2)}</strong></React.Fragment> : ''} on this order hasn’t settled, so materials can’t be released while the funds are in flight.
+                {' '}If that payment was abandoned and the customer paid another way (e.g. by check), cancel it to unblock the release.
+              </div>
+              <div style={{ padding: '14px 20px', borderTop: '0.5px solid var(--rod-border)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button className="rod-mini-btn" onClick={cancelStuckPayment} disabled={cancelingPay}>{cancelingPay ? 'Cancelling…' : 'Cancel abandoned payment'}</button>
+                <button className="rod-mini-btn primary" onClick={() => navigate('order-detail', editId)}>Back to order</button>
               </div>
             </RodCard>
           ) : !ctx.paid ? (

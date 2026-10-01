@@ -22933,6 +22933,46 @@ async function processRelease(client, { id, order, lines, release_method, recipi
   return { release, computed, releaseNumber, isFull };
 }
 
+// Cancel abandoned payment(s) stuck in 'processing' on an order. A failed/abandoned
+// ACH debit sometimes never produces a Stripe failure webhook, so its 'processing'
+// order_payments row lingers forever and the unsettled-funds gate blocks release
+// (and shipping) even after the customer pays another way. This marks such rows
+// 'failed' so the order can move. Only touches 'processing' rows and never changes
+// amount_paid — processing money was never counted toward the balance. If Stripe
+// later settles it after all, the webhook records a fresh completed tender (→ a
+// refundable overpayment), so cancelling here is safe. [[material-releases]]
+app.post('/api/rep/orders/:id/cancel-stuck-payment', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    await client.query('BEGIN');
+    const oRes = await client.query('SELECT order_number FROM orders WHERE id = $1 FOR UPDATE', [id]);
+    if (!oRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found' }); }
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    const upd = await client.query(
+      `UPDATE order_payments
+         SET status = 'failed',
+             description = COALESCE(description, '') || ' — cancelled by ' || $2 || ' (abandoned, never settled)'
+       WHERE order_id = $1 AND status = 'processing'
+       RETURNING id, amount, payment_method`, [id, repName]);
+    if (!upd.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'No payment is currently processing on this order.' });
+    }
+    const amount = upd.rows.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
+    await logOrderActivity(client, id, 'payment_cancelled', req.rep.id, repName,
+      { count: upd.rows.length, amount: amount.toFixed(2), reason: 'abandoned processing payment' });
+    await client.query('COMMIT');
+    res.json({ success: true, cancelled: upd.rows.length, amount: amount.toFixed(2) });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[cancel-stuck-payment]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
 // Release context — order + releasable (non-sample) lines with remaining-to-release.
 app.get('/api/rep/orders/:id/release-context', repAuth, async (req, res) => {
   try {
