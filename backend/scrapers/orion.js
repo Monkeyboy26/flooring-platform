@@ -590,9 +590,11 @@ function isInPriceList(productName) {
  *   5. Any remaining images with ratio 0.7–0.88 are additional lifestyle shots
  *
  * @param {Array<{url: string, w: number, h: number}>} images - Gallery images with dimensions
+ * @param {string|null} productColor - The product's colour (e.g. "Beige"), used to
+ *        reject a wrong-colour sibling swatch as primary.
  * @returns {{ primary: string|null, alternate: string|null, lifestyle: string[] }}
  */
-function classifyOrionImages(images) {
+function classifyOrionImages(images, productColor = null) {
   const result = { primary: null, alternate: null, lifestyle: [] };
   if (!images || images.length === 0) return result;
 
@@ -608,24 +610,28 @@ function classifyOrionImages(images) {
 
   // Pick the most portrait image (lowest w/h ratio) as primary — that's the
   // close-up product swatch/tile photo. Landscape images are room scenes/lifestyle.
-  let primaryIdx = 0;
-  let lowestRatio = Infinity;
-  for (let i = 0; i < candidates.length; i++) {
-    const c = candidates[i];
-    const ratio = (c.w && c.h) ? c.w / c.h : 1;
-    if (ratio < lowestRatio) {
-      lowestRatio = ratio;
-      primaryIdx = i;
-    }
+  const ratioOf = (c) => (c.w && c.h) ? c.w / c.h : 1;
+  const byPortrait = [...candidates].sort((a, b) => ratioOf(a) - ratioOf(b));
+  let primary = byPortrait[0];
+
+  // Colour guard: if the tallest image's filename names a colour that conflicts
+  // with the product's colour (Orion left a sibling's swatch on the page), fall
+  // back to the tallest candidate that either matches the product colour or names
+  // no colour at all. Only fires on a provable conflict, so generic-named swatches
+  // on normal products keep the historical tallest-wins behaviour.
+  const wanted = colorTokens(productColor);
+  if (wanted.size && colorConflicts(primary.url, wanted)) {
+    const better = byPortrait.find(c => !colorConflicts(c.url, wanted));
+    if (better) primary = better;
   }
 
-  result.primary = candidates[primaryIdx].url;
-  for (let i = 0; i < candidates.length; i++) {
-    if (i === primaryIdx) continue;
+  result.primary = primary.url;
+  for (const c of candidates) {          // alternate/lifestyle keep original order
+    if (c.url === primary.url) continue;
     if (!result.alternate) {
-      result.alternate = candidates[i].url;
+      result.alternate = c.url;
     } else {
-      result.lifestyle.push(candidates[i].url);
+      result.lifestyle.push(c.url);
     }
   }
 
@@ -682,6 +688,44 @@ const imgTokens = (url) => {
 const nameTokens = (name) => (name || '').toLowerCase().normalize('NFD')
   .replace(/[̀-ͯ]/g, '').split(/[^a-z0-9]+/)
   .filter(t => t && t.length >= 3 && !IMG_STOPWORDS.has(t));
+
+// Colour vocabulary for matching an image filename against a product's colour.
+// Orion routinely leaves a sibling colour's swatch on a product page (a "…-Green"
+// file on Marvel GRAY, a "VIKEN-Grey" file on Viken BEIGE); the tallest-image rule
+// alone then picks the wrong colour as primary. Synonyms collapse to one token so
+// "grey"/"gray" and the Spanish/Italian colour names Orion uses ("blanco", "nero")
+// compare equal to their English form.
+const COLOR_SYNONYMS = {
+  grey: 'gray', gray: 'gray',
+  white: 'white', blanco: 'white', bianco: 'white', bianca: 'white',
+  black: 'black', nero: 'black', noir: 'black', negro: 'black',
+  blue: 'blue', azul: 'blue', blu: 'blue',
+  brown: 'brown', marrone: 'brown',
+  red: 'red', rosso: 'red', rojo: 'red',
+  green: 'green', verde: 'green',
+};
+const KNOWN_COLORS = new Set([
+  'white', 'black', 'gray', 'grey', 'beige', 'blue', 'coral', 'pearl', 'green',
+  'gold', 'silver', 'cream', 'brown', 'ivory', 'navy', 'teal', 'aqua', 'cobalt',
+  'charcoal', 'red', 'pink', 'taupe', 'sand', 'mocha', 'walnut', 'ash', 'bronze',
+  'copper', 'emerald', 'yellow', 'rose', 'blanco', 'bianco', 'bianca', 'nero',
+  'noir', 'negro', 'azul', 'blu', 'marrone', 'rosso', 'rojo', 'verde',
+]);
+// Extract normalized colour tokens from any string (filename or product colour).
+const colorTokens = (str) => {
+  const s = (str || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const out = new Set();
+  for (const t of s.split(/[^a-z]+/)) {
+    if (t && KNOWN_COLORS.has(t)) out.add(COLOR_SYNONYMS[t] || t);
+  }
+  return out;
+};
+// True when the filename names a colour and none of them matches the product's colour.
+const colorConflicts = (fileStr, wanted) => {
+  if (!wanted || wanted.size === 0) return false;
+  const fc = colorTokens(fileStr);
+  return fc.size > 0 && ![...fc].some(t => wanted.has(t));
+};
 
 /**
  * Post-scrape image-integrity pass for Orion (idempotent).
@@ -1361,8 +1405,29 @@ export async function run(pool, job, source) {
         // tile twins (Calacatta Gold, …) must keep their slug-based ids.
         const isSlab = COUNTERTOP_SLUGS.has(categorySlug);
         const stableSlabSlug = slugifyName(productName);
-        const vendorSku = isSlab ? (stableSlabSlug || urlSlug) : (data.sku || urlSlug);
-        const internalSku = (isSlab ? `ORN-${stableSlabSlug}` : `ORN-${urlSlug}`).slice(0, 100);
+        // WordPress appends "-2"/"-3"/"-copy" to the slug when a duplicate product
+        // page is created. Those suffixes drift the internal_sku on every such page
+        // and mint parallel duplicate SKUs under the same product (Viken Beige "-2"
+        // carrying a grey image, Natural Terrazzo "-2"/"-3", ONI White "-copy").
+        // Strip the WP dedup suffix so duplicate pages resolve to the SAME SKU and a
+        // re-scrape updates it in place. Only "-copy" and a small WP counter (-2..-99,
+        // no leading zero) are stripped, so genuine part numbers ("…-1004400005-01")
+        // and size tokens ("…-24x48", "…-16x16") are left intact.
+        let baseSlug = urlSlug.replace(/(?:-copy)?(?:-[1-9]\d?)?$/i, '') || urlSlug;
+        // …but only collapse when the base identity isn't already owned by a DIFFERENT
+        // product. WordPress sometimes builds a genuinely new product by duplicating
+        // another's page (Marmette "Mix" lives at the Marmette "Jeans" slug + "-2");
+        // collapsing that would merge the two SKUs into one. Keep the suffix then.
+        if (!isSlab && baseSlug !== urlSlug) {
+          const clash = await pool.query(
+            'SELECT product_id FROM skus WHERE internal_sku = $1 LIMIT 1',
+            [`ORN-${baseSlug}`.slice(0, 100)]);
+          if (clash.rowCount && clash.rows[0].product_id !== product.id) {
+            baseSlug = urlSlug;
+          }
+        }
+        const vendorSku = isSlab ? (stableSlabSlug || baseSlug) : (data.sku || baseSlug);
+        const internalSku = (isSlab ? `ORN-${stableSlabSlug}` : `ORN-${baseSlug}`).slice(0, 100);
 
         const variantName = parsed.size
           ? buildVariantName(parsed.size, parsed.finish)
@@ -1443,13 +1508,25 @@ export async function run(pool, job, source) {
         // ── Images ──
         // data.images now contains [{url, w, h}, ...] with full-size dimensions
         if (data.images && data.images.length > 0) {
+          const classified = classifyOrionImages(data.images, color);
+
+          // Now that duplicate WP pages resolve to the same SKU (see baseSlug above),
+          // don't let a wrong-colour duplicate page clobber good media: if this page's
+          // chosen primary names a colour that conflicts with the product colour and
+          // the SKU already has images, keep the existing ones.
+          let skipMedia = false;
+          if (colorConflicts(classified.primary || '', colorTokens(color))) {
+            const existing = await pool.query(
+              'SELECT 1 FROM media_assets WHERE sku_id = $1 LIMIT 1', [sku.id]);
+            skipMedia = existing.rowCount > 0;
+          }
+
+          if (!skipMedia) {
           // Delete existing media assets for this SKU before re-importing
           await pool.query(
             'DELETE FROM media_assets WHERE product_id = $1 AND sku_id = $2',
             [product.id, sku.id]
           );
-
-          const classified = classifyOrionImages(data.images);
 
           let sortOrder = 0;
           if (classified.primary) {
@@ -1487,6 +1564,7 @@ export async function run(pool, job, source) {
             });
             stats.imagesSet++;
           }
+          } // end if (!skipMedia)
         }
 
         // ── Inventory (mark as in-stock since Orion lists them) ──
