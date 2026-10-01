@@ -20119,22 +20119,26 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
   }
 });
 
-// Order-first finalize: confirm a pending order created with finalize:false and
-// fire its deferred side-effects (confirm + vendor POs + customer confirmation/
-// receipt emails + commission). Idempotent via finalized_at, so the wizard's
-// Process Order step can call it safely once the payment(s) are attached.
-app.post('/api/rep/orders/:id/finalize', repAuth, async (req, res) => {
+// Core order finalization — shared by the rep "Process Order" action and the
+// auto-finalize safety-net sweep. Confirms a pending order created with
+// finalize:false and fires its deferred side-effects (confirm + vendor POs +
+// customer confirmation/receipt emails + commission). Idempotent via
+// finalized_at, so it can be called safely more than once. Deliberately does NOT
+// create the per-actor rep notification — the caller owns that, because the
+// wording differs for a rep click vs. an automatic recovery sweep.
+// Returns { order (with items), notFound, alreadyFinalized, confirmed }.
+async function finalizeOrderCore(orderId) {
   const client = await pool.connect();
   try {
-    const orderRes = await client.query('SELECT * FROM orders WHERE id = $1', [req.params.id]);
-    if (!orderRes.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const orderRes = await client.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+    if (!orderRes.rows.length) return { notFound: true };
     let order = orderRes.rows[0];
 
     // Already finalized → idempotent no-op (safe against double "Process Order").
     if (order.finalized_at) {
       const its = await pool.query('SELECT oi.* FROM order_items oi WHERE oi.order_id = $1', [order.id]);
       await enrichItemsForNaming(its.rows);
-      return res.json({ order: { ...order, items: its.rows }, already_finalized: true });
+      return { order: { ...order, items: its.rows }, alreadyFinalized: true };
     }
 
     const paidInStore = ['cash', 'check', 'card', 'offline'].includes(order.payment_method);
@@ -20154,7 +20158,6 @@ app.post('/api/rep/orders/:id/finalize', repAuth, async (req, res) => {
 
     const its = await pool.query('SELECT oi.* FROM order_items oi WHERE oi.order_id = $1', [order.id]);
     await enrichItemsForNaming(its.rows);
-    res.json({ order: { ...order, items: its.rows } });
 
     // Deferred side-effects — identical to a finalize:true create.
     setImmediate(() => recalculateCommission(pool, order.id));
@@ -20172,15 +20175,32 @@ app.post('/api/rep/orders/:id/finalize', repAuth, async (req, res) => {
         }
       }
     });
+    return { order: { ...order, items: its.rows }, confirmed: order.status === 'confirmed' };
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch {}
+    throw err;
+  } finally {
+    try { client.release(); } catch {}
+  }
+}
+
+// Order-first finalize: confirm a pending order created with finalize:false and
+// fire its deferred side-effects (confirm + vendor POs + customer confirmation/
+// receipt emails + commission). Idempotent via finalized_at, so the wizard's
+// Process Order step can call it safely once the payment(s) are attached.
+app.post('/api/rep/orders/:id/finalize', repAuth, async (req, res) => {
+  try {
+    const result = await finalizeOrderCore(req.params.id);
+    if (result.notFound) return res.status(404).json({ error: 'Order not found' });
+    if (result.alreadyFinalized) return res.json({ order: result.order, already_finalized: true });
+    const order = result.order;
+    res.json({ order });
     setImmediate(() => createRepNotification(pool, req.rep.id, 'order_created',
       'Order ' + order.order_number + ' created',
       'You created order ' + order.order_number + ' for ' + order.customer_name + ' ($' + parseFloat(order.total).toFixed(2) + ')',
       'order', order.id));
   } catch (err) {
-    try { await client.query('ROLLBACK'); } catch {}
     console.error('[Order finalize]', err); res.status(500).json({ error: 'Internal server error' });
-  } finally {
-    try { client.release(); } catch {}
   }
 });
 
@@ -33326,6 +33346,61 @@ cron.schedule('0 8 * * *', async () => {
       console.log(`[Accounting] Marked ${result.rowCount} invoice(s) as overdue: ${result.rows.map(r => r.invoice_number).join(', ')}`);
     }
   } catch (err) { console.error('[Accounting] Overdue cron error:', err.message); }
+});
+
+// --- Auto-finalize safety net (every 15 min) ---
+// An order-first order is created 'pending' and relies on the rep's "Process
+// Order" step (/finalize) to confirm it once the in-store payment(s) are attached.
+// If that step never completes — the wizard is closed early, or it errors and
+// rolls back — a fully-paid order is stranded in 'pending': balance $0, but its
+// materials can't be released (release requires confirmed+). This sweep finalizes
+// any in-store-paid order that's been paid in full for a grace window yet never
+// finalized, so it confirms itself without a rep having to re-run anything.
+// Idempotent via finalizeOrderCore's finalized_at guard. Only in-store tenders
+// (cash/check/card/offline) are eligible — online stripe/ACH orders are confirmed
+// by the payment webhook, so they never sit paid-and-pending here. [[material-releases]]
+let autoFinalizeRunning = false;
+cron.schedule('*/15 * * * *', async () => {
+  // Sends real customer confirmation/receipt emails — prod-only, like the
+  // scraper/SEO crons. Override locally with ENABLE_SCHEDULER=1.
+  if (process.env.NODE_ENV !== 'production' && process.env.ENABLE_SCHEDULER !== '1') return;
+  if (autoFinalizeRunning) return;
+  autoFinalizeRunning = true;
+  try {
+    // 15-min grace so we never preempt an active wizard (which finalizes within
+    // seconds of attaching payment). amount_paid + 0.01 >= total == paid in full.
+    const stranded = await pool.query(`
+      SELECT id, order_number, sales_rep_id
+      FROM orders
+      WHERE status = 'pending'
+        AND finalized_at IS NULL
+        AND total > 0
+        AND amount_paid + 0.01 >= total
+        AND payment_method IN ('cash', 'check', 'card', 'offline')
+        AND created_at < NOW() - INTERVAL '15 minutes'
+      ORDER BY created_at
+      LIMIT 50`);
+    for (const o of stranded.rows) {
+      try {
+        const result = await finalizeOrderCore(o.id);
+        if (result && result.confirmed) {
+          console.log(`[Auto-finalize] Confirmed stranded paid order ${o.order_number}`);
+          if (o.sales_rep_id) {
+            await createRepNotification(pool, o.sales_rep_id, 'order_status_changed',
+              'Order ' + o.order_number + ' auto-confirmed',
+              'It was paid in full but left unfinalized — it has been confirmed automatically and its materials can now be released.',
+              'order', o.id);
+          }
+        }
+      } catch (err) {
+        console.error(`[Auto-finalize] Failed to finalize ${o.order_number}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('[Auto-finalize] sweep error:', err.message);
+  } finally {
+    autoFinalizeRunning = false;
+  }
 });
 
 // --- Nightly SEO maintenance cron (3:30am) ---
