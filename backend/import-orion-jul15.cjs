@@ -103,6 +103,11 @@ async function main(){
   const vid=(await pool.query("SELECT id FROM vendors WHERE code='169'")).rows[0].id;
   const cats={};
   for(const b of Object.values(B)){ if(!(b[0] in cats)){ const r=await pool.query('SELECT id FROM categories WHERE slug=$1',[b[0]]); cats[b[0]]=r.rows[0]?.id||null; } }
+  // Resolve attribute ids once so each variant's colour/size land in sku_attributes
+  // (not just variant_name) — otherwise storefront colour/size filters and the
+  // collection swatch picker don't work for these price-list-only styles.
+  const attrIds={};
+  for(const sl of ['color','size']){ const r=await pool.query('SELECT id FROM attributes WHERE slug=$1',[sl]); attrIds[sl]=r.rows[0]?.id||null; }
   let np=0,ns=0;
   for(const [name,bk,vars] of ITEMS){
     const [catSlug,sellBy,basis,vtype]=B[bk];
@@ -125,10 +130,23 @@ async function main(){
          ON CONFLICT (internal_sku) DO UPDATE SET variant_name=EXCLUDED.variant_name, sell_by=EXCLUDED.sell_by, updated_at=now()
          RETURNING id`,[pid,isku,isku,vname,sellBy,vtype]);
       const sid=sk.rows[0].id; ns++;
+      // Seed retail at the 1.70x keystone on INSERT, but PRESERVE an existing
+      // retail on re-run — retail is owned by the pricing model (base.js charm +
+      // category margin floors) and the reprice migrations; a blind cost*mult
+      // UPDATE here would revert those (it previously knocked repriced rows back
+      // to 1.6x). Cost stays price-list-authoritative.
       await pool.query(
         `INSERT INTO pricing (sku_id,cost,retail_price,price_basis)
-         VALUES ($1,$2,$3,$4) ON CONFLICT (sku_id) DO UPDATE SET cost=EXCLUDED.cost, retail_price=EXCLUDED.retail_price, price_basis=EXCLUDED.price_basis`,
-        [sid,cost,nn(cost*1.6),basis]);
+         VALUES ($1,$2,$3,$4) ON CONFLICT (sku_id) DO UPDATE SET cost=EXCLUDED.cost, price_basis=EXCLUDED.price_basis`,
+        [sid,cost,nn(cost*1.70),basis]);
+      // Populate colour/size attributes (the price list has both; finish is not
+      // specified). ON CONFLICT keeps re-runs idempotent.
+      for(const [sl,val] of [['color',color],['size',size]]){
+        if(val && attrIds[sl]) await pool.query(
+          `INSERT INTO sku_attributes (sku_id,attribute_id,value) VALUES ($1,$2,$3)
+           ON CONFLICT (sku_id,attribute_id) DO UPDATE SET value=EXCLUDED.value`,
+          [sid,attrIds[sl],val]);
+      }
     }
   }
   console.log('products new:',np,' skus upserted:',ns,' styles:',ITEMS.length);
