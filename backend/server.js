@@ -35315,6 +35315,166 @@ function generateSlugBackend(text) {
   return (text || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
+// ---------------------------------------------------------------------------
+// Google Merchant Center product feed (RSS 2.0 + g: namespace).
+//
+// Powers free Shopping-tab listings (and, if ever enabled, Shopping ads). One
+// <item> per sellable SKU. Mirrors the sitemap's "sellable product" gate plus
+// the storefront's call-for-price exclusion so nothing ships to Google that a
+// shopper can't actually buy at a shown price:
+//   - active product + active, non-sample SKU
+//   - real retail price (> 0); NULL/0 = "call for price" → excluded
+//   - hidden-price vendors (lib/hiddenPrices, e.g. AZT) → excluded
+//   - trims/accessories → excluded (same list the sitemap uses)
+//
+// Pricing is PER CARTON for sqft-sold flooring (retail_price/sqft ×
+// packaging.sqft_per_box), which is the real purchasable quantity. sqft SKUs
+// with no carton coverage on file fall back to the per-sqft price so they still
+// list; unit-sold items use their per-each price as-is. No GTINs exist for
+// flooring, so each item ships brand + mpn (vendor_sku) with identifier_exists=no.
+app.get('/api/merchant-feed.xml', async (req, res) => {
+  try {
+    const baseUrl = (process.env.SITE_URL || 'https://romaflooringdesigns.com').replace(/\/+$/, '');
+    const xe = (s) => String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+    // media_assets.url can be relative (/api/img?..., /uploads/...) — Google needs absolute.
+    const abs = (u) => !u ? '' : (/^https?:\/\//i.test(u) ? u : `${baseUrl}${u.startsWith('/') ? '' : '/'}${u}`);
+
+    const { rows } = await pool.query(`
+      SELECT
+        s.id              AS sku_id,
+        s.variant_name, s.variant_type, s.vendor_sku, s.sell_by,
+        COALESCE(p.display_name, p.name) AS product_name,
+        p.collection,
+        p.slug            AS product_slug,
+        p.description_short, p.description_long, p.meta_description,
+        c.name            AS category_name,
+        c.slug            AS category_slug,
+        v.code            AS vendor_code,
+        v.name            AS vendor_name,
+        COALESCE(br.name, v.name) AS brand_name,
+        (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
+        pr.retail_price, pr.price_basis,
+        CASE WHEN pr.sale_price IS NOT NULL AND pr.sale_price > 0
+              AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW())
+             THEN pr.sale_price ELSE NULL END AS active_sale_price,
+        pk.sqft_per_box,
+        COALESCE(si.url, pi.url, sli.url, pli.url) AS image_url,
+        attrs.attributes
+      FROM skus s
+      JOIN products p  ON p.id = s.product_id
+      JOIN vendors v   ON v.id = p.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      JOIN pricing pr  ON pr.sku_id = s.id
+      LEFT JOIN packaging pk ON pk.sku_id = s.id
+      LEFT JOIN LATERAL (
+        SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type = 'primary'   ORDER BY sort_order LIMIT 1
+      ) si ON true
+      LEFT JOIN LATERAL (
+        SELECT url FROM media_assets WHERE product_id = p.id AND sku_id IS NULL AND asset_type = 'primary' ORDER BY sort_order LIMIT 1
+      ) pi ON true
+      LEFT JOIN LATERAL (
+        SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type = 'lifestyle' ORDER BY sort_order LIMIT 1
+      ) sli ON true
+      LEFT JOIN LATERAL (
+        SELECT url FROM media_assets WHERE product_id = p.id AND sku_id IS NULL AND asset_type = 'lifestyle' ORDER BY sort_order LIMIT 1
+      ) pli ON true
+      LEFT JOIN LATERAL (
+        SELECT jsonb_agg(jsonb_build_object('slug', a.slug, 'value', sa.value) ORDER BY a.display_order) AS attributes
+        FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+        WHERE sa.sku_id = s.id
+      ) attrs ON true
+      WHERE p.status = 'active'
+        AND s.status = 'active'
+        AND s.is_sample = false
+        AND pr.retail_price > 0
+        AND COALESCE(s.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')
+        AND ${HIDDEN_PRICE_VENDOR_SQL}
+      ORDER BY p.id, s.variant_name
+    `);
+
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xml += '<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">\n';
+    xml += '  <channel>\n';
+    xml += `    <title>${xe('Roma Flooring Designs')}</title>\n`;
+    xml += `    <link>${baseUrl}</link>\n`;
+    xml += '    <description>Product feed for Google Merchant Center</description>\n';
+
+    let included = 0, skipped = 0;
+    for (const r of rows) {
+      const image = abs(r.image_url);
+      if (!r.product_slug || !r.category_slug || !image) { skipped++; continue; } // Google requires a link + image
+
+      // Storefront-identical title (name + color/size/finish + category suffix).
+      let title = (fullProductName(skuShapeFromLine(r)) || r.product_name || '').trim();
+      if (r.brand_hidden && r.vendor_name && title.toLowerCase().startsWith(r.vendor_name.toLowerCase() + ' ')) {
+        title = title.slice(r.vendor_name.length).trim();
+      }
+
+      // g:price = retail_price verbatim, so the feed matches the schema.org/Offer price
+      // the SEO renderer already publishes on the landing page (seoRenderer.js emits
+      // sku.retail_price) and Google's price-accuracy check passes. Area goods priced
+      // per sq ft also carry g:unit_pricing_measure so Shopping shows "$X / sq ft".
+      const basis = r.price_basis || 'per_sqft';
+      const price = parseFloat(r.retail_price);
+      const salePrice = r.active_sale_price != null ? parseFloat(r.active_sale_price) : null;
+      const perSqftArea = basis === 'per_sqft' && (r.sell_by === 'box' || r.sell_by === 'sqft');
+      const unitMeasure = perSqftArea ? '1sqft' : null;
+      const sqftBox = r.sqft_per_box != null && parseFloat(r.sqft_per_box) > 0 ? parseFloat(r.sqft_per_box) : null;
+
+      // Brand/vendor hidden → fall back to the generic shop name so no real brand leaks.
+      const brand = r.brand_hidden ? 'Roma Flooring Designs' : (r.brand_name || r.vendor_name || 'Roma Flooring Designs');
+
+      let desc = (r.description_short || r.description_long || r.meta_description || '').trim();
+      if (desc.length > 4800) desc = desc.slice(0, 4800); // Google hard cap is 5000 chars
+      // Area goods are priced per sq ft but shipped in full cartons — tell the shopper.
+      const cartonNote = (perSqftArea && sqftBox) ? ` Sold in cartons of ${sqftBox.toFixed(2)} sq ft.` : '';
+      if (!desc) desc = `${title}.${cartonNote}`;
+      else desc += cartonNote;
+
+      const link = `${baseUrl}/shop/${encodeURIComponent(r.category_slug)}/${encodeURIComponent(r.product_slug)}`;
+
+      xml += '    <item>\n';
+      xml += `      <g:id>${xe(r.sku_id)}</g:id>\n`;
+      xml += `      <g:title>${xe(title.slice(0, 150))}</g:title>\n`;
+      xml += `      <g:description>${xe(desc)}</g:description>\n`;
+      xml += `      <g:link>${xe(link)}</g:link>\n`;
+      xml += `      <g:image_link>${xe(image)}</g:image_link>\n`;
+      xml += '      <g:condition>new</g:condition>\n';
+      xml += '      <g:availability>in_stock</g:availability>\n';
+      xml += `      <g:price>${price.toFixed(2)} USD</g:price>\n`;
+      if (salePrice != null && salePrice < price) {
+        xml += `      <g:sale_price>${salePrice.toFixed(2)} USD</g:sale_price>\n`;
+      }
+      if (unitMeasure) {
+        xml += `      <g:unit_pricing_measure>${unitMeasure}</g:unit_pricing_measure>\n`;
+        xml += '      <g:unit_pricing_base_measure>1sqft</g:unit_pricing_base_measure>\n';
+      }
+      xml += `      <g:brand>${xe(brand)}</g:brand>\n`;
+      if (r.vendor_sku) xml += `      <g:mpn>${xe(r.vendor_sku)}</g:mpn>\n`;
+      xml += '      <g:identifier_exists>no</g:identifier_exists>\n';
+      // All flooring/tile/countertop maps to Google's building-materials flooring node.
+      xml += '      <g:google_product_category>Hardware &gt; Building Materials &gt; Flooring &amp; Carpet</g:google_product_category>\n';
+      if (r.category_name) xml += `      <g:product_type>${xe(r.category_name)}</g:product_type>\n`;
+      xml += '    </item>\n';
+      included++;
+    }
+
+    xml += '  </channel>\n';
+    xml += '</rss>';
+
+    res.set('Content-Type', 'application/xml');
+    res.set('Cache-Control', 'public, max-age=3600');
+    console.log(`Merchant feed: ${included} items, ${skipped} skipped (missing slug/image)`);
+    res.send(xml);
+  } catch (err) {
+    console.error('Merchant feed error:', err);
+    res.status(500).send('<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel></channel></rss>');
+  }
+});
+
 app.get('/api/sitemap.xml', async (req, res) => {
   try {
     const baseUrl = (process.env.SITE_URL || 'https://romaflooringdesigns.com').replace(/\/+$/, '');
