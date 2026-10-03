@@ -22240,7 +22240,10 @@ app.post('/api/rep/orders/:id/collect-payment', repAuth, async (req, res) => {
 
     await client.query('BEGIN');
 
-    const orderResult = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
+    // Lock the order row for this transaction so concurrent payments/refunds on the
+    // same order serialize — the balance check below then can't read a stale snapshot
+    // and let two requests both "fit" under the balance (over-collection). [[amount-paid-locking]]
+    const orderResult = await client.query('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [id]);
     if (!orderResult.rows.length) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Order not found' });
@@ -22285,6 +22288,25 @@ app.post('/api/rep/orders/:id/collect-payment', repAuth, async (req, res) => {
       if (!check_number || !check_number.trim()) {
         await client.query('ROLLBACK');
         return res.status(400).json({ error: 'check_number is required for check payments' });
+      }
+    }
+
+    // Idempotency: never record the same card/terminal tender twice (double-submit or a
+    // retried request). Safe under the FOR UPDATE lock above — a concurrent duplicate
+    // blocks until we commit, then finds this row and no-ops instead of double-charging.
+    const dupPi = stripePaymentIntentId || null;
+    const dupValor = valorTxn ? valorTxn.tranNo : null;
+    if (dupPi || dupValor) {
+      const dup = await client.query(
+        `SELECT id FROM order_payments
+          WHERE order_id = $1 AND status = 'completed'
+            AND ( ($2::text IS NOT NULL AND stripe_payment_intent_id = $2)
+               OR ($3::text IS NOT NULL AND valor_tran_no = $3) ) LIMIT 1`,
+        [id, dupPi, dupValor]);
+      if (dup.rows.length) {
+        await client.query('ROLLBACK');
+        const bal = await recalculateBalance(pool, id);
+        return res.json({ success: true, already_recorded: true, balance: bal });
       }
     }
 
