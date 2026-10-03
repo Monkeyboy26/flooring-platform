@@ -25874,6 +25874,11 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
         [poId, repName, toEmail || null, po.revision || 0,
          JSON.stringify({ email_sent: emailSent, sent_via: 'email', approved_via: 'rep_portal' })]);
       const updatedPO = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+      if (!emailSent) {
+        // The re-email never went out — don't report success (the rep UI would show
+        // "queued"). The PO state is unchanged, so just surface the failure. [[po-send-failure-surfacing]]
+        return res.status(502).json({ error: `Couldn't re-email the PO to ${toEmail} (mail server error). Nothing was sent — verify the vendor email and try again.` });
+      }
       return res.json({ purchase_order: updatedPO.rows[0], email_sent: emailSent, sent_via: 'email', resent: true });
     }
 
@@ -26064,6 +26069,23 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
       } catch (emailErr) {
         console.error('[Rep PO Approve] Email send failed:', emailErr.message);
       }
+    }
+
+    if (!emailSent) {
+      // Email never went out and EDI wasn't used — the vendor got nothing. Restore the PO's
+      // prior state so it isn't falsely marked "sent" (the rep UI otherwise shows "queued"),
+      // log the failure, and surface it. [[po-send-failure-surfacing]]
+      await pool.query(`
+        UPDATE purchase_orders SET status = $2, revision = $3, is_revised = $4,
+          approved_by = $5, approved_at = $6, sent_via = $7, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+      `, [poId, po.status, po.revision || 0, po.is_revised || false, po.approved_by || null, po.approved_at || null, po.sent_via || null]);
+      await pool.query(
+        `INSERT INTO po_activity_log (purchase_order_id, action, performer_name, recipient_email, revision, details)
+         VALUES ($1, 'send_failed', $2, $3, $4, $5)`,
+        [poId, repName, toEmail || null, po.revision || 0,
+         JSON.stringify({ reason: 'email_delivery_failed', approved_via: 'rep_portal', edi_fallback: ediDetails })]);
+      return res.status(502).json({ error: `Couldn't email the PO to ${toEmail} (mail server error). The PO was NOT sent and is unchanged — verify the vendor email and try again.` });
     }
 
     // Log activity
@@ -31630,6 +31652,25 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
       rep_name: [po.rep_first_name, po.rep_last_name].filter(Boolean).join(' '),
       vendor_contact_email: po.vendor_contact_email
     });
+
+    if (!emailResult.sent) {
+      // sendPurchaseOrderToVendor swallows its errors and returns {sent:false} (SMTP down /
+      // not configured / rejected). EDI wasn't used, so the vendor got NOTHING — don't leave
+      // the PO marked "sent". Restore its prior state so staff can retry, log the failure,
+      // and surface it as an error instead of a false success. [[po-send-failure-surfacing]]
+      await pool.query(`
+        UPDATE purchase_orders SET status = $2, revision = $3, is_revised = $4,
+          approved_by = $5, approved_at = $6, sent_via = $7, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+      `, [poId, po.status, po.revision || 0, po.is_revised || false, po.approved_by, po.approved_at, po.sent_via || null]);
+      await pool.query(
+        `INSERT INTO po_activity_log (purchase_order_id, action, performed_by, performer_name, recipient_email, revision, details)
+         VALUES ($1, 'send_failed', $2, $3, $4, $5, $6)`,
+        [poId, req.staff.id, staffName, po.vendor_email, po.revision || 0,
+         JSON.stringify({ reason: 'email_delivery_failed', ...(ediDetails || {}) })]
+      );
+      return res.status(502).json({ error: `Couldn't email the PO to ${po.vendor_email} (mail server error). The PO was NOT sent and is unchanged — verify the vendor email and try again.` });
+    }
 
     // Log activity
     await pool.query(`UPDATE purchase_orders SET sent_via = $2 WHERE id = $1`, [poId, sentVia]);
