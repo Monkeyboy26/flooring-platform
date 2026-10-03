@@ -35340,6 +35340,14 @@ app.get('/api/merchant-feed.xml', async (req, res) => {
       .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
     // media_assets.url can be relative (/api/img?..., /uploads/...) — Google needs absolute.
     const abs = (u) => !u ? '' : (/^https?:\/\//i.test(u) ? u : `${baseUrl}${u.startsWith('/') ? '' : '/'}${u}`);
+    // Light hardware/decor ships by parcel (UPS/USPS), NOT LTL freight — tag these so
+    // Merchant Center's "parcel" shipping policy (flat $15) overrides the freight-tier
+    // default. All are sell_by='unit' with no weight data. Flooring/tile/slabs/vanities/
+    // countertops stay on the freight tiers. Matched case-insensitively on category name.
+    const PARCEL_CATS = new Set([
+      'decorative hardware', 'functional hardware', 'bath hardware', 'light & power',
+      'carved wood', 'organizers', 'moulding', 'transitions & moldings', 'trim & accessories',
+    ]);
 
     const { rows } = await pool.query(`
       SELECT
@@ -35464,6 +35472,10 @@ app.get('/api/merchant-feed.xml', async (req, res) => {
       // All flooring/tile/countertop maps to Google's building-materials flooring node.
       xml += '      <g:google_product_category>Hardware &gt; Building Materials &gt; Flooring &amp; Carpet</g:google_product_category>\n';
       if (r.category_name) xml += `      <g:product_type>${xe(r.category_name)}</g:product_type>\n`;
+      // Parcel-shippable hardware/decor → "parcel" label (flat-rate policy); rest = freight.
+      if (r.category_name && PARCEL_CATS.has(r.category_name.trim().toLowerCase())) {
+        xml += '      <g:shipping_label>parcel</g:shipping_label>\n';
+      }
       xml += '    </item>\n';
       included++;
     }
