@@ -6001,14 +6001,27 @@ async function generatePurchaseOrders(orderId, client) {
   }
 
   const createdPOs = [];
+  const touchedPoIds = new Set();
 
-  // Idempotent: a vendor that already has a live (non-cancelled) PO on this order
-  // must never get a second one. Reps can generate/send draft POs to reserve
-  // material BEFORE payment, and order confirm + payment settlement also call this
-  // — so it may run several times for one order. Skip vendors already covered.
-  const existingVendorPOs = await client.query(
-    "SELECT DISTINCT vendor_id FROM purchase_orders WHERE order_id = $1 AND status <> 'cancelled'", [orderId]);
-  const vendorsWithLivePO = new Set(existingVendorPOs.rows.map(r => String(r.vendor_id)));
+  // Idempotent at the ORDER-LINE level (not the vendor level). An order line must never
+  // ride on two live POs, so skip exactly the order_item_ids already covered by a
+  // non-cancelled PO. A vendor may still need a NEW draft PO for freshly-added lines even
+  // though an earlier (already-sent) PO on this order covers its OTHER lines — a
+  // vendor-level skip here is what silently dropped revised lines: a draft PO deleted by
+  // rebuildDraftPosForOrderItem was never recreated because the vendor still had a sent PO.
+  // [[po-revision-drops-lines]]
+  const coveredRes = await client.query(
+    `SELECT DISTINCT poi.order_item_id
+       FROM purchase_order_items poi
+       JOIN purchase_orders po ON po.id = poi.purchase_order_id
+      WHERE po.order_id = $1 AND po.status <> 'cancelled' AND poi.order_item_id IS NOT NULL`, [orderId]);
+  const coveredItemIds = new Set(coveredRes.rows.map(r => String(r.order_item_id)));
+
+  // Append new lines to a vendor's existing DRAFT PO when there is one, rather than
+  // spawning a second draft for the same vendor on the same order.
+  const draftPoRes = await client.query(
+    `SELECT id, vendor_id FROM purchase_orders WHERE order_id = $1 AND status = 'draft'`, [orderId]);
+  const draftPoByVendor = new Map(draftPoRes.rows.map(r => [String(r.vendor_id), r.id]));
 
   // Custom bound area rug → order carpet by the LINEAR FOOT off the roll. The
   // cut is roll_width × linearFeet per rug; the vendor bills per sqyd, so cost
@@ -6032,28 +6045,28 @@ async function generatePurchaseOrders(orderId, client) {
   };
 
   for (const group of Object.values(vendorGroups)) {
-    if (vendorsWithLivePO.has(String(group.vendor_id))) continue;
-    const poNumber = await allocRdFamilyNumber(client, 'RDP-');
+    // Only lines not already carried by a live PO; skip the vendor when nothing is left.
+    const items = group.items.filter(it => !coveredItemIds.has(String(it.order_item_id)));
+    if (!items.length) continue;
 
-    // Calculate subtotal — cost per box * qty (boxes), or cost per sqyd * sqyd for carpet
-    let poSubtotal = 0;
-    for (const item of group.items) {
-      const rug = rugPoLine(item);
-      if (rug) { poSubtotal += rug.subtotal; continue; }
-      poSubtotal += computePoLineCost(item).itemSubtotal;
+    // Reuse this vendor's open draft PO when present; otherwise mint a fresh draft.
+    let po = null;
+    let poId = draftPoByVendor.get(String(group.vendor_id)) || null;
+    if (!poId) {
+      const poNumber = await allocRdFamilyNumber(client, 'RDP-');
+      const poResult = await client.query(`
+        INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal)
+        VALUES ($1, $2, $3, 'draft', 0)
+        RETURNING *
+      `, [orderId, group.vendor_id, poNumber]);
+      po = poResult.rows[0];
+      poId = po.id;
+      createdPOs.push(po);
     }
-
-    // Create purchase order
-    const poResult = await client.query(`
-      INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal)
-      VALUES ($1, $2, $3, 'draft', $4)
-      RETURNING *
-    `, [orderId, group.vendor_id, poNumber, poSubtotal.toFixed(2)]);
-
-    const po = poResult.rows[0];
+    touchedPoIds.add(poId);
 
     // Create purchase order items
-    for (const item of group.items) {
+    for (const item of items) {
       // Custom rug: order carpet in linear feet (see rugPoLine above).
       const rug = rugPoLine(item);
       if (rug) {
@@ -6061,7 +6074,7 @@ async function generatePurchaseOrders(orderId, client) {
           INSERT INTO purchase_order_items
             (purchase_order_id, order_item_id, sku_id, product_name, vendor_sku, description, qty, sell_by, cost, original_cost, retail_price, subtotal, line_note)
           VALUES ($1, $2, $3, $4, $5, $6, $7, 'LF', $8, $8, NULL, $9, $10)
-        `, [po.id, item.order_item_id, item.sku_id, item.product_name, item.vendor_sku,
+        `, [poId, item.order_item_id, item.sku_id, item.product_name, item.vendor_sku,
             item.description, rug.totalLinearFt, rug.costPerLf.toFixed(2),
             rug.subtotal.toFixed(2), rug.note]);
         continue;
@@ -6071,20 +6084,30 @@ async function generatePurchaseOrders(orderId, client) {
         INSERT INTO purchase_order_items
           (purchase_order_id, order_item_id, sku_id, product_name, vendor_sku, description, qty, sell_by, cost, original_cost, retail_price, subtotal)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-      `, [po.id, item.order_item_id, item.sku_id, item.product_name, item.vendor_sku,
+      `, [poId, item.order_item_id, item.sku_id, item.product_name, item.vendor_sku,
           item.description, poQty, item.sell_by,
           costPerBox.toFixed(2), costPerBox.toFixed(2),
           retailPerBox !== null ? retailPerBox.toFixed(2) : null,
           itemSubtotal.toFixed(2)]);
     }
 
-    await logOrderActivity(client, orderId, 'po_created', null, 'System',
-      { po_number: po.po_number, vendor_name: (group.items[0] && group.items[0].vendor_name) || null });
-    createdPOs.push(po);
+    if (po) {
+      await logOrderActivity(client, orderId, 'po_created', null, 'System',
+        { po_number: po.po_number, vendor_name: (items[0] && items[0].vendor_name) || null });
+    }
+  }
+
+  // Re-sum every PO we touched (covers freshly-minted and appended-to drafts).
+  for (const poId of touchedPoIds) {
+    const t = await client.query(
+      'SELECT COALESCE(SUM(subtotal), 0) AS total FROM purchase_order_items WHERE purchase_order_id = $1', [poId]);
+    await client.query(
+      'UPDATE purchase_orders SET subtotal = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [parseFloat(t.rows[0].total).toFixed(2), poId]);
   }
 
   // Recalculate commission now that cost data is available
-  if (createdPOs.length > 0) {
+  if (touchedPoIds.size > 0) {
     setImmediate(() => recalculateCommission(pool, orderId));
   }
 
@@ -6112,6 +6135,51 @@ async function rebuildDraftPosForOrderItem(client, orderId, itemId) {
       "UPDATE purchase_orders SET po_number = $2, notes = COALESCE($3, notes), recipient_email = COALESCE($4, recipient_email), cc_emails = COALESCE($5, cc_emails) WHERE order_id = $1 AND vendor_id = $6 AND status = 'draft'",
       [orderId, d.po_number, d.notes || null, d.recipient_email || null, Array.isArray(d.cc_emails) && d.cc_emails.length ? d.cc_emails : null, d.vendor_id]);
   }
+}
+
+// Reconcile a line's purchase orders when it is REMOVED from the order. DRAFT POs are
+// mutable: drop the line and, if that empties the PO, delete it, then re-sum. SENT (and
+// any other non-draft, non-cancelled) POs are frozen once transmitted to the vendor —
+// matching every PO-line editor's "Only draft POs can be edited" rule — so the line is
+// DETACHED (order_item_id → NULL, which the FK allows) and LEFT IN PLACE as the record
+// of what was actually ordered, rather than silently rewriting a PO the vendor already
+// holds. Cancelled POs are void, so their lines are simply dropped. The caller still
+// deletes the order_item row afterward (now FK-safe). Returns the sent POs that retained
+// a detached line so the caller can flag them for vendor reconciliation. Runs inside the
+// caller's transaction. [[po-revision-drops-lines]]
+async function detachOrderItemFromPos(client, itemId) {
+  const lines = await client.query(`
+    SELECT poi.id AS poi_id, poi.purchase_order_id, po.status, po.po_number,
+           COALESCE(v.name, 'vendor') AS vendor_name
+      FROM purchase_order_items poi
+      JOIN purchase_orders po ON po.id = poi.purchase_order_id
+      LEFT JOIN vendors v ON v.id = po.vendor_id
+     WHERE poi.order_item_id = $1`, [itemId]);
+  const draftPoIds = new Set();
+  const retainedOnSent = [];
+  for (const l of lines.rows) {
+    if (l.status === 'draft' || l.status === 'cancelled') {
+      await client.query('DELETE FROM purchase_order_items WHERE id = $1', [l.poi_id]);
+      if (l.status === 'draft') draftPoIds.add(l.purchase_order_id);
+    } else {
+      await client.query('UPDATE purchase_order_items SET order_item_id = NULL WHERE id = $1', [l.poi_id]);
+      retainedOnSent.push({ po_number: l.po_number, vendor_name: l.vendor_name, status: l.status });
+    }
+  }
+  // Re-sum the draft POs we touched; delete any the removal emptied.
+  for (const poId of draftPoIds) {
+    const remaining = await client.query(
+      'SELECT COUNT(*) AS cnt FROM purchase_order_items WHERE purchase_order_id = $1', [poId]);
+    if (parseInt(remaining.rows[0].cnt) === 0) {
+      await client.query('DELETE FROM purchase_orders WHERE id = $1', [poId]);
+    } else {
+      await client.query(`
+        UPDATE purchase_orders SET subtotal = (
+          SELECT COALESCE(SUM(subtotal), 0) FROM purchase_order_items WHERE purchase_order_id = $1
+        ), updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [poId]);
+    }
+  }
+  return { retainedOnSent };
 }
 
 // Resolve each cart sample line's product data (name/collection/variant/image)
@@ -11345,30 +11413,12 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
       DELETE FROM release_items ri USING material_releases mr
       WHERE ri.release_id = mr.id AND ri.order_item_id = $1 AND mr.status = 'void'`, [itemId]);
 
-    // Delete linked PO items first (FK constraint), then recalculate affected PO subtotals
-    const linkedPOItems = await client.query(
-      'SELECT id, purchase_order_id FROM purchase_order_items WHERE order_item_id = $1', [itemId]
-    );
-    const affectedPOIds = [...new Set(linkedPOItems.rows.map(r => r.purchase_order_id))];
-    if (linkedPOItems.rows.length > 0) {
-      await client.query('DELETE FROM purchase_order_items WHERE order_item_id = $1', [itemId]);
-    }
+    // Reconcile this line's POs: draft POs lose the line (deleted if emptied); SENT POs
+    // are frozen, so the line is detached and kept as the vendor-order record (then the
+    // order_item delete below is FK-safe). [[po-revision-drops-lines]]
+    const { retainedOnSent } = await detachOrderItemFromPos(client, itemId);
 
     await client.query('DELETE FROM order_items WHERE id = $1', [itemId]);
-
-    // Recalculate affected PO subtotals and remove empty POs
-    for (const poId of affectedPOIds) {
-      const remaining = await client.query('SELECT COUNT(*) as cnt FROM purchase_order_items WHERE purchase_order_id = $1', [poId]);
-      if (parseInt(remaining.rows[0].cnt) === 0) {
-        await client.query('DELETE FROM purchase_orders WHERE id = $1', [poId]);
-      } else {
-        await client.query(`
-          UPDATE purchase_orders SET subtotal = (
-            SELECT COALESCE(SUM(subtotal), 0) FROM purchase_order_items WHERE purchase_order_id = $1
-          ) WHERE id = $1
-        `, [poId]);
-      }
-    }
 
     // Recalculate order totals
     // Recompute subtotal + materials-only tax (scaled from the stored rate) + total
@@ -11377,6 +11427,16 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
     const removedItem = itemResult.rows[0];
     await logOrderActivity(client, id, 'item_removed', req.staff.id, req.staff.first_name + ' ' + req.staff.last_name,
       { product_name: removedItem.product_name, num_boxes: removedItem.num_boxes, subtotal: parseFloat(removedItem.subtotal).toFixed(2) });
+
+    // A sent PO still lists the removed item — it went to the vendor and can't be
+    // silently rewritten, so record it and warn to reconcile with the vendor.
+    let poWarning = null;
+    if (retainedOnSent.length) {
+      const poList = retainedOnSent.map(r => `${r.po_number} (${r.vendor_name})`).join(', ');
+      poWarning = `Removed from the order, but ${poList} was already sent to the vendor and still lists this item. Cancel or revise that PO with the vendor.`;
+      await logOrderActivity(client, id, 'po_line_detached', req.staff.id, req.staff.first_name + ' ' + req.staff.last_name,
+        { product_name: removedItem.product_name, purchase_orders: retainedOnSent.map(r => r.po_number) });
+    }
 
     await client.query('COMMIT');
 
@@ -11429,7 +11489,7 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
       po.items = poItems.rows;
     }
 
-    res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, balance: balanceInfo, purchase_orders: purchaseOrders });
+    res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, balance: balanceInfo, purchase_orders: purchaseOrders, po_warning: poWarning });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -21960,30 +22020,12 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
       DELETE FROM release_items ri USING material_releases mr
       WHERE ri.release_id = mr.id AND ri.order_item_id = $1 AND mr.status = 'void'`, [itemId]);
 
-    // Delete linked PO items first (FK constraint), then recalculate affected PO subtotals
-    const linkedPOItems = await client.query(
-      'SELECT id, purchase_order_id FROM purchase_order_items WHERE order_item_id = $1', [itemId]
-    );
-    const affectedPOIds = [...new Set(linkedPOItems.rows.map(r => r.purchase_order_id))];
-    if (linkedPOItems.rows.length > 0) {
-      await client.query('DELETE FROM purchase_order_items WHERE order_item_id = $1', [itemId]);
-    }
+    // Reconcile this line's POs: draft POs lose the line (deleted if emptied); SENT POs
+    // are frozen, so the line is detached and kept as the vendor-order record (then the
+    // order_item delete below is FK-safe). [[po-revision-drops-lines]]
+    const { retainedOnSent } = await detachOrderItemFromPos(client, itemId);
 
     await client.query('DELETE FROM order_items WHERE id = $1', [itemId]);
-
-    // Recalculate affected PO subtotals and remove empty POs
-    for (const poId of affectedPOIds) {
-      const remaining = await client.query('SELECT COUNT(*) as cnt FROM purchase_order_items WHERE purchase_order_id = $1', [poId]);
-      if (parseInt(remaining.rows[0].cnt) === 0) {
-        await client.query('DELETE FROM purchase_orders WHERE id = $1', [poId]);
-      } else {
-        await client.query(`
-          UPDATE purchase_orders SET subtotal = (
-            SELECT COALESCE(SUM(subtotal), 0) FROM purchase_order_items WHERE purchase_order_id = $1
-          ) WHERE id = $1
-        `, [poId]);
-      }
-    }
 
     // Recompute subtotal + materials-only tax (scaled from the stored rate) + total
     const { subtotal: newSubtotal, total: newTotal } = await recalcOrderTotals(client, id);
@@ -21992,6 +22034,16 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
     const removeRepName = req.rep.first_name + ' ' + req.rep.last_name;
     await logOrderActivity(client, id, 'item_removed', req.rep.id, removeRepName,
       { product_name: removedItemRep.product_name, num_boxes: removedItemRep.num_boxes, subtotal: parseFloat(removedItemRep.subtotal).toFixed(2) });
+
+    // A sent PO still lists the removed item — it went to the vendor and can't be
+    // silently rewritten, so record it and warn the rep to reconcile with the vendor.
+    let poWarning = null;
+    if (retainedOnSent.length) {
+      const poList = retainedOnSent.map(r => `${r.po_number} (${r.vendor_name})`).join(', ');
+      poWarning = `Removed from the order, but ${poList} was already sent to the vendor and still lists this item. Cancel or revise that PO with the vendor.`;
+      await logOrderActivity(client, id, 'po_line_detached', req.rep.id, removeRepName,
+        { product_name: removedItemRep.product_name, purchase_orders: retainedOnSent.map(r => r.po_number) });
+    }
 
     await client.query('COMMIT');
 
@@ -22052,7 +22104,7 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
       po.items = poItems.rows;
     }
 
-    res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, balance: balanceInfo, purchase_orders: purchaseOrders });
+    res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, balance: balanceInfo, purchase_orders: purchaseOrders, po_warning: poWarning });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err); res.status(500).json({ error: 'Internal server error' });

@@ -19931,6 +19931,7 @@
       const [catalogOpen, setCatalogOpen] = useState(false);
       const [committing, setCommitting] = useState(false);
       const [committed, setCommitted] = useState(false);
+      const [poWarnings, setPoWarnings] = useState([]);
       const [newBalance, setNewBalance] = useState(null);
 
       // Staged diffs. Each: { key, type, ... }
@@ -20123,17 +20124,20 @@
           for (const d of diffs.filter(x => x.type === 'price')) {
             await repFetch('/api/rep/orders/' + editId + '/items/' + d.itemId + '/price', { method: 'PUT', body: JSON.stringify({ unit_price: d.newPrice, reason: 'Change order' }) });
           }
+          const warns = [];
           for (const d of diffs.filter(x => x.type === 'qty')) {
-            await repFetch('/api/rep/orders/' + editId + '/items/' + d.itemId, { method: 'DELETE' });
+            const res = await repFetch('/api/rep/orders/' + editId + '/items/' + d.itemId, { method: 'DELETE' });
+            if (res && res.po_warning) warns.push(res.po_warning);
             await repFetch('/api/rep/orders/' + editId + '/add-item', { method: 'POST', body: JSON.stringify(d.addPayload) });
           }
           for (const d of diffs.filter(x => x.type === 'add')) {
             await repFetch('/api/rep/orders/' + editId + '/add-item', { method: 'POST', body: JSON.stringify(buildAddPayload(d)) });
           }
-          let last = null;
           for (const d of diffs.filter(x => x.type === 'remove')) {
-            last = await repFetch('/api/rep/orders/' + editId + '/items/' + d.itemId, { method: 'DELETE' });
+            const res = await repFetch('/api/rep/orders/' + editId + '/items/' + d.itemId, { method: 'DELETE' });
+            if (res && res.po_warning) warns.push(res.po_warning);
           }
+          setPoWarnings(warns);
           // Re-fetch to get authoritative balance/items
           const fresh = await repFetch('/api/rep/orders/' + editId);
           setOrder(fresh.order);
@@ -20248,6 +20252,14 @@
                   <div style={{ font: "300 48px/1 'Cormorant Garamond', serif", color: '#ece5d8', letterSpacing: '-0.018em' }}>${parseFloat(order.total || 0).toFixed(2)}</div>
                 </div>
               </div>
+              {poWarnings.length > 0 && (
+                <div style={{ padding: '18px 20px', background: '#fdf6e3', border: '0.5px solid #d9a441', borderLeft: '3px solid #d9a441', display: 'grid', gap: 8 }}>
+                  <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#9a6b14' }}>{'⚠'} Vendor PO needs attention</div>
+                  {poWarnings.map((w, i) => (
+                    <div key={i} style={{ font: "400 13px/1.55 'Inter', sans-serif", color: '#5c4410' }}>{w}</div>
+                  ))}
+                </div>
+              )}
               <RodCard title="Next step">
                 <div className="rod-card-body-padded" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {balanceAmt > 0.005 && (
