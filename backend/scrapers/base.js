@@ -798,8 +798,9 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
   const TILE_MIN_MARGIN = 1.50;
   const MOSAIC_MIN_MARGIN = 4.50;
   const TILE_FLOOR_SLUGS = new Set(['tile', 'backsplash-tile', 'ceramic-tile',
-    'commercial-tile', 'fluted-tile', 'large-format-tile', 'pool-tile',
-    'porcelain-tile', 'talavera-tile', 'terrazzo-tile', 'wood-look-tile']);
+    'commercial-tile', 'fluted-tile', 'large-format-tile', 'pavers', 'pool-coping',
+    'pool-tile', 'porcelain-tile', 'talavera-tile', 'terrazzo-tile',
+    'wood-look-tile']);
   const isMosaicCat = catSlug === 'mosaic-tile';
   const isTileCat = TILE_FLOOR_SLUGS.has(catSlug);
   // The $4.50 margin is a per-SHEET minimum (per_unit). A mosaic sold by area, and
