@@ -26848,27 +26848,38 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
       return res.status(400).json({ error: 'ACH payments require customer ID and check photo uploads' });
     }
 
-    const quoteResult = await client.query('SELECT * FROM quotes WHERE id = $1', [id]);
+    await client.query('BEGIN');
+
+    // Lock the quote row so a double-click / retry can't mint two orders (+ two payments,
+    // two PO sets) for the same quote. Mirrors settleDeferredCheckout: re-check 'converted'
+    // UNDER the lock and, if already done, return the existing order as success (idempotent)
+    // rather than erroring or duplicating. [[amount-paid-locking]]
+    const quoteResult = await client.query('SELECT * FROM quotes WHERE id = $1 FOR UPDATE', [id]);
     if (!quoteResult.rows.length) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Quote not found' });
     }
     const q = quoteResult.rows[0];
     if (q.status === 'converted') {
-      return res.status(400).json({ error: 'Quote already converted' });
+      await client.query('ROLLBACK');
+      if (!q.converted_order_id) return res.status(409).json({ error: 'Quote already converted' });
+      const ord = await pool.query('SELECT * FROM orders WHERE id = $1', [q.converted_order_id]);
+      const its = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [q.converted_order_id]);
+      return res.json({ order: { ...(ord.rows[0] || {}), items: its.rows }, already_converted: true });
     }
     // An expired quote can't be converted or paid until a rep reinstates it.
     const quoteExpired = q.status === 'expired' ||
       (q.expires_at && new Date(q.expires_at).getTime() < Date.now() && ['sent', 'accepted'].includes(q.status));
     if (quoteExpired) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'This quote has expired — reinstate it before converting.' });
     }
 
     const itemsResult = await client.query('SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY id', [id]);
     if (itemsResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Quote has no items' });
     }
-
-    await client.query('BEGIN');
 
     // Auto-create customer for quote conversion
     const nameParts = (q.customer_name || '').split(' ');
