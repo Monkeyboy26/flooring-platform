@@ -10855,23 +10855,30 @@ app.put('/api/admin/orders/:id/delivery-method', staffAuth, requireRole('admin',
 
 // Refund order (admin)
 app.post('/api/admin/orders/:id/refund', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     const { amount, reason } = req.body || {};
-    const order = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
-    if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
+
+    await client.query('BEGIN');
+    // Lock the order so refundable is computed and amount_paid is adjusted atomically —
+    // concurrent refunds (or a refund racing collect-payment) can't over-refund or clobber
+    // each other's amount_paid. [[amount-paid-locking]]
+    const order = await client.query('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [id]);
+    if (!order.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found' }); }
 
     const o = order.rows[0];
     if (!o.stripe_payment_intent_id) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'No Stripe payment found for this order' });
     }
 
-    // Calculate max refundable from ledger
-    const chargesResult = await pool.query(
+    // Calculate max refundable from the ledger, under the lock
+    const chargesResult = await client.query(
       "SELECT COALESCE(SUM(amount), 0) as total FROM order_payments WHERE order_id = $1 AND payment_type IN ('charge', 'additional_charge') AND status = 'completed'",
       [id]
     );
-    const refundsResult = await pool.query(
+    const refundsResult = await client.query(
       "SELECT COALESCE(SUM(ABS(amount)), 0) as total FROM order_payments WHERE order_id = $1 AND payment_type = 'refund' AND status = 'completed'",
       [id]
     );
@@ -10880,6 +10887,7 @@ app.post('/api/admin/orders/:id/refund', staffAuth, requireRole('admin', 'manage
     const maxRefundable = parseFloat((totalCharged - totalRefunded).toFixed(2));
 
     if (maxRefundable <= 0) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'No refundable amount remaining' });
     }
 
@@ -10888,45 +10896,47 @@ app.post('/api/admin/orders/:id/refund', staffAuth, requireRole('admin', 'manage
     if (amount != null) {
       refundAmount = parseFloat(parseFloat(amount).toFixed(2));
       if (isNaN(refundAmount) || refundAmount <= 0) {
+        await client.query('ROLLBACK');
         return res.status(400).json({ error: 'Invalid refund amount' });
       }
       if (refundAmount > maxRefundable) {
+        await client.query('ROLLBACK');
         return res.status(400).json({ error: `Refund amount exceeds maximum refundable ($${maxRefundable.toFixed(2)})` });
       }
     } else {
       // Full refund — require cancelled status
       if (o.status !== 'cancelled') {
+        await client.query('ROLLBACK');
         return res.status(400).json({ error: 'Order must be cancelled before issuing a full refund' });
       }
       refundAmount = maxRefundable;
     }
 
-    const refundOpts = { payment_intent: o.stripe_payment_intent_id, amount: Math.round(refundAmount * 100) };
-    const refund = await stripe.refunds.create(refundOpts);
+    const refund = await stripe.refunds.create({ payment_intent: o.stripe_payment_intent_id, amount: Math.round(refundAmount * 100) });
 
     const staffName = req.staff.first_name + ' ' + req.staff.last_name;
     const description = reason || (amount != null ? `Partial refund of $${refundAmount.toFixed(2)}` : 'Full refund');
 
     // Record in ledger
-    const refundOpRes = await pool.query(`
+    const refundOpRes = await client.query(`
       INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, stripe_refund_id, description, initiated_by, initiated_by_name, status)
       VALUES ($1, 'refund', $2, $3, $4, $5, $6, $7, 'completed') RETURNING id
     `, [id, (-refundAmount).toFixed(2), o.stripe_payment_intent_id, refund.id, description, req.staff.id, staffName]);
-    await syncOrderPaymentToInvoice(refundOpRes.rows[0].id, id, pool);
+    await syncOrderPaymentToInvoice(refundOpRes.rows[0].id, id, client);
 
-    // Update amount_paid
-    const newAmountPaid = parseFloat((parseFloat(o.amount_paid) - refundAmount).toFixed(2));
+    // Adjust amount_paid RELATIVELY under the lock (never an absolute set from a stale read).
     const isFullRefund = !amount && o.status === 'cancelled';
-
-    const result = await pool.query(
-      `UPDATE orders SET amount_paid = $1, stripe_refund_id = $2, refund_amount = COALESCE(refund_amount, 0) + $3,
-        refunded_at = NOW(), refunded_by = $4 ${isFullRefund ? ", status = 'refunded'" : ''}
-       WHERE id = $5 RETURNING *`,
-      [newAmountPaid.toFixed(2), refund.id, refundAmount.toFixed(2), req.staff.id, id]
+    const result = await client.query(
+      `UPDATE orders SET amount_paid = amount_paid - $1, stripe_refund_id = $2, refund_amount = COALESCE(refund_amount, 0) + $1,
+        refunded_at = NOW(), refunded_by = $3 ${isFullRefund ? ", status = 'refunded'" : ''}
+       WHERE id = $4 RETURNING *`,
+      [refundAmount.toFixed(2), refund.id, req.staff.id, id]
     );
 
-    await logOrderActivity(pool, id, 'refund_issued', req.staff.id, staffName,
+    await logOrderActivity(client, id, 'refund_issued', req.staff.id, staffName,
       { amount: refundAmount.toFixed(2), reason: reason || null, is_full: isFullRefund });
+
+    await client.query('COMMIT');
 
     // Notify assigned rep about refund
     if (o.sales_rep_id) {
@@ -10939,7 +10949,14 @@ app.post('/api/admin/orders/:id/refund', staffAuth, requireRole('admin', 'manage
     const balanceInfo = await recalculateBalance(pool, id);
     res.json({ order: result.rows[0], balance: balanceInfo });
   } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
+    await client.query('ROLLBACK').catch(() => {});
+    console.error(err);
+    if (err.type && String(err.type).startsWith('Stripe')) {
+      return res.status(400).json({ error: 'Stripe refund failed: ' + err.message });
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 
@@ -10977,6 +10994,14 @@ app.post('/api/admin/orders/:id/payments/:paymentId/refund', staffAuth, requireR
     const staffName = req.staff.first_name + ' ' + req.staff.last_name;
 
     await client.query('BEGIN');
+    // Lock the order and re-check refundable under the lock so two concurrent refunds on
+    // this tender can't both pass and over-refund. [[amount-paid-locking]]
+    await client.query('SELECT id FROM orders WHERE id = $1 FOR UPDATE', [id]);
+    const remainingLocked = await tenderRemainingRefundable(client, payment);
+    if (refundAmount > remainingLocked + 0.005) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `Refund amount exceeds this tender's remaining refundable ($${remainingLocked.toFixed(2)})` });
+    }
     const { method } = await refundPaymentTender(client, {
       order, payment, refundAmount, reason: (reason || '').trim() || null,
       initiatedBy: req.staff.id, initiatedByName: staffName, refundedByStaffId: req.staff.id,
@@ -22488,6 +22513,15 @@ app.post('/api/rep/orders/:id/payments/:paymentId/refund', repAuth, async (req, 
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
 
     await client.query('BEGIN');
+    // Lock the order and re-check refundable UNDER the lock — two concurrent refunds on
+    // the same tender would otherwise both pass the pre-lock check and over-refund (and
+    // double-hit Stripe). The loser re-reads the reduced remaining and is rejected. [[amount-paid-locking]]
+    await client.query('SELECT id FROM orders WHERE id = $1 FOR UPDATE', [id]);
+    const remainingLocked = await tenderRemainingRefundable(client, payment);
+    if (refundAmount > remainingLocked + 0.005) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `Refund amount exceeds this tender's remaining refundable ($${remainingLocked.toFixed(2)})` });
+    }
     await refundPaymentTender(client, {
       order, payment, refundAmount, reason: reason.trim(),
       initiatedBy: req.rep.id, initiatedByName: repName,
