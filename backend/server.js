@@ -35444,6 +35444,12 @@ app.get('/api/merchant-feed.xml', async (req, res) => {
       xml += `      <g:image_link>${xe(image)}</g:image_link>\n`;
       xml += '      <g:condition>new</g:condition>\n';
       xml += '      <g:availability>in_stock</g:availability>\n';
+      // Pick-up-later: order online, collect at the Anaheim showroom. Most of the
+      // catalog is special-order (vendor → store), so the honest readiness SLA is
+      // multi-week. pickup_method is intentionally omitted (optional since 2024-09;
+      // Google recommends not sending it). Requires availability=in_stock (above) +
+      // the linked Business Profile store, both already in place.
+      xml += '      <g:pickup_sla>multi-week</g:pickup_sla>\n';
       xml += `      <g:price>${price.toFixed(2)} USD</g:price>\n`;
       if (salePrice != null && salePrice < price) {
         xml += `      <g:sale_price>${salePrice.toFixed(2)} USD</g:sale_price>\n`;
