@@ -1467,6 +1467,22 @@ function render404Page(message) {
   };
 }
 
+// 410 Gone — for URLs we can prove once existed and are permanently removed
+// (hard-deleted SKU UUIDs, accessory-only products that deliberately have no PDP).
+// Google drops 410s from its re-crawl queue faster than 404s; these URLs were 15%
+// of all Googlebot requests in the 2026-10 crawl-stats window.
+function render410Page(message) {
+  return {
+    title: 'Product No Longer Available | Roma Flooring Designs',
+    description: 'This product has been permanently removed.',
+    canonicalUrl: null,
+    ogImage: null,
+    robotsTag: 'noindex, nofollow',
+    jsonLd: { '@context': 'https://schema.org', '@type': 'WebPage', name: 'Product No Longer Available' },
+    bodyContent: `<h1>Product No Longer Available</h1><p>${escapeHtml(message || 'This product has been permanently removed from our catalog.')}</p><p><a href="/shop">Continue Shopping</a></p>`
+  };
+}
+
 // ==================== Landing pages (Phase 2 facet system) ====================
 
 // Internal-linking mesh: given a rendered product, find the indexable facet landing
@@ -2174,8 +2190,31 @@ export default function createSeoRouter(pool) {
               redirectUrl: newUrl
             };
           }
-          pageData = render404Page('Product not found.');
-          statusCode = 404;
+          // Active product whose SKUs are all accessory/trim (or samples) — it
+          // deliberately has no PDP (trims sell attached to planks), but old sitemaps
+          // exposed these URLs and Googlebot still re-crawls them. 410, not 404.
+          // The exclusion list mirrors fetchProductBySlug's JOIN exactly.
+          let accessoryOnly = false;
+          try {
+            const acc = await pool.query(`
+              SELECT 1 FROM products p
+              WHERE p.slug = $1 AND p.status = 'active'
+                AND EXISTS (SELECT 1 FROM skus s WHERE s.product_id = p.id AND s.status = 'active')
+                AND NOT EXISTS (
+                  SELECT 1 FROM skus s WHERE s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
+                    AND COALESCE(s.variant_type, '') NOT IN ('accessory','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')
+                )
+              LIMIT 1
+            `, [parsed.productSlug]);
+            accessoryOnly = acc.rows.length > 0;
+          } catch { /* table/col drift — fall through to 404 */ }
+          if (accessoryOnly) {
+            pageData = render410Page('This item is a trim or accessory sold with its matching flooring — find it on the main product’s page.');
+            statusCode = 410;
+          } else {
+            pageData = render404Page('Product not found.');
+            statusCode = 404;
+          }
         } else {
           sku.facet_links = await fetchFacetLinksForProduct(pool, sku);
           sku.related_products = await fetchRelatedProductsForProduct(pool, sku);
@@ -2197,8 +2236,10 @@ export default function createSeoRouter(pool) {
         // Fallback: render old-style SKU page if slug not found
         const sku = await fetchSkuData(pool, parsed.skuId);
         if (!sku) {
-          pageData = render404Page('Product not found.');
-          statusCode = 404;
+          // The UUID resolves to nothing — not a SKU, not a product. These rows were
+          // hard-deleted (vendor re-onboards, dedups); the URL is permanently gone.
+          pageData = render410Page('This product has been removed from our catalog.');
+          statusCode = 410;
         } else {
           pageData = renderSkuPage(sku);
         }
