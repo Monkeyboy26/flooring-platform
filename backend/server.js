@@ -10960,6 +10960,38 @@ app.post('/api/admin/orders/:id/refund', staffAuth, requireRole('admin', 'manage
   }
 });
 
+// Reconciliation: orders whose stored amount_paid disagrees with the order_payments
+// ledger (SUM of completed signed amounts — charges +, refunds −). Drift usually means a
+// phantom/duplicate completed row (e.g. a never-captured PaymentIntent recorded as a
+// 'charge') rather than a wrong amount_paid — so this is a DETECTOR for human review,
+// NEVER an auto-correct: the ledger can be the polluted side. [[amount-paid-locking]]
+async function findAmountPaidDrift(db) {
+  const r = await db.query(`
+    SELECT o.id, o.order_number, o.status,
+           COALESCE(o.amount_paid, 0)::float AS stored,
+           COALESCE(led.s, 0)::float AS ledger,
+           ROUND((COALESCE(o.amount_paid,0) - COALESCE(led.s,0))::numeric, 2)::float AS drift
+    FROM orders o
+    JOIN (
+      SELECT order_id, SUM(amount) AS s
+      FROM order_payments WHERE status = 'completed' GROUP BY order_id
+    ) led ON led.order_id = o.id
+    WHERE ABS(COALESCE(o.amount_paid,0) - COALESCE(led.s,0)) > 0.01
+    ORDER BY ABS(COALESCE(o.amount_paid,0) - COALESCE(led.s,0)) DESC`);
+  return r.rows;
+}
+
+// On-demand drift report for staff (read-only; no mutation).
+app.get('/api/admin/reconcile/amount-paid', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const orders = await findAmountPaidDrift(pool);
+    res.json({ drift_count: orders.length, orders });
+  } catch (err) {
+    console.error('[Reconcile] endpoint error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Admin per-tender refund — method-aware (Stripe tenders refund at Stripe;
 // cash/check tenders are ledger reversals — adjust the physical drawer
 // manually). No time window; use for anything older than the reps' 24-hour
@@ -33637,6 +33669,28 @@ cron.schedule('*/15 * * * *', async () => {
     console.error('[Auto-finalize] sweep error:', err.message);
   } finally {
     autoFinalizeRunning = false;
+  }
+});
+
+// --- amount_paid ⇄ ledger reconciliation (daily 03:50) ---
+// Read-only drift detector: flags orders where orders.amount_paid disagrees with the
+// sum of completed order_payments. NEVER auto-corrects — drift is usually a phantom
+// completed row (e.g. an uncaptured PaymentIntent recorded as a 'charge', found on 8
+// orders 2026-10-03), so the ledger can be the wrong side. Logs + Sentry-alerts for a
+// human to review via GET /api/admin/reconcile/amount-paid. [[amount-paid-locking]]
+cron.schedule('50 3 * * *', async () => {
+  if (process.env.NODE_ENV !== 'production' && process.env.ENABLE_SCHEDULER !== '1') return;
+  try {
+    const drift = await findAmountPaidDrift(pool);
+    if (drift.length) {
+      const summary = drift.slice(0, 10).map(d => `${d.order_number}(${d.drift >= 0 ? '+' : ''}${d.drift})`).join(', ');
+      console.warn(`[Reconcile] ${drift.length} order(s) with amount_paid⇄ledger drift: ${summary}`);
+      if (Sentry) Sentry.captureMessage(`amount_paid/ledger drift on ${drift.length} order(s): ${summary}`, 'warning');
+    } else {
+      console.log('[Reconcile] amount_paid matches the ledger on all orders');
+    }
+  } catch (err) {
+    console.error('[Reconcile] cron error:', err.message);
   }
 });
 
