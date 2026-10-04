@@ -453,6 +453,10 @@ async function fetchCollectionsIndex(pool) {
          CASE WHEN ma.sku_id IS NOT NULL THEN 0 ELSE 1 END, ma.sort_order LIMIT 1) as image
     FROM products p
     WHERE p.status = 'active' AND p.collection IS NOT NULL AND p.collection != ''
+      AND EXISTS (
+        SELECT 1 FROM skus s WHERE s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
+          AND COALESCE(s.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')
+      )
     GROUP BY p.collection
     ORDER BY p.collection
   `);

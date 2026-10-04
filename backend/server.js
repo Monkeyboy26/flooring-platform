@@ -969,6 +969,10 @@ app.get('/api/collections', async (req, res) => {
            CASE WHEN ma.sku_id IS NOT NULL THEN 0 ELSE 1 END, ma.sort_order LIMIT 1) as image
       FROM products p
       WHERE p.status = 'active' AND p.collection IS NOT NULL AND p.collection != ''${vendorClause}
+        AND EXISTS (
+          SELECT 1 FROM skus s WHERE s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
+            AND COALESCE(s.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')
+        )
       GROUP BY p.collection
       ORDER BY p.collection
     `, params);
@@ -35752,7 +35756,7 @@ app.get('/api/sitemap.xml', async (req, res) => {
     const [productsResult, categoriesResult, collectionsResult, landingResult, localGuideResult] = await Promise.all([
       pool.query(`SELECT DISTINCT ON (p.id) p.id, p.slug as product_slug, c.slug as category_slug, COALESCE(p.display_name, p.name) as product_name, p.updated_at FROM products p JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false AND COALESCE(s.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim') LEFT JOIN categories c ON c.id = p.category_id WHERE p.status = 'active' ORDER BY p.id`),
       pool.query(`SELECT slug FROM categories WHERE is_active = true ORDER BY slug`),
-      pool.query(`SELECT DISTINCT collection as name FROM products WHERE status = 'active' AND collection IS NOT NULL AND collection != '' ORDER BY collection`),
+      pool.query(`SELECT DISTINCT collection as name FROM products p WHERE status = 'active' AND collection IS NOT NULL AND collection != '' AND EXISTS (SELECT 1 FROM skus s WHERE s.product_id = p.id AND s.status = 'active' AND s.is_sample = false AND COALESCE(s.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')) ORDER BY collection`),
       // Indexable FACET landing pages (Phase 2) → /shop/{slug}. The generator keeps
       // is_indexable current, so thin/emptied pages self-drop from the sitemap.
       pool.query(`SELECT slug, updated_at FROM landing_pages WHERE is_indexable = true AND type = 'facet' ORDER BY slug`).catch(() => ({ rows: [] })),
