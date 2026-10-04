@@ -1669,6 +1669,24 @@ function buildStackedStoneUrls(productName, collection, vendorSku) {
 
   const { slugs: patternSlugs, isCorner } = decodeStackedStoneVendorSku(vendorSku);
 
+  // XL RockMount line (9x24 panels …924, 9x18 corners …918COR): MSI hosts these
+  // under xl-… slugs. The regular-panel paths below ALSO resolve for the same
+  // color, so the XL candidates must come FIRST or the XL SKU silently wears the
+  // 6x24 panel's photo (how the whole XL line ended up invisible on the PDP).
+  const skuUpper = String(vendorSku || '').toUpperCase();
+  const isXlPanel = /924$/.test(skuUpper);
+  const isXlCorner = /918COR$/.test(skuUpper);
+  if (isXlPanel || isXlCorner) {
+    for (const slug of [...new Set([withColorSlug, cleanSlug].filter(Boolean))]) {
+      if (isXlCorner) {
+        urls.push(`${CDN}/hardscaping/detail/${slug}-xlrockmount-panels-9x18-corner.jpg`);
+      } else {
+        urls.push(`${CDN}/hardscaping/detail/xl-${slug}-stacked-stone.jpg`);
+        urls.push(`${CDN}/hardscaping/iso/xl-${slug}-stacked-stone-iso.jpg`);
+      }
+    }
+  }
+
   if (cleanSlug) {
     if (patternSlugs) {
       for (const pat of patternSlugs) {
