@@ -387,10 +387,16 @@ async function fetchCollectionData(pool, slug) {
     LIMIT 12
   `, [collectionName]);
 
+  // Count mirrors the collections-index/sitemap gate (non-accessory/trim SKUs) so the
+  // <3-product noindex below can never disagree with where the page is linked from.
   const countResult = await pool.query(`
     SELECT COUNT(DISTINCT p.id)::int as product_count
     FROM products p
     WHERE p.status = 'active' AND p.collection = $1
+      AND EXISTS (
+        SELECT 1 FROM skus s WHERE s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
+          AND COALESCE(s.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')
+      )
   `, [collectionName]);
 
   // Representative image from first product
@@ -458,6 +464,7 @@ async function fetchCollectionsIndex(pool) {
           AND COALESCE(s.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')
       )
     GROUP BY p.collection
+    HAVING COUNT(DISTINCT p.id) >= 3
     ORDER BY p.collection
   `);
   return result.rows.map(r => ({ ...r, slug: slugify(r.name) }));
@@ -761,6 +768,10 @@ function renderProductPage(sku) {
   const facetLinksHtml = (sku.facet_links && sku.facet_links.length)
     ? `<nav class="facet-links" aria-label="Related categories"><span>More like this:</span> ${sku.facet_links.map(f => `<a href="/shop/${escapeHtml(f.slug)}">${escapeHtml(f.title)}</a>`).join(' · ')}</nav>`
     : '';
+  const relatedAllSameCollection = sku.collection && (sku.related_products || []).length > 0 && sku.related_products.every(p => p.same_collection);
+  const relatedHtml = (sku.related_products && sku.related_products.length)
+    ? `<section class="related-products"><h2>${relatedAllSameCollection ? `More from the ${escapeHtml(sku.collection)} collection` : 'Related products'}</h2><ul>${sku.related_products.map(p => `<li><a href="/shop/${escapeHtml(p.category_slug)}/${escapeHtml(p.product_slug)}">${escapeHtml(p.name)}</a></li>`).join('')}</ul></section>`
+    : '';
 
   const bodyContent = `
     <nav class="breadcrumb" aria-label="Breadcrumb"><ol>${breadcrumbHtml}</ol></nav>
@@ -778,6 +789,7 @@ function renderProductPage(sku) {
       </div>
     </article>
     ${facetLinksHtml}
+    ${relatedHtml}
     ${contentHtml}`;
 
   return { title, description: metaDesc, canonicalUrl, ogImage: sku.primary_image, ogType: 'product', jsonLd, bodyContent };
@@ -828,7 +840,11 @@ function renderCollectionPage(data) {
     <p>${data.product_count} products</p>
     <div class="product-grid">${productsHtml}</div>`;
 
-  return { title, description, canonicalUrl, ogImage: data.image, jsonLd, bodyContent };
+  // 1-2-product collections are near-duplicates of their own product pages — they're
+  // already dropped from /collections, the sitemap, and /api/collections (>=3 gate);
+  // noindex,follow here closes the loop for any that get crawled via old links.
+  const robotsTag = data.product_count < 3 ? 'noindex, follow' : undefined;
+  return { title, description, canonicalUrl, ogImage: data.image, robotsTag, jsonLd, bodyContent };
 }
 
 function renderCategoryPage(cat) {
@@ -1049,7 +1065,9 @@ function renderInstallationPage() {
   const canonicalUrl = SITE_URL + '/installation';
   const typesHtml = INSTALL_TYPES.map(([n, d]) => `<li><strong>${escapeHtml(n)}:</strong> ${escapeHtml(d)}</li>`).join('');
   const faqHtml = INSTALL_FAQ.map(([q, a]) => `<h3>${escapeHtml(q)}</h3><p>${escapeHtml(a)}</p>`).join('');
-  const areaHtml = SERVICE_AREAS.map(a => `<h3>${escapeHtml(a.county)}</h3><p>${a.cities.map(escapeHtml).join(', ')}</p>`).join('');
+  // Every city name links to its /flooring-installation/{city} hub — this page is the
+  // only sitewide parent for the 32 city pages, so without these links they're orphans.
+  const areaHtml = SERVICE_AREAS.map(a => `<h3>${escapeHtml(a.county)}</h3><p>${a.cities.map(c => `<a href="/flooring-installation/${citySlug(c)}">${escapeHtml(c)}</a>`).join(', ')}</p>`).join('');
   const bodyContent = `
     <nav class="breadcrumb" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li>Flooring Installation</li></ol></nav>
     <h1>Flooring Installation in Anaheim &amp; Orange County</h1>
@@ -1292,7 +1310,7 @@ function renderStaticPage(page) {
       title: 'Flooring, Tile, Cabinets & Countertops in Anaheim, CA | Roma Flooring Designs',
       description: 'Shop porcelain tile, natural stone, hardwood, luxury vinyl, laminate, countertops, and cabinetry at Roma Flooring Designs — an Anaheim, CA showroom serving Orange County, with professional installation available.',
       path: '/',
-      body: `<h1>Flooring, Tile, Cabinets &amp; Countertops in Anaheim, CA</h1><p>Roma Flooring Designs is an Anaheim flooring and tile showroom serving homeowners, designers, contractors, and builders throughout Orange County. Shop porcelain and ceramic tile, natural stone, mosaics, hardwood, luxury vinyl, laminate, countertops, and cabinetry from top manufacturers &mdash; with professional installation available.</p><p>Visit our showroom at 1440 S. State College Blvd #6M, Anaheim, CA 92806, or browse the full catalog online.</p><p><a href="/shop">Shop All Products</a> | <a href="/installation">Flooring Installation</a> | <a href="/brands">Brands</a> | <a href="/collections">Collections</a> | <a href="/cabinets">Cabinets</a> | <a href="/guides">Buying Guides</a> | <a href="/trade">Trade Program</a></p>`
+      body: `<h1>Flooring, Tile, Cabinets &amp; Countertops in Anaheim, CA</h1><p>Roma Flooring Designs is an Anaheim flooring and tile showroom serving homeowners, designers, contractors, and builders throughout Orange County. Shop porcelain and ceramic tile, natural stone, mosaics, hardwood, luxury vinyl, laminate, countertops, and cabinetry from top manufacturers &mdash; with professional installation available.</p><p>Visit our showroom at 1440 S. State College Blvd #6M, Anaheim, CA 92806, or browse the full catalog online.</p><h2>Shop by Category</h2><p><a href="/shop?category=porcelain-tile">Porcelain Tile</a> | <a href="/shop?category=ceramic-tile">Ceramic Tile</a> | <a href="/shop?category=mosaic-tile">Mosaic Tile</a> | <a href="/shop?category=natural-stone">Natural Stone</a> | <a href="/shop?category=hardwood">Hardwood</a> | <a href="/shop?category=luxury-vinyl">Luxury Vinyl</a> | <a href="/shop?category=laminate-flooring">Laminate</a> | <a href="/shop?category=carpet">Carpet</a> | <a href="/shop?category=countertops">Countertops</a> | <a href="/shop?category=vanities">Vanities</a></p><p><a href="/shop">Shop All Products</a> | <a href="/installation">Flooring Installation</a> | <a href="/brands">Brands</a> | <a href="/collections">Collections</a> | <a href="/cabinets">Cabinets</a> | <a href="/guides">Buying Guides</a> | <a href="/trade">Trade Program</a></p>`
     },
     trade: {
       title: 'Trade Program | Roma Flooring Designs',
@@ -1470,6 +1488,32 @@ async function fetchFacetLinksForProduct(pool, sku) {
       [slugs]
     );
     return r.rows;
+  } catch { return []; }
+}
+
+// Internal-linking mesh: sibling products for the PDP — same collection first (the
+// color/size sister products a shopper actually wants), topped up from the same
+// category. Keeps 20K PDPs from being link-islands (breadcrumb + 3 facet links only).
+async function fetchRelatedProductsForProduct(pool, sku, limit = 8) {
+  if (!sku || !sku.product_slug) return [];
+  try {
+    const r = await pool.query(`
+      SELECT * FROM (
+        SELECT DISTINCT ON (p.id) p.id, COALESCE(p.display_name, p.name) AS name,
+          p.slug AS product_slug, c.slug AS category_slug,
+          (COALESCE(p.collection, '') = $2 AND $2 <> '') AS same_collection
+        FROM products p
+        JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
+          AND COALESCE(s.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')
+        JOIN categories c ON c.id = p.category_id
+        WHERE p.status = 'active' AND p.slug <> $1
+          AND ((COALESCE(p.collection, '') = $2 AND $2 <> '') OR c.slug = $3)
+        ORDER BY p.id
+      ) sub
+      ORDER BY same_collection DESC, name
+      LIMIT $4
+    `, [sku.product_slug, sku.collection || '', sku.category_slug || '', limit]);
+    return r.rows.filter(p => p.product_slug && p.category_slug);
   } catch { return []; }
 }
 
@@ -2134,6 +2178,7 @@ export default function createSeoRouter(pool) {
           statusCode = 404;
         } else {
           sku.facet_links = await fetchFacetLinksForProduct(pool, sku);
+          sku.related_products = await fetchRelatedProductsForProduct(pool, sku);
           pageData = renderProductPage(sku);
         }
         break;
