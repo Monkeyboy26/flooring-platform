@@ -35944,14 +35944,21 @@ async function runMigrations() {
     await pool.query(`
       UPDATE orders SET amount_paid = total - COALESCE(refund_amount, 0) WHERE status = 'refunded' AND amount_paid = 0;
     `);
-    // Seed initial charge records (same guard — never seed a charge for an order
-    // that is still pending/cancelled/draft, i.e. not actually paid).
+    // Seed initial charge records for TRUE-LEGACY orders only (those predating the
+    // order_payments ledger, which have NO payment rows at all).
+    // IMPORTANT: guard on "no payment rows of ANY type", not "no 'charge' row".
+    // orders.stripe_payment_intent_id is the PI attached at CREATION — when a customer
+    // abandons it ($0, requires_payment_method) and pays another way, the real payment is
+    // recorded as additional_charge / cash / check (not 'charge'). The old "no charge row"
+    // guard then seeded a phantom completed 'charge' for the dead PI on every boot
+    // (8 such rows cleaned 2026-10-03). Only seed when the order has NO ledger rows at all,
+    // so an already-paid order can never get a second, fabricated charge. [[amount-paid-locking]]
     await pool.query(`
       INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, description, status)
         SELECT id, 'charge', total, stripe_payment_intent_id, 'Original payment', 'completed'
         FROM orders WHERE stripe_payment_intent_id IS NOT NULL
         AND status NOT IN ('pending', 'cancelled', 'draft')
-        AND NOT EXISTS (SELECT 1 FROM order_payments op WHERE op.order_id = orders.id AND op.payment_type = 'charge');
+        AND NOT EXISTS (SELECT 1 FROM order_payments op WHERE op.order_id = orders.id);
     `);
     // Seed existing refunds
     await pool.query(`
