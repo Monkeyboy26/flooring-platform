@@ -258,6 +258,13 @@ CREATE TABLE orders (
     install_crew TEXT,
     install_notes TEXT,
     terms_accepted_at TIMESTAMP,
+    -- Acquisition attribution: how the customer found us. acquisition_source is
+    -- the server-classified channel (google-organic/google-shopping/google-ads/
+    -- email/social/ai-assistant/referral:<host>/direct/rep/trade-portal; NULL =
+    -- pre-tracking). attribution holds the raw first/last-touch blobs
+    -- ({landing, referrer, utm_*, gclid, srsltid, ts}) captured by the storefront.
+    acquisition_source TEXT,
+    attribution JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 -- Customer-facing invoice note (printed on the invoice PDF as its own boxed block).

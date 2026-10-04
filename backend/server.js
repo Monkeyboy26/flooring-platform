@@ -6228,6 +6228,54 @@ async function insertSampleRequestItems(client, sampleRequestId, sampleItems) {
   return resolved;
 }
 
+// ---- Order acquisition-source classification ----
+// The storefront captures first/last-touch attribution (landing URL, referrer,
+// utm/gclid/srsltid) in localStorage at script load and sends it with
+// place-order. We classify it into a queryable orders.acquisition_source and
+// keep the raw touches in orders.attribution (jsonb). Last non-direct touch
+// wins (GA convention), first touch is the fallback. srsltid is the param
+// Google appends to Merchant Center free-listing clicks — that's what
+// separates "google-shopping" from "google-organic".
+const ATTRIBUTION_KEYS = ['landing', 'referrer', 'utm_source', 'utm_medium', 'utm_campaign', 'gclid', 'srsltid', 'ts'];
+function sanitizeAttributionTouch(t) {
+  if (!t || typeof t !== 'object') return null;
+  const out = {};
+  for (const k of ATTRIBUTION_KEYS) {
+    if (t[k] != null && t[k] !== '') out[k] = String(t[k]).slice(0, 500);
+  }
+  return Object.keys(out).length ? out : null;
+}
+function classifyAttributionTouch(t) {
+  if (!t) return null;
+  if (t.gclid) return 'google-ads';
+  if (t.srsltid) return 'google-shopping';
+  const src = (t.utm_source || '').toLowerCase();
+  const med = (t.utm_medium || '').toLowerCase();
+  if (src) {
+    if (med === 'cpc' || med === 'ppc' || med === 'paid') return src + '-ads';
+    if (med === 'email') return 'email';
+    return src + (med ? '-' + med : '');
+  }
+  let host = '';
+  try { host = new URL(t.referrer || '').hostname.replace(/^www\./, '').toLowerCase(); } catch {}
+  if (!host || host === 'romaflooringdesigns.com' || host === 'localhost') return 'direct';
+  // AI assistants before the google test — gemini.google.com would otherwise read as organic.
+  if (/(^|\.)(chatgpt\.com|openai\.com|perplexity\.ai|claude\.ai|copilot\.microsoft\.com|gemini\.google\.com)$/.test(host)) return 'ai-assistant';
+  if (/(^|\.)google\./.test(host)) return 'google-organic';
+  if (host === 'bing.com' || host.endsWith('.bing.com')) return 'bing-organic';
+  if (host === 'duckduckgo.com') return 'duckduckgo-organic';
+  if (/(^|\.)(yahoo|yandex)\./.test(host)) return 'search-organic';
+  if (/(^|\.)(facebook|instagram|pinterest|tiktok)\./.test(host) || host === 't.co' || host === 'lnkd.in' || host === 'l.facebook.com') return 'social';
+  return 'referral:' + host.slice(0, 80);
+}
+function classifyAcquisition(attr) {
+  if (!attr) return null;
+  const lastSrc = classifyAttributionTouch(attr.last);
+  if (lastSrc && lastSrc !== 'direct') return lastSrc;
+  const firstSrc = classifyAttributionTouch(attr.first);
+  return (firstSrc && firstSrc !== 'direct') ? firstSrc : (lastSrc || firstSrc);
+}
+
 app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, async (req, res) => {
   // Honeypot: hidden field that real users never fill in
   if (req.body.company_url) {
@@ -6241,6 +6289,23 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
             create_account, account_password, promo_code, payment_method: reqPaymentMethod,
             notes: orderNotes, measure_requested, preferred_measure_date, preferred_measure_time,
             terms_accepted, sms_consent: bodySmsConsent } = req.body;
+
+    // Acquisition attribution — classify how this customer found us. Falls back
+    // to the analytics session row when an older cached bundle didn't send it.
+    let attribution = null;
+    if (req.body.attribution && typeof req.body.attribution === 'object') {
+      const attrFirst = sanitizeAttributionTouch(req.body.attribution.first);
+      const attrLast = sanitizeAttributionTouch(req.body.attribution.last);
+      if (attrFirst || attrLast) attribution = { first: attrFirst, last: attrLast };
+    }
+    if (!attribution && session_id) {
+      try {
+        const s = await client.query('SELECT referrer, utm_source, utm_medium, utm_campaign FROM analytics_sessions WHERE session_id = $1', [session_id]);
+        const t = s.rows[0] ? sanitizeAttributionTouch(s.rows[0]) : null;
+        if (t) attribution = { first: null, last: t };
+      } catch (e) { /* analytics table optional */ }
+    }
+    const acquisitionSource = classifyAcquisition(attribution);
 
     // Pre-fill from customer profile if logged in
     const customer_name = bodyName || (req.customer ? (req.customer.first_name + ' ' + req.customer.last_name) : '');
@@ -6645,8 +6710,8 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         customer_id, promo_code_id, promo_code, discount_amount, amount_paid,
         tax_rate, tax_amount, payment_method, bank_transfer_instructions, bank_transfer_expires_at,
         notes, measure_requested, preferred_measure_date, preferred_measure_time, card_brand, card_last4,
-        terms_accepted_at, company_name, transfer_fee, sms_consent)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47)
+        terms_accepted_at, company_name, transfer_fee, sms_consent, acquisition_source, attribution)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49)
       RETURNING *
     `, [orderNumber, session_id, customer_email, customer_name, phone || null,
         isPickup ? null : shipping.line1, isPickup ? null : (shipping.line2 || null),
@@ -6658,7 +6723,8 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         existingCustomerId, promoCodeId, promoCodeStr, discountAmount.toFixed(2), amountPaid,
         taxRate, taxAmount.toFixed(2), reqPaymentMethod || 'stripe', bankInstructions ? JSON.stringify(bankInstructions) : null, bankExpiresAt,
         orderNotes || null, measure_requested || false, preferred_measure_date || null, preferred_measure_time || null,
-        cardBrand, cardLast4, terms_accepted ? new Date() : null, company_name, transferFee.toFixed(2), sms_consent]);
+        cardBrand, cardLast4, terms_accepted ? new Date() : null, company_name, transferFee.toFixed(2), sms_consent,
+        acquisitionSource, attribution ? JSON.stringify(attribution) : null]);
 
     const order = orderResult.rows[0];
 
@@ -10262,6 +10328,28 @@ app.get('/api/admin/orders', staffAuth, async (req, res) => {
 });
 
 // Get single order with items
+// Order acquisition report — orders + revenue grouped by acquisition_source
+// (google-organic / google-shopping / google-ads / direct / referral:* / rep /
+// trade-portal). 'untracked' = orders that predate attribution tracking.
+app.get('/api/admin/reports/order-sources', staffAuth, async (req, res) => {
+  try {
+    const days = Math.min(parseInt(req.query.days) || 90, 730);
+    const r = await pool.query(`
+      SELECT COALESCE(acquisition_source, 'untracked') AS source,
+        COUNT(*)::int AS orders,
+        COALESCE(SUM(total), 0)::numeric(12,2) AS revenue,
+        COALESCE(SUM(amount_paid), 0)::numeric(12,2) AS collected
+      FROM orders
+      WHERE created_at >= NOW() - ($1 || ' days')::interval
+        AND status != 'cancelled'
+      GROUP BY 1 ORDER BY revenue DESC
+    `, [String(days)]);
+    res.json({ days, sources: r.rows });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -15867,8 +15955,8 @@ app.post('/api/trade/bulk-order/confirm', tradeAuth, async (req, res) => {
     const orderNumber = await allocRdFamilyNumber(client, 'RD-');
 
     const orderResult = await client.query(`
-      INSERT INTO orders (order_number, customer_email, customer_name, subtotal, total, status, trade_customer_id, po_number, project_id)
-      VALUES ($1, $2, $3, $4, $4, 'pending', $5, $6, $7) RETURNING *
+      INSERT INTO orders (order_number, customer_email, customer_name, subtotal, total, status, trade_customer_id, po_number, project_id, acquisition_source)
+      VALUES ($1, $2, $3, $4, $4, 'pending', $5, $6, $7, 'trade-portal') RETURNING *
     `, [orderNumber, req.tradeCustomer.email, req.tradeCustomer.contact_name, total,
         req.tradeCustomer.id, po_number || null, project_id || null]);
     const order = orderResult.rows[0];
@@ -20118,8 +20206,8 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
         subtotal, shipping, total, status, sales_rep_id, payment_method, delivery_method,
         stripe_payment_intent_id, promo_code_id, promo_code, discount_amount,
-        amount_paid, customer_id, tax_rate, tax_amount, notes, trade_customer_id, company_name, job_name, invoice_notes, rep_order_key)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $24, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $25, $26, $27, $28, $29, $30)
+        amount_paid, customer_id, tax_rate, tax_amount, notes, trade_customer_id, company_name, job_name, invoice_notes, rep_order_key, acquisition_source)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $24, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $25, $26, $27, $28, $29, $30, 'rep')
       RETURNING *
     `, [orderNumber, customer_email.toLowerCase().trim(), customer_name, phone || null,
         noFreight ? null : shipping_address.line1, noFreight ? null : (shipping_address.line2 || null),

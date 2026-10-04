@@ -16958,6 +16958,7 @@
                 {order.project_name ? order.project_name + ' · ' : ''}
                 {order.payment_method ? ({ cash: 'Cash', check: 'Check', card: 'Card', stripe: 'Payment Request', offline: 'Offline', ach: 'Check (ACH)' }[order.payment_method] || order.payment_method) : ''}
                 {order.rep_name ? (order.payment_method || order.project_name ? ' · ' : '') + 'Rep ' + order.rep_name : ''}
+                {order.acquisition_source && order.acquisition_source !== 'rep' ? (order.payment_method || order.project_name || order.rep_name ? ' · ' : '') + 'Source ' + order.acquisition_source : ''}
               </RovMicro>
               {/* Job / sidemark — inline-editable; prints on vendor POs + invoice */}
               <div style={{ marginTop: 8 }}>

@@ -5,6 +5,48 @@
     const el = document.activeElement;
     if (el && el.tagName === "INPUT" && el.type === "number" && el.contains(e.target)) el.blur();
   }, { passive: true });
+  (function captureAttribution() {
+    try {
+      if (localStorage.getItem("cookie_consent") === "declined") return;
+      const sp = new URLSearchParams(window.location.search);
+      const ref = document.referrer || "";
+      let refHost = "";
+      try {
+        refHost = new URL(ref).hostname;
+      } catch (e) {
+      }
+      const external = refHost && refHost !== window.location.hostname;
+      const touch = {
+        landing: (window.location.pathname + window.location.search).slice(0, 500),
+        referrer: ref ? ref.slice(0, 500) : null,
+        utm_source: sp.get("utm_source"),
+        utm_medium: sp.get("utm_medium"),
+        utm_campaign: sp.get("utm_campaign"),
+        gclid: sp.get("gclid"),
+        srsltid: sp.get("srsltid"),
+        ts: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      const tagged = touch.utm_source || touch.gclid || touch.srsltid;
+      let first = null;
+      try {
+        first = JSON.parse(localStorage.getItem("roma_attr_first") || "null");
+      } catch (e) {
+      }
+      const firstFresh = first && first.ts && Date.now() - Date.parse(first.ts) < 90 * 24 * 3600 * 1e3;
+      if (!firstFresh) localStorage.setItem("roma_attr_first", JSON.stringify(touch));
+      if (tagged || external) localStorage.setItem("roma_attr_last", JSON.stringify(touch));
+    } catch (e) {
+    }
+  })();
+  function getOrderAttribution() {
+    try {
+      const first = JSON.parse(localStorage.getItem("roma_attr_first") || "null");
+      const last = JSON.parse(localStorage.getItem("roma_attr_last") || "null");
+      return first || last ? { first, last } : void 0;
+    } catch (e) {
+      return void 0;
+    }
+  }
   function getSessionId() {
     let id = localStorage.getItem("cart_session_id");
     if (!id) {
@@ -8361,6 +8403,7 @@
           const payerPhone = ev.payerPhone || phone;
           const orderBody = {
             session_id: sessionId,
+            attribution: getOrderAttribution(),
             payment_intent_id: paymentIntent.id,
             customer_name: payerName,
             customer_email: payerEmail,
@@ -8472,6 +8515,7 @@
         }
         const orderBody = {
           session_id: sessionId,
+          attribution: getOrderAttribution(),
           payment_intent_id: confirmedPiId,
           customer_name: customerName,
           customer_email: customerEmail,
@@ -8681,6 +8725,7 @@
         if (piData.fully_covered) {
           const orderBody2 = {
             session_id: sessionId,
+            attribution: getOrderAttribution(),
             fully_covered: true,
             store_credit_applied: piData.store_credit_applied,
             customer_name: customerName,
@@ -8753,6 +8798,7 @@
         }
         const orderBody = {
           session_id: sessionId,
+          attribution: getOrderAttribution(),
           payment_intent_id: confirmedPiId,
           customer_name: customerName,
           customer_email: customerEmail,
@@ -8860,6 +8906,7 @@
         }
         const orderBody = {
           session_id: sessionId,
+          attribution: getOrderAttribution(),
           customer_name: customerName,
           customer_email: customerEmail,
           phone,
@@ -8982,6 +9029,7 @@
         }
         const orderBody = {
           session_id: sessionId,
+          attribution: getOrderAttribution(),
           payment_intent_id: achPi.id,
           payment_method: "ach",
           customer_name: customerName,

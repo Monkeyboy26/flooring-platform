@@ -7284,6 +7284,12 @@
                   {order.rep_name && <span>{order.rep_name}</span>}
                   <span>{items.length} lines</span>
                   <span>{purchaseOrders.length} POs</span>
+                  {order.acquisition_source && (
+                    <span title={order.attribution ? ['Landed: ' + ((order.attribution.first || order.attribution.last || {}).landing || '—'),
+                      'Referrer: ' + ((order.attribution.last || order.attribution.first || {}).referrer || '—')].join('\n') : undefined}>
+                      {'Source: '}<span style={{ color: 'var(--ink)' }}>{order.acquisition_source}</span>
+                    </span>
+                  )}
                   {jobNameEdit === null ? (
                     <span>
                       {'Job: '}

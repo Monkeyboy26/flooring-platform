@@ -12,6 +12,46 @@
       if (el && el.tagName === 'INPUT' && el.type === 'number' && el.contains(e.target)) el.blur();
     }, { passive: true });
 
+    // ---- Acquisition attribution (order source tracking) ----
+    // Runs at script load, BEFORE the SPA router can canonicalize the URL and strip
+    // utm/gclid/srsltid params. First touch = how the visitor originally found us
+    // (kept 90 days); last touch re-arms on any visit that arrives with a tracking
+    // param or an external referrer. Both ride along on /api/checkout/place-order
+    // (see getOrderAttribution) where the server classifies them into
+    // orders.acquisition_source. Honors the same consent gate as analytics.
+    (function captureAttribution() {
+      try {
+        if (localStorage.getItem('cookie_consent') === 'declined') return;
+        const sp = new URLSearchParams(window.location.search);
+        const ref = document.referrer || '';
+        let refHost = ''; try { refHost = new URL(ref).hostname; } catch (e) {}
+        const external = refHost && refHost !== window.location.hostname;
+        const touch = {
+          landing: (window.location.pathname + window.location.search).slice(0, 500),
+          referrer: ref ? ref.slice(0, 500) : null,
+          utm_source: sp.get('utm_source'), utm_medium: sp.get('utm_medium'),
+          utm_campaign: sp.get('utm_campaign'),
+          gclid: sp.get('gclid'), srsltid: sp.get('srsltid'),
+          ts: new Date().toISOString(),
+        };
+        const tagged = touch.utm_source || touch.gclid || touch.srsltid;
+        let first = null;
+        try { first = JSON.parse(localStorage.getItem('roma_attr_first') || 'null'); } catch (e) {}
+        const firstFresh = first && first.ts && (Date.now() - Date.parse(first.ts)) < 90 * 24 * 3600 * 1000;
+        if (!firstFresh) localStorage.setItem('roma_attr_first', JSON.stringify(touch));
+        // Internal navigations and plain bookmark returns keep the previous last
+        // touch — only a load that actually carries a signal re-arms it.
+        if (tagged || external) localStorage.setItem('roma_attr_last', JSON.stringify(touch));
+      } catch (e) {}
+    })();
+    function getOrderAttribution() {
+      try {
+        const first = JSON.parse(localStorage.getItem('roma_attr_first') || 'null');
+        const last = JSON.parse(localStorage.getItem('roma_attr_last') || 'null');
+        return (first || last) ? { first, last } : undefined;
+      } catch (e) { return undefined; }
+    }
+
     function getSessionId() {
       let id = localStorage.getItem('cart_session_id');
       if (!id) {
@@ -11768,7 +11808,7 @@
             const payerEmail = ev.payerEmail || customerEmail;
             const payerPhone = ev.payerPhone || phone;
             const orderBody = {
-              session_id: sessionId, payment_intent_id: paymentIntent.id,
+              session_id: sessionId, attribution: getOrderAttribution(), payment_intent_id: paymentIntent.id,
               customer_name: payerName, customer_email: payerEmail, phone: payerPhone,
               delivery_method: deliveryMethod,
               shipping: isPickup ? null : { line1, line2, city, state, zip },
@@ -11846,7 +11886,7 @@
           }
 
           const orderBody = {
-            session_id: sessionId, payment_intent_id: confirmedPiId,
+            session_id: sessionId, attribution: getOrderAttribution(), payment_intent_id: confirmedPiId,
             customer_name: customerName, customer_email: customerEmail, phone, sms_consent: smsConsent, company_name: companyName,
             delivery_method: deliveryMethod,
             shipping: isPickup ? null : { line1, line2, city, state, zip },
@@ -12025,7 +12065,7 @@
           // zero-charge order; the server redeems the credit as the sole tender.
           if (piData.fully_covered) {
             const orderBody = {
-              session_id: sessionId, fully_covered: true,
+              session_id: sessionId, attribution: getOrderAttribution(), fully_covered: true,
               store_credit_applied: piData.store_credit_applied,
               customer_name: customerName, customer_email: customerEmail, phone, sms_consent: smsConsent, company_name: companyName,
               delivery_method: deliveryMethod,
@@ -12075,7 +12115,7 @@
           }
 
           const orderBody = {
-            session_id: sessionId, payment_intent_id: confirmedPiId,
+            session_id: sessionId, attribution: getOrderAttribution(), payment_intent_id: confirmedPiId,
             customer_name: customerName, customer_email: customerEmail, phone, sms_consent: smsConsent, company_name: companyName,
             delivery_method: deliveryMethod,
             shipping: isPickup ? null : { line1, line2, city, state, zip },
@@ -12139,7 +12179,7 @@
           }
           // Stash the order details — React state is lost across the redirect
           const orderBody = {
-            session_id: sessionId, customer_name: customerName, customer_email: customerEmail, phone, sms_consent: smsConsent, company_name: companyName,
+            session_id: sessionId, attribution: getOrderAttribution(), customer_name: customerName, customer_email: customerEmail, phone, sms_consent: smsConsent, company_name: companyName,
             delivery_method: deliveryMethod,
             shipping: isPickup ? null : { line1, line2, city, state, zip },
             residential: true, liftgate: liftgateEnabled, promo_code: appliedPromoCode || undefined,
@@ -12218,7 +12258,7 @@
           }
           // ACH now sits in 'processing' — place the order as payment-processing.
           const orderBody = {
-            session_id: sessionId, payment_intent_id: achPi.id, payment_method: 'ach',
+            session_id: sessionId, attribution: getOrderAttribution(), payment_intent_id: achPi.id, payment_method: 'ach',
             customer_name: customerName, customer_email: customerEmail, phone, sms_consent: smsConsent, company_name: companyName,
             delivery_method: deliveryMethod,
             shipping: isPickup ? null : { line1, line2, city, state, zip },
