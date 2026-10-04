@@ -14897,6 +14897,10 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
           let opId = null;
           try {
             await client.query('BEGIN');
+            // Lock the order so this settlement serializes with any concurrent manual
+            // payment/refund on the same order (the amount_paid bump below is otherwise
+            // a read-modify-write that could interleave). [[amount-paid-locking]]
+            await client.query('SELECT id FROM orders WHERE id = $1 FOR UPDATE', [order_id]);
             const ins = await client.query(`
               INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, stripe_checkout_session_id, description, status, payment_method)
               VALUES ($1, 'additional_charge', $2, $3, $4, $5, $6, $7)
@@ -14987,58 +14991,88 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
 
         // Handle ACH (us_bank_account) settlements
         if (pmTypes.includes('us_bank_account')) {
-          const orderResult = await pool.query(
-            "SELECT * FROM orders WHERE stripe_payment_intent_id = $1 AND payment_method = 'ach'",
-            [pi.id]
-          );
-          if (orderResult.rows.length) {
-            const order = orderResult.rows[0];
-            const settledAmount = (pi.amount_received || pi.amount) / 100;
-            await pool.query(
-              "UPDATE orders SET status = 'confirmed', amount_paid = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
-              [settledAmount.toFixed(2), order.id]
+          // Lock the order for the settlement so the amount_paid write + tender settle are
+          // atomic and serialize with any concurrent manual money mutation. [[amount-paid-locking]]
+          const client = await pool.connect();
+          let achOrderId = null;
+          try {
+            await client.query('BEGIN');
+            const orderResult = await client.query(
+              "SELECT * FROM orders WHERE stripe_payment_intent_id = $1 AND payment_method = 'ach' FOR UPDATE",
+              [pi.id]
             );
-            // Settle the 'processing' tender recorded at checkout (storefront ACH)
-            // rather than inserting a duplicate; fall back to a fresh row if none.
-            let achOpId;
-            const achUpd = await pool.query(
-              "UPDATE order_payments SET status = 'completed', payment_method = 'ach', description = 'ACH bank payment settled' WHERE order_id = $1 AND stripe_payment_intent_id = $2 AND status = 'processing' RETURNING id",
-              [order.id, pi.id]);
-            if (achUpd.rows.length) {
-              achOpId = achUpd.rows[0].id;
-            } else {
-              const achOpRes = await pool.query(`
-                INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, description, status, payment_method)
-                VALUES ($1, 'charge', $2, $3, 'ACH bank transfer payment', 'completed', 'ach') RETURNING id
-              `, [order.id, settledAmount.toFixed(2), pi.id]);
-              achOpId = achOpRes.rows[0].id;
+            if (orderResult.rows.length) {
+              const order = orderResult.rows[0];
+              const settledAmount = (pi.amount_received || pi.amount) / 100;
+              await client.query(
+                "UPDATE orders SET status = 'confirmed', amount_paid = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
+                [settledAmount.toFixed(2), order.id]
+              );
+              // Settle the 'processing' tender recorded at checkout (storefront ACH)
+              // rather than inserting a duplicate; fall back to a fresh row if none.
+              let achOpId;
+              const achUpd = await client.query(
+                "UPDATE order_payments SET status = 'completed', payment_method = 'ach', description = 'ACH bank payment settled' WHERE order_id = $1 AND stripe_payment_intent_id = $2 AND status = 'processing' RETURNING id",
+                [order.id, pi.id]);
+              if (achUpd.rows.length) {
+                achOpId = achUpd.rows[0].id;
+              } else {
+                const achOpRes = await client.query(`
+                  INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, description, status, payment_method)
+                  VALUES ($1, 'charge', $2, $3, 'ACH bank transfer payment', 'completed', 'ach') RETURNING id
+                `, [order.id, settledAmount.toFixed(2), pi.id]);
+                achOpId = achOpRes.rows[0].id;
+              }
+              await syncOrderPaymentToInvoice(achOpId, order.id, client);
+              scheduleReceiptCapture(achOpId);
+              await logOrderActivity(client, order.id, 'payment_received', null, 'System',
+                { method: 'ach', amount: settledAmount.toFixed(2) });
+              achOrderId = order.id;
             }
-            await syncOrderPaymentToInvoice(achOpId, order.id, pool);
-            scheduleReceiptCapture(achOpId);
-            await logOrderActivity(pool, order.id, 'payment_received', null, 'System',
-              { method: 'ach', amount: settledAmount.toFixed(2) });
-            // Generate purchase orders now that payment is confirmed
-            setImmediate(() => generatePurchaseOrders(order.id, pool));
+            await client.query('COMMIT');
+          } catch (e) {
+            await client.query('ROLLBACK');
+            throw e;
+          } finally {
+            client.release();
           }
+          // Generate purchase orders now that payment is committed (outside the txn).
+          if (achOrderId) setImmediate(() => generatePurchaseOrders(achOrderId, pool));
         }
 
         // Handle bank transfer (customer_balance) settlements
         if (pmTypes.includes('customer_balance')) {
-          const orderResult = await pool.query(
-            "SELECT * FROM orders WHERE stripe_payment_intent_id = $1 AND payment_method = 'bank_transfer'",
-            [pi.id]
-          );
-          if (orderResult.rows.length) {
-            const order = orderResult.rows[0];
-            const settledAmount = (pi.amount_received || pi.amount) / 100;
-            await pool.query(
-              "UPDATE orders SET status = 'confirmed', amount_paid = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
-              [settledAmount.toFixed(2), order.id]
+          // Lock the order for the money writes (amount_paid + tender settle) so they're
+          // atomic and serialize with concurrent manual mutations. [[amount-paid-locking]]
+          const client = await pool.connect();
+          let order = null;
+          let settledAmount = 0;
+          try {
+            await client.query('BEGIN');
+            const orderResult = await client.query(
+              "SELECT * FROM orders WHERE stripe_payment_intent_id = $1 AND payment_method = 'bank_transfer' FOR UPDATE",
+              [pi.id]
             );
-            await pool.query(
-              "UPDATE order_payments SET status = 'completed', description = 'Bank transfer payment received' WHERE order_id = $1 AND stripe_payment_intent_id = $2",
-              [order.id, pi.id]
-            );
+            if (orderResult.rows.length) {
+              order = orderResult.rows[0];
+              settledAmount = (pi.amount_received || pi.amount) / 100;
+              await client.query(
+                "UPDATE orders SET status = 'confirmed', amount_paid = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
+                [settledAmount.toFixed(2), order.id]
+              );
+              await client.query(
+                "UPDATE order_payments SET status = 'completed', description = 'Bank transfer payment received' WHERE order_id = $1 AND stripe_payment_intent_id = $2",
+                [order.id, pi.id]
+              );
+            }
+            await client.query('COMMIT');
+          } catch (e) {
+            await client.query('ROLLBACK');
+            throw e;
+          } finally {
+            client.release();
+          }
+          if (order) {
             // Sync the existing order_payment to invoice
             const opRow = await pool.query('SELECT id FROM order_payments WHERE order_id = $1 AND stripe_payment_intent_id = $2 LIMIT 1', [order.id, pi.id]);
             if (opRow.rows.length) {
@@ -15123,6 +15157,9 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
           let opId = null;
           try {
             await client.query('BEGIN');
+            // Lock the order so the amount_paid bump serializes with concurrent manual
+            // money mutations on the same order. [[amount-paid-locking]]
+            await client.query('SELECT id FROM orders WHERE id = $1 FOR UPDATE', [order_id]);
             // Normal path: settle the 'processing' row created at checkout.completed.
             const upd = await client.query(
               "UPDATE order_payments SET status = 'completed', description = 'ACH bank payment settled' WHERE stripe_checkout_session_id = $1 AND status = 'processing' RETURNING id",
