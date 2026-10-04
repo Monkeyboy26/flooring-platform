@@ -489,6 +489,7 @@ function buildSeoHtml({ title, description, canonicalUrl, ogImage, ogType, robot
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="${robots}">
+  <meta name="p:domain_verify" content="5ce78043b7f16d2ac47ac9cca84f3c0d">
   <link rel="icon" href="/favicon.ico?v=2" sizes="any">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2">
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png?v=2">
