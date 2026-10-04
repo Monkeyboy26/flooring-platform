@@ -1285,10 +1285,10 @@ function renderStaticPage(page) {
   if (page === 'cabinets') return renderCabinetsPage();
   const pages = {
     home: {
-      title: 'Roma Flooring Designs | Premium Flooring & Tile in Anaheim, CA',
-      description: 'Roma Flooring Designs offers premium flooring, tile, stone, and countertop products in Anaheim, CA.',
+      title: 'Flooring, Tile, Cabinets & Countertops in Anaheim, CA | Roma Flooring Designs',
+      description: 'Shop porcelain tile, natural stone, hardwood, luxury vinyl, laminate, countertops, and cabinetry at Roma Flooring Designs — an Anaheim, CA showroom serving Orange County, with professional installation available.',
       path: '/',
-      body: `<h1>Roma Flooring Designs</h1><p>Premium flooring, tile, stone, and countertop products in Anaheim, California. Browse our selection of hardwood, laminate, vinyl, tile, and natural stone from top manufacturers.</p><p><a href="/shop">Shop All Products</a> | <a href="/collections">Browse Collections</a> | <a href="/trade">Trade Program</a></p>`
+      body: `<h1>Flooring, Tile, Cabinets &amp; Countertops in Anaheim, CA</h1><p>Roma Flooring Designs is an Anaheim flooring and tile showroom serving homeowners, designers, contractors, and builders throughout Orange County. Shop porcelain and ceramic tile, natural stone, mosaics, hardwood, luxury vinyl, laminate, countertops, and cabinetry from top manufacturers &mdash; with professional installation available.</p><p>Visit our showroom at 1440 S. State College Blvd #6M, Anaheim, CA 92806, or browse the full catalog online.</p><p><a href="/shop">Shop All Products</a> | <a href="/installation">Flooring Installation</a> | <a href="/brands">Brands</a> | <a href="/collections">Collections</a> | <a href="/cabinets">Cabinets</a> | <a href="/guides">Buying Guides</a> | <a href="/trade">Trade Program</a></p>`
     },
     trade: {
       title: 'Trade Program | Roma Flooring Designs',
