@@ -7,5 +7,10 @@ Disallow: /reset-password
 Disallow: /trade/dashboard
 Disallow: /trade/bulk-order
 Disallow: /wishlist
+# API endpoints are app plumbing, not pages — Googlebot was spending 11% of its
+# crawl budget fetching JSON (/api/storefront/*, /api/cart, /api/analytics).
+# /api/img stays crawlable in case any surface references proxied images.
+Disallow: /api/
+Allow: /api/img
 
 Sitemap: https://romaflooringdesigns.com/sitemap.xml
