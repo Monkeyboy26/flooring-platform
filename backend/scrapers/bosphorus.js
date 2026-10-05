@@ -477,6 +477,11 @@ export async function run(pool, job, source) {
             const colorSliderImages = getColorSliderImages(
               productData.imagesByVariantId, allColorVariants, productData.images, rawColorForImages, siblingColorNames
             );
+            // Variant-ID matches carry the vendor's own per-variant color guarantee;
+            // full-slug/all-words filename matches passed the sibling guards. Either
+            // is strong enough to let a full-res product shot lead over the swatch.
+            // Weak tiers (number-prefix, any-single-word) keep the swatch primary.
+            const strongColorMatch = colorSliderImages.strongColorMatch === true;
             // Filter out cross-collection contamination, then pick best images for this size/finish
             const cleanColorImages = filterOwnCollectionImages(colorSliderImages, productData.name);
             const filteredColorImages = pickSkuImages(cleanColorImages, sizeNorm, finish, colorName);
@@ -501,8 +506,15 @@ export async function run(pool, job, source) {
 
             let skuSortOrder = 0;
 
-            // Primary: swatch image for this color
-            if (swatchUrl) {
+            // The swatch is color-exact but sourced from a ~150px .preview.jpg —
+            // it upscales to mush as a hero/thumbnail. When the product shots were
+            // color-matched strongly (variant ID or guarded filename match), lead
+            // with the shot and keep the swatch in the gallery. Weak matches keep
+            // the swatch primary (shots could be the wrong color).
+            const shotLeads = strongColorMatch && colorShots.length > 0;
+
+            // Primary: swatch image for this color (unless a variant-matched shot leads)
+            if (swatchUrl && !shotLeads) {
               await upsertMediaAsset(pool, {
                 product_id: product.id, sku_id: sku.id,
                 asset_type: 'primary', url: swatchUrl, original_url: swatchUrl,
@@ -510,12 +522,21 @@ export async function run(pool, job, source) {
               });
               stats.imagesSet++;
             }
-            // Alternates: ONLY matched color-specific slider product shots
+            // Matched color-specific slider product shots
             for (const img of colorShots) {
               await upsertMediaAsset(pool, {
                 product_id: product.id, sku_id: sku.id,
-                asset_type: swatchUrl ? 'alternate' : (skuSortOrder === 0 ? 'primary' : 'alternate'),
+                asset_type: skuSortOrder === 0 ? 'primary' : 'alternate',
                 url: img, original_url: img,
+                sort_order: skuSortOrder++,
+              });
+              stats.imagesSet++;
+            }
+            // Demoted swatch rides along as a gallery alternate
+            if (swatchUrl && shotLeads) {
+              await upsertMediaAsset(pool, {
+                product_id: product.id, sku_id: sku.id,
+                asset_type: 'alternate', url: swatchUrl, original_url: swatchUrl,
                 sort_order: skuSortOrder++,
               });
               stats.imagesSet++;
@@ -1511,9 +1532,13 @@ function getColorSliderImages(imagesByVariantId, colorVariants, allImages, color
               );
             });
           });
-          if (filtered.length > 0) return filtered;
+          if (filtered.length > 0) {
+            filtered.strongColorMatch = true;
+            return filtered;
+          }
         }
       }
+      colorImgs.strongColorMatch = true;
       return colorImgs;
     }
   }
@@ -1638,7 +1663,12 @@ function getColorSliderImages(imagesByVariantId, colorVariants, allImages, color
     });
     matched = applySpecificityGuard(matched);
     matched = applyCrossColorExclusion(matched);
-    if (matched.length > 0) return matched;
+    if (matched.length > 0) {
+      // Full-slug filename match that survived the sibling guards — reliable
+      // enough for a product shot to lead over the swatch.
+      matched.strongColorMatch = true;
+      return matched;
+    }
 
     // ALL words match (AND logic, word-boundary) — uses all words including noise
     if (colorWords.length >= 2) {
@@ -1647,7 +1677,10 @@ function getColorSliderImages(imagesByVariantId, colorVariants, allImages, color
         return colorWords.every(w => fnHasWord(fn, w)) && mixFilter(url);
       });
       matched = applyCrossColorExclusion(matched);
-      if (matched.length > 0) return matched;
+      if (matched.length > 0) {
+        matched.strongColorMatch = true;
+        return matched;
+      }
     }
 
     // Number prefix match (e.g., "style_1__" for "1 Ravello")

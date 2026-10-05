@@ -48,6 +48,9 @@ const PIPELINES = {
     steps: [
       { type: 'scraper', sourceKey: 'bosphorus', label: 'Bosphorus Catalog + Price + Inventory' },
       { type: 'script',  path: 'scripts/group-bosphorus-colors.cjs', label: 'Group Bosphorus Colors' },
+      // The scrape rewrites SKU media with remote CDN URLs — re-mirror the tiny
+      // .preview.jpg swatches to de-grained 600px locals after every run.
+      { type: 'script',  path: 'scripts/fix-bosphorus-images.mjs', label: 'Mirror + De-grain Swatch Previews' },
     ]
   },
 

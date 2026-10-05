@@ -14,6 +14,10 @@
  *
  * MUST run inside the api container (uploads volume + sharp). ~2,956 images.
  *   docker compose … exec -T api node scripts/fix-bosphorus-images.mjs
+ *
+ * Runs nightly as the last step of the `bosphorus` pipeline: the scraper
+ * clear-and-rebuilds SKU media with remote CDN URLs each run, so the repoint
+ * must re-apply after every scrape (downloads are skipped once mirrored).
  */
 import pg from 'pg';
 import fs from 'fs';
@@ -41,11 +45,14 @@ async function main() {
   const vendor = (await pool.query(`SELECT id FROM vendors WHERE code='BOS' LIMIT 1`)).rows[0];
   if (!vendor) throw new Error('Bosphorus vendor not found');
 
-  // Distinct CDN source images still pointing at the remote preview.
+  // Distinct CDN swatch images still pointing at the remote preview. Scoped to
+  // attribute-option-value (swatch) URLs ONLY — carousel product shots are up to
+  // 1920x2560 on the CDN and must NOT be downscaled to 600px locals.
   const { rows } = await pool.query(`
     SELECT DISTINCT COALESCE(original_url, url) AS src
     FROM media_assets m JOIN products p ON p.id = m.product_id
-    WHERE p.vendor_id = $1 AND COALESCE(m.original_url, m.url) LIKE 'http%bosphorusimports.com%'`, [vendor.id]);
+    WHERE p.vendor_id = $1
+      AND COALESCE(m.original_url, m.url) LIKE 'http%bosphorusimports.com%/attribute-option-value/%'`, [vendor.id]);
   const LIMIT = (() => { const i = process.argv.indexOf('--limit'); return i > -1 ? parseInt(process.argv[i + 1], 10) : null; })();
   if (LIMIT) rows.length = Math.min(rows.length, LIMIT);
   console.log(`${rows.length} distinct Bosphorus CDN images to process`);
