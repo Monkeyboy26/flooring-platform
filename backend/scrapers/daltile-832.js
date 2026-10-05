@@ -838,54 +838,84 @@ export async function run(pool, job, source) {
 
   await appendLog(pool, job.id, `Connecting to ${ftpConfig.host}:${ftpConfig.port} as ${ftpConfig.user}...`);
 
-  const ftp = new FtpClient();
-  ftp.ftp.verbose = false;
-  const downloadedFiles = []; // { localPath, remoteName }
+  // The partner FTP intermittently resets the data socket mid-transfer
+  // ("Client is closed because read ECONNRESET (data socket)") during the
+  // directory LIST or the large catalog download. A single attempt turned
+  // every such blip into a hard scrape failure + alert email, even though the
+  // next scheduled run usually succeeded. Retry the whole connect→list→download
+  // phase on a FRESH connection before giving up — mirrors the STOR retry in
+  // sendAcknowledgments().
+  let downloadedFiles = []; // { localPath, remoteName }
+  const MAX_FTP_ATTEMPTS = 3;
+  const isTransientFtp = (err) =>
+    /ECONNRESET|ETIMEDOUT|EPIPE|ECONNABORTED|Client is closed|Timeout|data socket/i.test(err?.message || '');
 
-  try {
-    // ── Step 1: Connect and find files ──
-    await ftp.access({ ...ftpConfig, secure: false });
-    await appendLog(pool, job.id, 'FTP connected. Scanning for 832 files...');
+  for (let attempt = 1; attempt <= MAX_FTP_ATTEMPTS; attempt++) {
+    const ftp = new FtpClient(60_000); // 60s op timeout (basic-ftp default is 30s)
+    ftp.ftp.verbose = false;
+    downloadedFiles = []; // reset: a retry re-runs the full phase from scratch
 
-    const remoteFiles = await findRemote832Files(ftp);
-    await appendLog(pool, job.id, `Found ${remoteFiles.length} 832 candidate file(s)`);
+    try {
+      // ── Step 1: Connect and find files ──
+      await ftp.access({ ...ftpConfig, secure: false });
+      await appendLog(pool, job.id, `FTP connected (attempt ${attempt}/${MAX_FTP_ATTEMPTS}). Scanning for 832 files...`);
 
-    if (remoteFiles.length === 0) {
-      await appendLog(pool, job.id, 'No 832 files found on remote server. Nothing to import.');
-      return;
+      const remoteFiles = await findRemote832Files(ftp);
+      await appendLog(pool, job.id, `Found ${remoteFiles.length} 832 candidate file(s)`);
+
+      if (remoteFiles.length === 0) {
+        await appendLog(pool, job.id, 'No 832 files found on remote server. Nothing to import.');
+        ftp.close();
+        return;
+      }
+
+      // Log all found files
+      for (const f of remoteFiles) {
+        const sizeKb = (f.size / 1024).toFixed(1);
+        const mod = f.modifiedAt ? f.modifiedAt.toISOString().slice(0, 19) : 'unknown';
+        const already = processedFiles.includes(f.name) ? ' [already processed]' : '';
+        await appendLog(pool, job.id, `  ${f.remotePath} (${sizeKb}KB, ${mod})${already}`);
+      }
+
+      // Find all unprocessed files
+      const unprocessed = remoteFiles.filter(f => !processedFiles.includes(f.name));
+      if (unprocessed.length === 0) {
+        await appendLog(pool, job.id, 'All files have been processed already. Nothing new to import.');
+        ftp.close();
+        return;
+      }
+
+      await appendLog(pool, job.id, `Downloading ${unprocessed.length} unprocessed file(s)...`);
+
+      // ── Step 2: Download all unprocessed files ──
+      for (const target of unprocessed) {
+        const localPath = `/tmp/daltile_832_${Date.now()}_${target.name}`;
+        await ftp.downloadTo(localPath, target.remotePath);
+        downloadedFiles.push({ localPath, remoteName: target.name, sizeKb: (target.size / 1024).toFixed(1) });
+        await appendLog(pool, job.id, `  Downloaded ${target.name} (${(target.size / 1024).toFixed(1)}KB)`);
+      }
+
+      ftp.close();
+      break; // download phase succeeded — leave the retry loop
+
+    } catch (err) {
+      try { ftp.close(); } catch { /* ignore */ }
+      // Discard any partial downloads before retrying so Step 3 never parses a truncated file
+      for (const d of downloadedFiles) { try { fs.unlinkSync(d.localPath); } catch { /* ignore */ } }
+      downloadedFiles = [];
+
+      if (isTransientFtp(err) && attempt < MAX_FTP_ATTEMPTS) {
+        const backoffMs = attempt * 5000;
+        await appendLog(pool, job.id,
+          `FTP transfer error (attempt ${attempt}/${MAX_FTP_ATTEMPTS}): ${err.message} — retrying in ${backoffMs / 1000}s`);
+        await new Promise(r => setTimeout(r, backoffMs));
+        continue;
+      }
+
+      await addJobError(pool, job.id, `FTP error: ${err.message}`);
+      await appendLog(pool, job.id, `FTP connection failed after ${attempt} attempt(s): ${err.message}`);
+      throw err;
     }
-
-    // Log all found files
-    for (const f of remoteFiles) {
-      const sizeKb = (f.size / 1024).toFixed(1);
-      const mod = f.modifiedAt ? f.modifiedAt.toISOString().slice(0, 19) : 'unknown';
-      const already = processedFiles.includes(f.name) ? ' [already processed]' : '';
-      await appendLog(pool, job.id, `  ${f.remotePath} (${sizeKb}KB, ${mod})${already}`);
-    }
-
-    // Find all unprocessed files
-    const unprocessed = remoteFiles.filter(f => !processedFiles.includes(f.name));
-    if (unprocessed.length === 0) {
-      await appendLog(pool, job.id, 'All files have been processed already. Nothing new to import.');
-      return;
-    }
-
-    await appendLog(pool, job.id, `Downloading ${unprocessed.length} unprocessed file(s)...`);
-
-    // ── Step 2: Download all unprocessed files ──
-    for (const target of unprocessed) {
-      const localPath = `/tmp/daltile_832_${Date.now()}_${target.name}`;
-      await ftp.downloadTo(localPath, target.remotePath);
-      downloadedFiles.push({ localPath, remoteName: target.name, sizeKb: (target.size / 1024).toFixed(1) });
-      await appendLog(pool, job.id, `  Downloaded ${target.name} (${(target.size / 1024).toFixed(1)}KB)`);
-    }
-
-  } catch (err) {
-    await addJobError(pool, job.id, `FTP error: ${err.message}`);
-    await appendLog(pool, job.id, `FTP connection failed: ${err.message}`);
-    throw err;
-  } finally {
-    ftp.close();
   }
 
   if (downloadedFiles.length === 0) return;
