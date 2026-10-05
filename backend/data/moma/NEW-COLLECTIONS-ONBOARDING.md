@@ -7,9 +7,14 @@ This doc is the execution plan. **Not yet built/run.**
 
 ## Collections (products × colors ≈ SKUs)
 
+### ✅ DONE
+- **Oakthree** — onboarded + deployed LOCAL+PROD 2026-10-04 via `onboard-oakthree.mjs` (9 SKUs active, images sourced to `/uploads/moma/oakthree`, PDP verified, in sitemap). Use that script as the TEMPLATE for the remaining 8.
+
+### Remaining 8 (Q2 / imageless)
+
 | Code | Name | Category | Look | Products | Colors | In stock? |
 |------|------|----------|------|----------|--------|-----------|
-| OT | Oakthree | wood-look-tile | Wood | 3 field sizes | 3 | **Yes (not Q2-flagged)** |
+| OT | Oakthree | wood-look-tile | Wood | 3 field sizes | 3 | ✅ DONE |
 | ML | Moonlight | porcelain-tile (+ pavers) | Marble | 3 field + 2 paver | 5 (pavers 2) | Q2 |
 | CL | Clay | porcelain-tile / backsplash-wall | Concrete | 2 field + 1 wall deco | 5 + 3 deco | Q2 |
 | CF | Cliff | backsplash-wall | Stone | 3 wall (incl. Ripple) | 4 | Q2 |
@@ -41,6 +46,19 @@ each collection in the JSON:
 Idempotent via ON CONFLICT (internal_sku / vendor_collection_name). Run in the api
 container (`docker exec -e APPLY=1 flooring-api node /app/data/moma/onboard-moma-new-collections.mjs`),
 then deploy per the recipe in `[[moma-price-list-update]]` (commit → prod auto-pulls → run on prod DB; backups go to a DB table, bind mount is read-only to the container user).
+
+## Image-sourcing recipe (proven on Oakthree)
+
+Per-collection images ARE on momaceramichegroup.com/losangeles-collections/<slug>:
+1. Open the collection page; "Colors & Sizes" shows per-color face swatches, top strip = lifestyle.
+2. Extract URLs with the browser's javascript_tool: pull `<img>.currentSrc` AND CSS
+   `background-image` (some are backgrounds), strip the Wix `/v1/fill/...` suffix for the original.
+   ⚠️ Read the asset-id from the RENDERED url, not a first guess — easy to transpose (cost me a
+   wrong MID hash: `99be8b31` not `99be3b81`).
+3. `curl` the bare `~mv2.jpg` originals (some assets hotlink-403 bare → use the page's working
+   `/v1/fill/..` transform URL instead). Save as `<color>@1.jpg` (primary), `@2.jpg` (alt),
+   `<CODE>_lifestyle{1,2,3}.jpg` under `uploads/moma/<slug>/`.
+4. Deploy images to prod: `scp -i ~/.ssh/roma-prod.pem uploads/moma/<slug>/*.jpg ubuntu@32.188.96.3:/opt/flooring-platform/uploads/moma/<slug>/` (uploads is gitignored; host path `/opt/flooring-platform/uploads` → container `/app/uploads`). Images serve via `/api/img?url=/uploads/...` (direct `/uploads` is NOT a route).
 
 ## Open items (BLOCKERS before import)
 
