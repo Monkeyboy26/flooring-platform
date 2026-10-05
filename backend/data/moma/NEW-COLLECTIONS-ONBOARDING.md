@@ -7,14 +7,31 @@ This doc is the execution plan. **Not yet built/run.**
 
 ## Collections (products × colors ≈ SKUs)
 
-### ✅ DONE
-- **Oakthree** — onboarded + deployed LOCAL+PROD 2026-10-04 via `onboard-oakthree.mjs` (9 SKUs active, images sourced to `/uploads/moma/oakthree`, PDP verified, in sitemap). Use that script as the TEMPLATE for the remaining 8.
+### ✅ ALL 9 DONE — onboarded + deployed LOCAL+PROD 2026-10-04
 
-### Remaining 8 (Q2 / imageless)
+All collections live (active, "STOCKED IN FULLERTON" confirmed on the vendor site —
+past Q2). Images sourced from momaceramichegroup.com/losangeles-collections and
+self-hosted under /uploads/moma/<slug>. Total new: **24 products / 78 SKUs**, 0 negative
+margins. Onboarded via the data-driven `onboard-moma-collection.mjs` (COLLECTION=<code>);
+Oakthree via its own `onboard-oakthree.mjs` first (the template).
 
-| Code | Name | Category | Look | Products | Colors | In stock? |
-|------|------|----------|------|----------|--------|-----------|
-| OT | Oakthree | wood-look-tile | Wood | 3 field sizes | 3 | ✅ DONE |
+| Code | Name | SKUs | Notes |
+|------|------|------|-------|
+| OT | Oakthree | 9 | wood-look |
+| ML | Moonlight | 19 | fields + 2cm pavers (site slug `moonlight-evo`) |
+| CL | Clay | 11 | field + wall deco |
+| CF | Cliff | 8 | wall incl. Ripple |
+| BL | Blossom | 8 | wall incl. Tropical |
+| ON | Onici | 6 | wall + field |
+| BI | Boiserie | 4 + 4 trim | wall + listello trim |
+| MED | Mediterranean | 4 | ⚠️ BDP3 color dropped (not published; confirm w/ rep) |
+| LE | Le Gioie | 5 | ⚠️ 5 SOLID colors only; Filigrane/Baguette/Inserto decos DEFERRED (ambiguous source) |
+
+### Still outstanding (deferred, need rep input)
+- **Le Gioie** Filigrane / Baguette / Inserto decorative variants (source data ambiguous: baguette 4 colors, inserto A+B pairs, box weights blank).
+- **Mediterranean** BDP3 color (listed in 13.4×13.4 row but not a published color).
+
+### (historical) original roster
 | ML | Moonlight | porcelain-tile (+ pavers) | Marble | 3 field + 2 paver | 5 (pavers 2) | Q2 |
 | CL | Clay | porcelain-tile / backsplash-wall | Concrete | 2 field + 1 wall deco | 5 + 3 deco | Q2 |
 | CF | Cliff | backsplash-wall | Stone | 3 wall (incl. Ripple) | 4 | Q2 |
