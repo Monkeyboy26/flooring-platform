@@ -23,7 +23,9 @@ const GLASS_PAGE_SLUGS = [
   'glass-tile',
 ];
 
-// Extra slugs from import script that may not appear in the listing
+// Extra slugs from import script that may not appear in the listing.
+// Products get delisted from /product over time but remain reachable by direct
+// slug — keep them here so the map doesn't lose entries for SKUs still in the DB.
 const EXTRA_SLUGS = [
   'cimaron', 'cimarron', 'danube-waves',
   'maysak', 'meranti', 'nabi', 'petrafina',
@@ -31,6 +33,8 @@ const EXTRA_SLUGS = [
   'southpoint', 'stream', 'theology', 'travertine',
   'urban', 'vienna-style', 'vintage', 'willow', 'woodcrete',
   'supergres-fog', 'whiteause',
+  // Delisted from the listing page but still live by direct slug (have DB SKUs):
+  'iconic', 'karst-grace', 'krovanh', 'majestic-gambus', 'malakasrock',
 ];
 
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }

@@ -190,7 +190,12 @@ function getSkuSize(variantName) {
 function isPatternImage(title) {
   if (!title) return false;
   const t = decodeURIComponent(title);
-  return /[HJKN]\d{2,3}/.test(t) || /FL[A-Z]?\d{2,3}/.test(t);
+  // Mosaic/floor-layout pattern codes appear as delimited tokens (at the start, or
+  // after a non-alphanumeric: '-', '_', space, or a Chinese char) — e.g. "K050-B411",
+  // "石化-H028-C131", "FLB326YG". Require that boundary so product names and field-tile
+  // codes that merely CONTAIN an H/J/K/N (or FL) followed by digits are not misread as
+  // pattern thumbnails — e.g. "MOON120…" (the N in MOON) or "…1212K004" (Windsor tile code).
+  return /(?:^|[^A-Za-z0-9])[HJKN]\d{2,3}/.test(t) || /(?:^|[^A-Za-z0-9])FL[A-Z]?\d{2,3}/.test(t);
 }
 
 function pickImagesForSku(allImages, variantName, variantType) {
@@ -304,6 +309,21 @@ function getPerColorImages(mapEntry) {
         }
       }
     }
+
+    // 1:1 orphan fallback: if exactly one color still has no images AND exactly one
+    // product shot in allMedia is linked to no color, pair them. Covers the case where
+    // a color swatch simply forgot to link its (titleless) gallery photo — e.g. Bolaven
+    // "PAPEL 235". Restricted to the unambiguous 1:1 case so we never guess wrong.
+    const linkedUrls = new Set();
+    for (const [, colorData] of realColors) {
+      for (const img of colorData.images) linkedUrls.add(img.url);
+    }
+    const colorsWithout = realColors.filter(([k]) => !result.has(k));
+    const unlinkedProducts = productOnly(mapEntry.allMedia).filter(m => !linkedUrls.has(m.url));
+    if (colorsWithout.length === 1 && unlinkedProducts.length === 1) {
+      result.set(colorsWithout[0][0], unlinkedProducts);
+    }
+
     return result;
   }
 
