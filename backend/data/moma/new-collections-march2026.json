@@ -1,0 +1,148 @@
+{
+  "_note": "QUEUED onboarding data for the 9 Moma collections NEW in the March-2026 (v45) price list, not yet in the PIM (vendor code 896). Extracted from pricelist-2026-03.txt. Net Price = Roma COST; retail must be set via base.js house model (1.70x + tile/mosaic floor + 9-ending), NOT import-moma.js's 1.6 keystone. Packaging key: [pcs_box, sqft_box, boxes_pallet, sqft_pallet, lbs_box]. OPEN ITEMS before import: (1) source per-color face images + collection lifestyle from momaceramichegroup.com/losangeles; (2) confirm category_slug against DB categories; (3) resolve flagged data gaps. 8 of 9 are 'NEW SERIES ARRIVING 2nd QTR' (onboard as draft/coming-soon); OAKTHREE is NOT so-flagged (may be in stock now).",
+  "markup_note": "retail via house model, not a fixed markup",
+  "collections": [
+    {
+      "code": "BL", "name": "Blossom", "category_proposed": "backsplash-wall", "look": "Pattern",
+      "description_short": "Authentic and contemporary patterned wall tile.",
+      "arriving_q2": true, "needs_images": true,
+      "colors": [
+        {"code": "BL00", "name": "Bianco"}, {"code": "BL01", "name": "Avorio"},
+        {"code": "BL02", "name": "Menta"}, {"code": "BL03", "name": "Avio"},
+        {"code": "BL10", "name": "Tropical Bianco"}, {"code": "BL11", "name": "Tropical Avorio"},
+        {"code": "BL12", "name": "Tropical Menta"}, {"code": "BL13", "name": "Tropical Avio"}
+      ],
+      "products": [
+        {"role": "wall", "size": "13x39", "finish": "Natural", "cost": 4.68, "colors": ["BL00","BL01","BL02","BL03"], "pkg": [4,14.33,32,459,42.57]},
+        {"role": "wall", "size": "13x39", "finish": "Natural", "variant": "Tropical", "cost": 4.68, "colors": ["BL10","BL11","BL12","BL13"], "pkg": [4,14.33,32,459,42.57]}
+      ]
+    },
+    {
+      "code": "BI", "name": "Boiserie", "category_proposed": "backsplash-wall", "look": "Concrete",
+      "description_short": "Soft flute-texture wall tile.",
+      "arriving_q2": true, "needs_images": true,
+      "colors": [
+        {"code": "BI01", "name": "Rovere"}, {"code": "BI02", "name": "Cipria"},
+        {"code": "BI03", "name": "Cielo"}, {"code": "BI04", "name": "Salvia"}
+      ],
+      "products": [
+        {"role": "wall", "size": "13x39", "finish": "Natural", "cost": 4.68, "colors": ["BI01","BI02","BI03","BI04"], "pkg": [4,14.33,32,459,42.57]}
+      ],
+      "accessories": [
+        {"label": "Trim 1/5\" x 39\"", "size": "1/5\"x39\"", "sell_by": "unit", "cost": 13.20, "pcs_box": 10, "colors": ["BI01","BI02","BI03","BI04"]}
+      ]
+    },
+    {
+      "code": "CL", "name": "Clay", "category_proposed": "porcelain-tile", "look": "Concrete",
+      "description_short": "Spatula-effect concrete look with matching wall deco.",
+      "attrs": {"dcof": ">0.42", "shade_variation": "V1", "pei_rating": "4", "mohs": "6", "acid_resist": "Yes", "frost_resistant": "Yes"},
+      "arriving_q2": true, "needs_images": true,
+      "colors": [
+        {"code": "CL01", "name": "Beige"}, {"code": "CL02", "name": "Mud"}, {"code": "CL03", "name": "Pearl"},
+        {"code": "CL05", "name": "Ivory"}, {"code": "CL06", "name": "Avio"},
+        {"code": "CL52", "name": "Decoro Ginko"}, {"code": "CL53", "name": "Decoro Fall"}, {"code": "CL54", "name": "Decoro Dandy"}
+      ],
+      "products": [
+        {"role": "field", "size": "24x48", "finish": "Natural", "cost": 4.39, "colors": ["CL01","CL02","CL03","CL05","CL06"], "pkg": [2,15.5,36,558,66.14]},
+        {"role": "wall", "size": "24x48", "finish": "Natural", "variant": "Deco", "cost": 4.61, "colors": ["CL52","CL53","CL54"], "pkg": [2,15.5,36,558,66.14]},
+        {"role": "field", "size": "36x36", "finish": "Natural", "cost": 4.94, "colors": ["CL01","CL02","CL03"], "pkg": [2,17.438,21,366,71.43]}
+      ]
+    },
+    {
+      "code": "CF", "name": "Cliff", "category_proposed": "backsplash-wall", "look": "Stone",
+      "description_short": "Soft stone-look wall tile with structured (Ripple) option.",
+      "arriving_q2": true, "needs_images": true,
+      "colors": [
+        {"code": "CF00", "name": "White"}, {"code": "CF01", "name": "Beige"},
+        {"code": "CF10", "name": "White Plaster"}, {"code": "CF11", "name": "Beige Plaster"}
+      ],
+      "products": [
+        {"role": "wall", "size": "12x24", "finish": "Natural", "cost": 3.85, "colors": ["CF00","CF01"], "pkg": [8,15.5,32,459,37.8]},
+        {"role": "wall", "size": "12x24", "finish": "Structured", "variant": "Ripple", "cost": 3.85, "colors": ["CF00","CF01"], "pkg": [8,15.5,72,1116,37.8]},
+        {"role": "wall", "size": "13x39", "finish": "Natural", "cost": 4.68, "colors": ["CF00","CF10","CF01","CF11"], "pkg": [4,14.33,32,459,42.57]}
+      ]
+    },
+    {
+      "code": "LE", "name": "Le Gioie", "category_proposed": "backsplash-wall", "look": "Pattern",
+      "description_short": "Bold depth and strong texture 8x8 wall tile with solid, filigree, baguette and inserto deco.",
+      "arriving_q2": true, "needs_images": true,
+      "_flag": "complex deco set; LBS/box unknown in source (shown as ???). Baguette has 4 colors (no Ossidiana Nera). Inserto are A+B pairs.",
+      "colors": [
+        {"code": "LE-S-PB", "name": "Solid Perla Bianca"}, {"code": "LE-S-AG", "name": "Solid Ambra Gialla"},
+        {"code": "LE-S-ZB", "name": "Solid Zaffiro Blu"}, {"code": "LE-S-GV", "name": "Solid Giada Verde"},
+        {"code": "LE-S-ON", "name": "Solid Ossidiana Nera"},
+        {"code": "LE-F-PB", "name": "Filigrane Perla Bianca"}, {"code": "LE-F-AG", "name": "Filigrane Ambra Gialla"},
+        {"code": "LE-F-ZB", "name": "Filigrane Zaffiro Blu"}, {"code": "LE-F-GV", "name": "Filigrane Giada Verde"},
+        {"code": "LE-F-ON", "name": "Filigrane Ossidiana Nera"},
+        {"code": "LE-B-PB", "name": "Baguette Perla Bianca"}, {"code": "LE-B-AG", "name": "Baguette Ambra Gialla"},
+        {"code": "LE-B-ZB", "name": "Baguette Zaffiro Blu"}, {"code": "LE-B-GV", "name": "Baguette Giada Verde"},
+        {"code": "LE-I-DLV", "name": "Inserto Diadema Lauro Verde A+B"}, {"code": "LE-I-BG", "name": "Inserto Bracciale Gelso A+B"}
+      ],
+      "products": [
+        {"role": "wall", "size": "8x8", "finish": "Natural", "cost": 4.77, "colors": ["LE-S-PB","LE-S-AG","LE-S-ZB","LE-S-GV","LE-S-ON","LE-F-PB","LE-F-AG","LE-F-ZB","LE-F-GV","LE-F-ON","LE-B-PB","LE-B-AG","LE-B-ZB","LE-B-GV"], "pkg": [30,13.33,72,960,null]},
+        {"role": "wall", "size": "8x8", "finish": "Natural", "variant": "Inserto", "cost": 5.23, "colors": ["LE-I-DLV","LE-I-BG"], "pkg": [30,13.33,72,960,null]}
+      ]
+    },
+    {
+      "code": "MED", "name": "Mediterranean", "category_proposed": "porcelain-tile", "look": "Pattern",
+      "description_short": "Decorative porcelain stoneware field tiles.",
+      "attrs": {"dcof": ">0.42", "mohs": "6", "acid_resist": "Yes", "frost_resistant": "Yes"},
+      "arriving_q2": true, "needs_images": true,
+      "_flag": "product row 13.4x13.4 lists color BDP3 which is NOT in the color list (VR03/CP03/CTAT) — confirm with rep (likely a 4th pattern code).",
+      "colors": [
+        {"code": "VR03", "name": "Vietri Rosebery"}, {"code": "CP03", "name": "Capri"}, {"code": "CTAT", "name": "Cotto Artigianale"}
+      ],
+      "products": [
+        {"role": "field", "size": "8.6x8.6", "finish": "Natural", "cost": 5.71, "colors": ["VR03","CP03"], "pkg": [28,14.63,60,877.8,57.22]},
+        {"role": "field", "size": "13.4x13.4", "finish": "Natural", "cost": 3.57, "colors": ["BDP3","CTAT"], "pkg": [12,14.95,44,658.08,61.54]},
+        {"role": "field", "size": "8.5x17", "finish": "Natural", "cost": 3.57, "colors": ["CTAT"], "pkg": [15,15.17,56,849.52,47.57]}
+      ]
+    },
+    {
+      "code": "ML", "name": "Moonlight", "category_proposed": "porcelain-tile", "paver_category_proposed": "pavers", "look": "Marble",
+      "description_short": "Metallic-effect marble veining with matching 2cm pavers.",
+      "attrs": {"dcof": ">0.42", "shade_variation": "V3", "pei_rating": "4", "mohs": "6", "acid_resist": "Yes", "frost_resistant": "Yes"},
+      "arriving_q2": true, "needs_images": true,
+      "colors": [
+        {"code": "ML01", "name": "Ivory"}, {"code": "ML02", "name": "Pearl"}, {"code": "ML03", "name": "Sand"},
+        {"code": "ML04", "name": "Oxid"}, {"code": "ML05", "name": "Carbon"}
+      ],
+      "products": [
+        {"role": "field", "size": "12x24", "finish": "Natural", "cost": 3.29, "colors": ["ML01","ML02","ML03","ML04","ML05"], "pkg": [8,15.5,32,496,70.77]},
+        {"role": "field", "size": "24x48", "finish": "Natural", "cost": 4.12, "colors": ["ML01","ML02","ML03","ML04","ML05"], "pkg": [2,15.5,36,558,66.14]},
+        {"role": "field", "size": "48x48", "finish": "Natural", "cost": 5.45, "colors": ["ML01","ML02","ML03","ML04","ML05"], "pkg": [2,31,18,558,123.46]},
+        {"role": "paver", "size": "24x24", "finish": "R11", "cost": 6.19, "colors": ["ML01","ML02"], "pkg": [1,7.25,32,248,69.45], "thickness": "20 mm"},
+        {"role": "paver", "size": "24x48", "finish": "R11", "cost": 6.05, "colors": ["ML01","ML02"], "pkg": [1,15.5,16,248,138.9], "thickness": "20 mm"}
+      ]
+    },
+    {
+      "code": "OT", "name": "Oakthree", "category_proposed": "wood-look-tile", "look": "Wood",
+      "description_short": "Wood-look porcelain replicating aged timber.",
+      "attrs": {"dcof": ">0.42", "shade_variation": "V2", "pei_rating": "4", "mohs": "6", "acid_resist": "Yes", "frost_resistant": "Yes"},
+      "arriving_q2": false, "needs_images": true,
+      "_flag": "NOT marked 'arriving 2nd QTR' — likely in stock now; onboard as active (others draft).",
+      "colors": [
+        {"code": "OT01", "name": "Young"}, {"code": "OT02", "name": "Mid"}, {"code": "OT03", "name": "Old"}
+      ],
+      "products": [
+        {"role": "field", "size": "8x48", "finish": "Natural", "cost": 4.35, "colors": ["OT01","OT02","OT03"], "pkg": [4,15.5,18,279,57.5]},
+        {"role": "field", "size": "12x48", "finish": "Natural", "cost": 4.57, "colors": ["OT01","OT02","OT03"], "pkg": [6,15.5,36,558,57.5]},
+        {"role": "field", "size": "24x48", "finish": "Natural", "cost": 4.79, "colors": ["OT01","OT02","OT03"], "pkg": [2,15.5,36,558,57.5]}
+      ]
+    },
+    {
+      "code": "ON", "name": "Onici", "category_proposed": "porcelain-tile", "wall_category_proposed": "backsplash-wall", "look": "Marble",
+      "description_short": "Onyx-and-marble elegance in field and wall formats.",
+      "attrs": {"dcof": ">0.42", "mohs": "6", "acid_resist": "Yes", "frost_resistant": "Yes"},
+      "arriving_q2": true, "needs_images": true,
+      "colors": [
+        {"code": "ON01", "name": "Perla"}, {"code": "ON02", "name": "Ambra"},
+        {"code": "SEL1", "name": "Calacatta Gold"}, {"code": "SEL2", "name": "Statuario"}
+      ],
+      "products": [
+        {"role": "wall", "size": "13x39", "finish": "Natural", "cost": 4.68, "colors": ["ON01","ON02","SEL1","SEL2"], "pkg": [4,14.33,32,459,42.57]},
+        {"role": "field", "size": "36x36", "finish": "Natural", "cost": 4.34, "colors": ["ON01","ON02"], "pkg": [2,17.438,21,366,71.43]}
+      ]
+    }
+  ]
+}
