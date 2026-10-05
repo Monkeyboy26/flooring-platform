@@ -1,4 +1,4 @@
-const CACHE_NAME = 'roma-v498';
+const CACHE_NAME = 'roma-v499';
 const IMAGE_CACHE = 'roma-images-v9';
 const IMAGE_CACHE_LIMIT = 2000;
 const SHELL_ASSETS = [
@@ -74,13 +74,16 @@ self.addEventListener('fetch', e => {
   // API — network only
   if (url.pathname.startsWith('/api/')) return;
 
-  // Uploads — cache first
+  // Uploads — cache first (successful responses only, so a 404 for a
+  // not-yet-deployed file can't poison the cache permanently)
   if (url.pathname.startsWith('/uploads/')) {
     e.respondWith(
       caches.match(e.request).then(cached =>
         cached || fetch(e.request).then(res => {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+          }
           return res;
         }).catch(() => new Response('', { status: 404 }))
       )
