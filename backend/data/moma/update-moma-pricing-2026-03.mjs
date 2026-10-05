@@ -82,15 +82,16 @@ async function main() {
   console.log(`=== Moma March-2026 price update (${APPLY ? 'APPLY' : 'DRY-RUN'}) ===`);
   console.log(`${targets.length} (collection,size,finish) target rows from the PDF\n`);
 
-  // backup current live Moma pricing
-  const cur = await pool.query(`
-    SELECT s.id sku_id, s.internal_sku, pr.cost, pr.retail_price, pr.price_basis, pr.retail_locked
-    FROM skus s JOIN products p ON p.id=s.product_id JOIN vendors v ON v.id=p.vendor_id
-    JOIN pricing pr ON pr.sku_id=s.id WHERE v.code='896'`);
+  // backup current live Moma pricing into a DB table (perms-independent — the bind
+  // mount isn't writable by the container user on prod, so a file backup EACCES'd).
   if (APPLY) {
-    const bk = path.join(__dirname, `pricing-backup-${new Date().toISOString().replace(/[:.]/g,'-')}.json`);
-    fs.writeFileSync(bk, JSON.stringify(cur.rows, null, 2));
-    console.log(`Backed up ${cur.rows.length} live pricing rows -> ${path.basename(bk)}\n`);
+    const ts = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
+    const tbl = `moma_pricing_backup_${ts}`;
+    const r = await pool.query(`
+      CREATE TABLE IF NOT EXISTS ${tbl} AS
+      SELECT pr.* FROM pricing pr JOIN skus s ON s.id=pr.sku_id
+      JOIN products p ON p.id=s.product_id JOIN vendors v ON v.id=p.vendor_id WHERE v.code='896'`);
+    console.log(`Backed up live Moma pricing -> table ${tbl} (${r.rowCount} rows)\n`);
   }
 
   let skusTouched = 0, rowsWithChanges = 0;
