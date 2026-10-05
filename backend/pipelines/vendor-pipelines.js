@@ -48,6 +48,10 @@ const PIPELINES = {
     steps: [
       { type: 'scraper', sourceKey: 'bosphorus', label: 'Bosphorus Catalog + Price + Inventory' },
       { type: 'script',  path: 'scripts/group-bosphorus-colors.cjs', label: 'Group Bosphorus Colors' },
+      // Retire SKUs the scrape stopped seeing (vendor page renames strand
+      // stale-active twins — e.g. the Curiousity→Curiosity title fix). Runs
+      // only after a successful scrape; aborts on >15% to catch partial crawls.
+      { type: 'script',  path: 'scripts/bosphorus-deactivate-stale.cjs', label: 'Deactivate Vanished SKUs' },
       // The scrape rewrites SKU media with remote CDN URLs — re-mirror the tiny
       // .preview.jpg swatches to de-grained 600px locals after every run.
       { type: 'script',  path: 'scripts/fix-bosphorus-images.mjs', label: 'Mirror + De-grain Swatch Previews' },

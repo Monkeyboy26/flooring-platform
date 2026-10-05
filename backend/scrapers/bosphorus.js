@@ -28,6 +28,100 @@ const VENDOR_CODE = 'BOS';
 const MAX_PAGES = 10; // safety limit
 const DEFAULT_DELAY_MS = 800;
 
+// ── Pixel color gate (variant-tier promotions only) ──────────────────────────
+// Some pages' carousel images sit under per-variant URL path IDs that are a
+// SEQUENTIAL UPLOAD DUMP, not a real color mapping (Calypso: 38 images spread
+// one-per-variant-slot in upload order — "Dark" got a light-beige scene).
+// Filename color tokens can't vouch for these (names are bare indexes like
+// calypso-0.jpg), so before letting such a shot lead over the color-exact
+// swatch, compare its pixels against the swatch. Trimmed-mid stats ignore
+// shadows/highlights; thresholds are calibrated on the 2026-10 audit:
+// catches Calypso Dark (dL 97) / Forma Black (dL 100) while keeping correct
+// pairs like Memory Cobalt Blue (dL 20) and Forma White (dL 66).
+// NOT applied to filename-verified matches — black tile shot on a white
+// background legitimately reads light (Arrow Black dL 71 is a correct image).
+const COLOR_GATE_MAX_DL = 70;  // luminance
+const COLOR_GATE_MAX_DBY = 28; // yellow-blue axis
+const COLOR_GATE_MAX_DA = 22;  // red-green axis
+
+let sharpModulePromise = null;
+function loadSharp() {
+  if (!sharpModulePromise) {
+    sharpModulePromise = import('sharp').then(m => m.default).catch(() => null);
+  }
+  return sharpModulePromise;
+}
+
+/**
+ * Trimmed mid-tone color stats for an image URL: downscale to 64x64, sort
+ * pixels by luminance, average the middle two quartiles. Returns
+ * {L, by, aa} or null on any failure (callers treat null as "can't verify").
+ */
+async function fetchColorStats(url, cache) {
+  if (cache.has(url)) return cache.get(url);
+  let stats = null;
+  try {
+    const sharp = await loadSharp();
+    if (sharp) {
+      const resp = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
+        signal: AbortSignal.timeout(20000),
+      });
+      if (resp.ok) {
+        const buf = Buffer.from(await resp.arrayBuffer());
+        const S = 64;
+        const raw = await sharp(buf).resize(S, S, { fit: 'fill' })
+          .removeAlpha().toColourspace('srgb').raw().toBuffer();
+        const px = [];
+        for (let i = 0; i < raw.length; i += 3) {
+          const r = raw[i], g = raw[i + 1], b = raw[i + 2];
+          px.push([(r + g + b) / 3, (r + g) / 2 - b, r - g]);
+        }
+        px.sort((a, b2) => a[0] - b2[0]);
+        const mid = px.slice(px.length >> 2, (3 * px.length) >> 2);
+        const n = mid.length || 1;
+        stats = {
+          L: mid.reduce((s, p) => s + p[0], 0) / n,
+          by: mid.reduce((s, p) => s + p[1], 0) / n,
+          aa: mid.reduce((s, p) => s + p[2], 0) / n,
+        };
+      }
+    }
+  } catch { /* stats stays null */ }
+  cache.set(url, stats);
+  return stats;
+}
+
+/** True when the shot's pixels are plausibly the same color as the swatch.
+ *  Fail-closed: any fetch/decode failure returns false (keep the swatch). */
+async function shotMatchesSwatch(shotUrl, swatchUrl, cache) {
+  const [shot, sw] = await Promise.all([
+    fetchColorStats(shotUrl, cache), fetchColorStats(swatchUrl, cache),
+  ]);
+  if (!shot || !sw) return false;
+  return Math.abs(shot.L - sw.L) <= COLOR_GATE_MAX_DL
+    && Math.abs(shot.by - sw.by) <= COLOR_GATE_MAX_DBY
+    && Math.abs(shot.aa - sw.aa) <= COLOR_GATE_MAX_DA;
+}
+
+// Words that describe product type/finish, NOT color — never color evidence
+// on their own (shared by getColorSliderImages and fnHasColorToken).
+const COLOR_NOISE_WORDS = new Set([
+  'deco', 'ceramic', 'mix', 'mosaic', 'matte', 'glossy', 'polished',
+  'satin', 'grip', 'room', 'style', 'insert',
+]);
+
+/** Does the image filename carry a meaningful token of this color name? */
+function fnHasColorToken(url, colorName) {
+  if (!colorName) return false;
+  const fn = url.split('/').pop().split('?')[0].toLowerCase();
+  const segs = fn.split(/[_\-.]+/);
+  const words = colorName.toLowerCase().split(/[^a-z0-9]+/)
+    .filter(w => w.length >= 3 && !COLOR_NOISE_WORDS.has(w));
+  return words.some(w => segs.some(seg =>
+    seg === w || seg.startsWith(w) || (w.length >= 4 && seg.includes(w))));
+}
+
 // Bosphorus website category labels → PIM category slugs.
 // Most Bosphorus products are porcelain; "marble", "limestone", etc. are looks, not materials.
 // Ceramic products are detected separately via specs.material.
@@ -59,6 +153,10 @@ export async function run(pool, job, source) {
     skusCreated: 0, imagesSet: 0, attributesSet: 0,
     packagingSet: 0, pricingSet: 0, skipped: 0, errors: 0,
   };
+
+  // Per-run cache for the pixel color gate (URL → stats). Run-scoped so a
+  // vendor image replaced between nightly runs is re-measured.
+  const imgStatsCache = new Map();
 
   // ── Attempt authenticated session for pricing ──
   let cookies = null;
@@ -477,11 +575,14 @@ export async function run(pool, job, source) {
             const colorSliderImages = getColorSliderImages(
               productData.imagesByVariantId, allColorVariants, productData.images, rawColorForImages, siblingColorNames
             );
-            // Variant-ID matches carry the vendor's own per-variant color guarantee;
-            // full-slug/all-words filename matches passed the sibling guards. Either
-            // is strong enough to let a full-res product shot lead over the swatch.
-            // Weak tiers (number-prefix, any-single-word) keep the swatch primary.
+            // Full-slug/all-words filename matches passed the sibling guards and are
+            // strong enough to let a full-res product shot lead over the swatch.
+            // Variant-ID matches are usually reliable too, BUT some pages' carousel
+            // path IDs are a sequential upload dump, not a color mapping (Calypso) —
+            // those get pixel-verified against the swatch below. Weak tiers
+            // (number-prefix, any-single-word) keep the swatch primary.
             const strongColorMatch = colorSliderImages.strongColorMatch === true;
+            const isVariantTier = colorSliderImages.matchTier === 'variant';
             // Filter out cross-collection contamination, then pick best images for this size/finish
             const cleanColorImages = filterOwnCollectionImages(colorSliderImages, productData.name);
             const filteredColorImages = pickSkuImages(cleanColorImages, sizeNorm, finish, colorName);
@@ -511,6 +612,24 @@ export async function run(pool, job, source) {
             // color-matched strongly (variant ID or guarded filename match), lead
             // with the shot and keep the swatch in the gallery. Weak matches keep
             // the swatch primary (shots could be the wrong color).
+            //
+            // Variant-tier trust is conditional: when the filenames carry no color
+            // token and the collection has sibling colors, the vendor's variant→image
+            // association may be a sequential upload dump (Calypso Dark wore a beige
+            // scene). Pixel-verify each shot against the swatch and DROP mismatches —
+            // they're not this color's images at all. Fail-closed on fetch errors.
+            if (isVariantTier && swatchUrl && colorGroups.size > 1 && colorShots.length > 0
+                && !colorShots.some(u => fnHasColorToken(u, rawColorForImages))) {
+              const kept = [];
+              for (const u of colorShots) {
+                if (await shotMatchesSwatch(u, swatchUrl, imgStatsCache)) kept.push(u);
+              }
+              if (kept.length < colorShots.length) {
+                await appendLog(pool, job.id,
+                  `Color gate: ${productData.name} / ${colorName} — dropped ${colorShots.length - kept.length}/${colorShots.length} variant-mapped shot(s) inconsistent with swatch`);
+              }
+              colorShots = kept;
+            }
             const shotLeads = strongColorMatch && colorShots.length > 0;
 
             // Primary: swatch image for this color (unless a variant-matched shot leads)
@@ -1534,11 +1653,13 @@ function getColorSliderImages(imagesByVariantId, colorVariants, allImages, color
           });
           if (filtered.length > 0) {
             filtered.strongColorMatch = true;
+            filtered.matchTier = 'variant';
             return filtered;
           }
         }
       }
       colorImgs.strongColorMatch = true;
+      colorImgs.matchTier = 'variant';
       return colorImgs;
     }
   }
@@ -1552,15 +1673,9 @@ function getColorSliderImages(imagesByVariantId, colorVariants, allImages, color
     const colorNum = numMatch ? numMatch[1] : null;
     const isColorMix = colorLower.includes('mix');
 
-    // Words that describe product type/finish, NOT color. These must never be used
-    // alone for image matching because they appear in filenames of many different colors
-    // (e.g., "deco" in "castello_miele_deco_room", "castello_paglierino_deco_room").
-    const NOISE_WORDS = new Set([
-      'deco', 'ceramic', 'mix', 'mosaic', 'matte', 'glossy', 'polished',
-      'satin', 'grip', 'room', 'style', 'insert',
-    ]);
-    // Color-meaningful words: exclude noise and short words
-    const meaningfulWords = colorWords.filter(w => !NOISE_WORDS.has(w));
+    // Color-meaningful words: exclude noise and short words (see COLOR_NOISE_WORDS —
+    // type/finish terms like "deco" appear in many different colors' filenames)
+    const meaningfulWords = colorWords.filter(w => !COLOR_NOISE_WORDS.has(w));
 
     const fnHasWord = (fn, word) => {
       const segments = fn.split(/[_\-]+/);
