@@ -32,7 +32,10 @@ function genSku(series, code, size) {
   const s = series.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 5);
   const c = String(code).toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 6);
   const z = size.replace(/[" \/]/g, '').toUpperCase();
-  let base = `GOTON-${s}-${c}-${z}`;
+  // No vendor-name prefix: Goton is a public-hidden brand, and its SKU code is
+  // shown on the storefront PDP — a "GOTON-" prefix would leak the name. Codes are
+  // series-based (e.g. "BEAUT-081-12X24"). See [[hide-public-brand]].
+  let base = `${s}-${c}-${z}`;
   if (usedSkus.has(base)) {
     let i = 2;
     while (usedSkus.has(`${base}-${i}`)) i++;
