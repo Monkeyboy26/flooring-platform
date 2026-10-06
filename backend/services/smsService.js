@@ -8,10 +8,13 @@
 //
 // Configure with TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM
 // (an E.164 number you own on Twilio, e.g. +17149990009, or a Messaging
-// Service SID beginning with "MG").
+// Service SID beginning with "MG"). To authenticate with a revocable API
+// key instead of the master auth token, also set TWILIO_API_KEY to the
+// key's SK... SID and put the key's secret in TWILIO_AUTH_TOKEN.
 
 const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN;
+const TWILIO_API_KEY = process.env.TWILIO_API_KEY;
 const TWILIO_FROM = process.env.TWILIO_FROM;
 const SMS_ENABLED = !!(TWILIO_SID && TWILIO_TOKEN && TWILIO_FROM);
 
@@ -64,7 +67,7 @@ export async function sendSms(to, body) {
     const resp = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`, {
       method: 'POST',
       headers: {
-        'Authorization': 'Basic ' + Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64'),
+        'Authorization': 'Basic ' + Buffer.from(`${TWILIO_API_KEY || TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64'),
         'Content-Type': 'application/x-www-form-urlencoded'
       },
       body: form.toString()
