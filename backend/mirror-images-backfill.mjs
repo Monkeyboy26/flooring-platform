@@ -14,6 +14,11 @@ const LIMIT = parseInt(arg('--limit', '0'), 10);
 const CONC = parseInt(arg('--concurrency', '8'), 10);
 const FRAGILE_ONLY = process.argv.includes('--fragile-only');
 const FRAGILE_RE = 'caesarstone|cdnmedia\\.mapei|wixstatic|cloudinary';
+// --host <substr>: mirror only rows whose url matches this host/regex fragment.
+// Lets a specific vendor be swept on demand (e.g. --host salsify to clear
+// Google's "invalid image encoding" bucket). Sanitized to url-safe chars since
+// it's interpolated into the query, same as FRAGILE_RE.
+const HOST = (arg('--host', '') || '').replace(/[^a-z0-9.\\|_-]/gi, '');
 
 const { rows } = await pool.query(`
   SELECT ma.id, ma.url, ma.original_url
@@ -21,11 +26,12 @@ const { rows } = await pool.query(`
   WHERE ma.asset_type = 'primary' AND p.status = 'active'
     AND ma.mirrored_at IS NULL AND ma.url ~ '^https?://'
     ${FRAGILE_ONLY ? `AND ma.url ~ '${FRAGILE_RE}'` : ''}
+    ${HOST ? `AND ma.url ~ '${HOST}'` : ''}
   ORDER BY (ma.url ~ '${FRAGILE_RE}') DESC, md5(ma.id::text)
   ${LIMIT ? `LIMIT ${LIMIT}` : ''}
 `);
 
-console.log(`${rows.length} primaries to mirror (concurrency ${CONC}${FRAGILE_ONLY ? ', fragile-only' : ''})`);
+console.log(`${rows.length} primaries to mirror (concurrency ${CONC}${FRAGILE_ONLY ? ', fragile-only' : ''}${HOST ? `, host~${HOST}` : ''})`);
 let done = 0, ok = 0, skip = 0, bytes = 0;
 const t0 = Date.now();
 let cursor = 0;
