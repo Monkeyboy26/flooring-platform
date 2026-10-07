@@ -79,6 +79,9 @@ services:
       # NOTE: only turn on once A2P 10DLC is APPROVED, else US carriers filter the texts.
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      # Optional revocable API key (SK...): used as the Basic-auth username when
+      # set, with the key's secret in TWILIO_AUTH_TOKEN instead of the master token.
+      TWILIO_API_KEY: ${TWILIO_API_KEY:-}
       TWILIO_FROM: ${TWILIO_FROM:-}
       # Valor Connect (in-store VP800 terminal). App ID + App Key from Valor Portal
       # → Settings → API Keys; EPI is the device id. Base URLs default to Valor's
