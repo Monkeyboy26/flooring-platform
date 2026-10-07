@@ -264,6 +264,7 @@ async function fetchProductBySlug(pool, categorySlug, productSlug) {
       s.id as sku_id, s.variant_name, s.internal_sku, s.sell_by, s.variant_type,
       p.name as product_name, p.collection, p.format_label, p.slug as product_slug, p.description_long, p.description_short,
       p.meta_title as seo_meta_title, p.meta_description as seo_meta_description, p.seo_h1, p.content_html,
+      prange.price_min, prange.price_max, prange.price_count,
       COALESCE(br.name, v.name) as brand_name,
       (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) as brand_hidden,
       v.code as vendor_code, v.name as vendor_name, v.public_code as vendor_public_code,
@@ -294,6 +295,17 @@ async function fetchProductBySlug(pool, categorySlug, productSlug) {
     LEFT JOIN brands br ON br.id = p.brand_id
     JOIN categories c ON c.id = p.category_id
     LEFT JOIN pricing pr ON pr.sku_id = s.id
+    -- Price range across the product's variants (same SKU gate as the merchant feed):
+    -- lets the PDP advertise an AggregateOffer so every per-variant feed price falls
+    -- within range. Masked for hidden-price vendors via stripHiddenVendorPrices.
+    LEFT JOIN LATERAL (
+      SELECT MIN(pr2.retail_price) AS price_min, MAX(pr2.retail_price) AS price_max,
+             COUNT(*)::int AS price_count
+      FROM skus s2 JOIN pricing pr2 ON pr2.sku_id = s2.id
+      WHERE s2.product_id = p.id AND s2.status = 'active' AND s2.is_sample = false
+        AND COALESCE(s2.variant_type, '') NOT IN ('accessory','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')
+        AND pr2.retail_price > 0
+    ) prange ON true
     LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
     WHERE c.slug = $1 AND p.slug = $2 AND p.status = 'active'
     ORDER BY s.created_at
@@ -680,7 +692,16 @@ function renderProductPage(sku) {
     ? (sku.vendor_public_code != null ? String(sku.vendor_public_code) : null)
     : sku.brand_name;
   const priceNum = sku.retail_price ? Number(parseFloat(sku.retail_price).toFixed(2)) : null;
-  const priceDisplay = priceNum !== null ? priceNum.toFixed(2) : null;
+  // Variant price range across the product's SKUs (same gate the merchant feed uses).
+  // price_min/price_max are nulled for hidden-price vendors by stripHiddenVendorPrices.
+  // When variants span a range we advertise an AggregateOffer below instead of one
+  // variant's price — otherwise every other variant in the feed mismatches the page.
+  const priceMin = sku.price_min != null ? Number(parseFloat(sku.price_min).toFixed(2)) : null;
+  const priceMax = sku.price_max != null ? Number(parseFloat(sku.price_max).toFixed(2)) : null;
+  const hasPriceRange = priceMin != null && priceMax != null && priceMax > priceMin;
+  const priceDisplay = hasPriceRange
+    ? `${priceMin.toFixed(2)} – $${priceMax.toFixed(2)}`
+    : (priceNum !== null ? priceNum.toFixed(2) : null);
   const unit = sku.sell_by === 'unit' ? '/ea' : '/sqft';
   // Cleaned name identical to the storefront PDP <h1> — already includes the category
   // keyword (appended by fullProductName) and de-echoed collection/size, so no keyword
@@ -710,25 +731,40 @@ function renderProductPage(sku) {
   const PLACEHOLDER_IMAGE = SITE_URL + '/assets/product-placeholder.svg';
   const productImage = sku.primary_image || PLACEHOLDER_IMAGE;
 
+  // A single Offer when the product is one price; an AggregateOffer spanning the
+  // variants' range otherwise, so each per-variant price in the merchant feed falls
+  // inside the landing page's advertised range (fixes "Mismatched product price").
+  const offers = hasPriceRange
+    ? {
+        '@type': 'AggregateOffer',
+        priceCurrency: 'USD',
+        lowPrice: priceMin,
+        highPrice: priceMax,
+        ...(sku.price_count ? { offerCount: Number(sku.price_count) } : {}),
+        availability,
+        seller: { '@type': 'Organization', name: 'Roma Flooring Designs' },
+        url: canonicalUrl
+      }
+    : {
+        '@type': 'Offer',
+        priceCurrency: 'USD',
+        availability,
+        seller: { '@type': 'Organization', name: 'Roma Flooring Designs' },
+        url: canonicalUrl
+      };
   const productJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: cleanName,
     image: productImage,
     sku: sku.internal_sku,
-    offers: {
-      '@type': 'Offer',
-      priceCurrency: 'USD',
-      availability,
-      seller: { '@type': 'Organization', name: 'Roma Flooring Designs' },
-      url: canonicalUrl
-    }
+    offers
   };
   // seoBrandName (computed above) respects hidden vendors — omit brand entirely if no public code.
   if (seoBrandName) productJsonLd.brand = { '@type': 'Brand', name: seoBrandName };
   if (desc) productJsonLd.description = desc;
   if (sku.category_name) productJsonLd.category = sku.category_name;
-  if (priceNum) productJsonLd.offers.price = priceNum;
+  if (!hasPriceRange && priceNum) productJsonLd.offers.price = priceNum;
 
   const jsonLd = [
     productJsonLd,

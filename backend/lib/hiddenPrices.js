@@ -10,6 +10,7 @@ const PRICE_FIELDS = [
   'retail_price', 'sale_price', 'sale_ends_at', 'cost',
   'cut_price', 'roll_price', 'cut_cost', 'roll_cost',
   'trade_price', 'discount_pct',
+  'price_min', 'price_max',
 ];
 
 // WHERE fragment for queries where matching by price would reveal the hidden
