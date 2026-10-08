@@ -34847,10 +34847,13 @@ cron.schedule('0 4 * * 0', async () => {
 });
 
 // ==================== Image Mirror Cron ====================
-// Self-host new/un-mirrored active-product PRIMARY images to uploads/mirror so a
-// vendor CDN can't break them (uploads/ is synced to S3 nightly). Bounded per
-// run so it can't run for hours; the one-time bulk was mirror-images-backfill.mjs.
-// Fragile CDNs (already-failing Caesarstone/Mapei/Wix/Cloudinary) go first.
+// Self-host new/un-mirrored active-product images to uploads/mirror so a vendor
+// CDN can't break them (uploads/ is synced to S3 nightly). Covers the hero
+// (primary) AND the gallery (alternate/lifestyle/swatch) — galleries rot the
+// same way, they just aren't the card image so it goes unnoticed. spec_pdf is
+// excluded (not an image). Bounded per run so it can't run for hours; the
+// one-time bulk was mirror-images-backfill.mjs. Primaries mirror first, then
+// fragile CDNs (already-failing Caesarstone/Mapei/Wix/Cloudinary).
 const IMAGE_MIRROR_BATCH = parseInt(process.env.IMAGE_MIRROR_BATCH || '3000', 10);
 cron.schedule('30 4 * * *', async () => {
   if (process.env.IMAGE_MIRROR_DISABLE === '1') return;
@@ -34860,9 +34863,9 @@ cron.schedule('30 4 * * *', async () => {
     const { rows } = await pool.query(`
       SELECT ma.id, ma.url, ma.original_url
       FROM media_assets ma JOIN products p ON p.id = ma.product_id
-      WHERE ma.asset_type = 'primary' AND p.status = 'active'
+      WHERE ma.asset_type IN ('primary','alternate','lifestyle','swatch') AND p.status = 'active'
         AND ma.mirrored_at IS NULL AND ma.url ~ '^https?://'
-      ORDER BY (ma.url ~ '${fragile}') DESC, md5(ma.id::text)
+      ORDER BY (ma.asset_type = 'primary') DESC, (ma.url ~ '${fragile}') DESC, md5(ma.id::text)
       LIMIT $1
     `, [IMAGE_MIRROR_BATCH]);
     if (!rows.length) return;

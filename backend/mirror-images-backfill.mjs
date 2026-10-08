@@ -1,8 +1,12 @@
-// One-time backfill: mirror active-product PRIMARY images to uploads/mirror.
+// One-time backfill: mirror active-product images to uploads/mirror.
+// Covers primary AND gallery assets (alternate/lifestyle/swatch) so a vendor CDN
+// can't break the product gallery — not just the hero. spec_pdf is excluded
+// (not an image; mirrorMediaRow's sharp decode would skip it anyway).
 // Resumable (only touches mirrored_at IS NULL), fragile-CDNs-first so the
 // already-failing hosts (Caesarstone/Mapei/Wix/Cloudinary) get owned first.
 //
 //   node mirror-images-backfill.mjs [--limit N] [--fragile-only] [--concurrency N]
+//                                   [--host <substr>] [--types a,b,c]
 //
 // Safe to re-run and safe to kill — each image is atomic and idempotent.
 
@@ -19,19 +23,26 @@ const FRAGILE_RE = 'caesarstone|cdnmedia\\.mapei|wixstatic|cloudinary';
 // Google's "invalid image encoding" bucket). Sanitized to url-safe chars since
 // it's interpolated into the query, same as FRAGILE_RE.
 const HOST = (arg('--host', '') || '').replace(/[^a-z0-9.\\|_-]/gi, '');
+// Image asset types to mirror. spec_pdf is intentionally excluded. Override with
+// --types (e.g. --types primary to restore the old primary-only behaviour).
+const DEFAULT_TYPES = ['primary', 'alternate', 'lifestyle', 'swatch'];
+const TYPES = (arg('--types', '') || '')
+  .split(',').map(s => s.trim().toLowerCase()).filter(t => DEFAULT_TYPES.includes(t));
+const ASSET_TYPES = TYPES.length ? TYPES : DEFAULT_TYPES;
+const TYPE_LIST = ASSET_TYPES.map(t => `'${t}'`).join(',');
 
 const { rows } = await pool.query(`
   SELECT ma.id, ma.url, ma.original_url
   FROM media_assets ma JOIN products p ON p.id = ma.product_id
-  WHERE ma.asset_type = 'primary' AND p.status = 'active'
+  WHERE ma.asset_type IN (${TYPE_LIST}) AND p.status = 'active'
     AND ma.mirrored_at IS NULL AND ma.url ~ '^https?://'
     ${FRAGILE_ONLY ? `AND ma.url ~ '${FRAGILE_RE}'` : ''}
     ${HOST ? `AND ma.url ~ '${HOST}'` : ''}
-  ORDER BY (ma.url ~ '${FRAGILE_RE}') DESC, md5(ma.id::text)
+  ORDER BY (ma.url ~ '${FRAGILE_RE}') DESC, (ma.asset_type = 'primary') DESC, md5(ma.id::text)
   ${LIMIT ? `LIMIT ${LIMIT}` : ''}
 `);
 
-console.log(`${rows.length} primaries to mirror (concurrency ${CONC}${FRAGILE_ONLY ? ', fragile-only' : ''}${HOST ? `, host~${HOST}` : ''})`);
+console.log(`${rows.length} images to mirror [${ASSET_TYPES.join(',')}] (concurrency ${CONC}${FRAGILE_ONLY ? ', fragile-only' : ''}${HOST ? `, host~${HOST}` : ''})`);
 let done = 0, ok = 0, skip = 0, bytes = 0;
 const t0 = Date.now();
 let cursor = 0;
