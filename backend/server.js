@@ -2422,9 +2422,28 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
     // only (Custom Building Products, Noble Company), so the exclusion left those pages
     // showing "0 products". Keep the exclusion only for unscoped/category browse.
     const brandCollectionScoped = !!(collection || req.query.collection_vendor || req.query.brand || req.query.vendor);
+    // ...and a category whose entire subtree is accessory-tagged (e.g. "Vanity Tops" —
+    // every SKU is variant_type='accessory') is a legitimate standalone grid, not a
+    // flooring grid cluttered with add-ons. Excluding accessories there left the page
+    // empty, so drop the exclusion when the drilled-into category has NO non-accessory
+    // active SKU. Mixed flooring/countertop categories still hide their trims.
+    let accessoryOnlyCategory = false;
+    if (category && !brandCollectionScoped) {
+      const catCheck = await pool.query(
+        `SELECT 1 FROM skus s
+           JOIN products p ON p.id = s.product_id
+           JOIN categories c ON c.id = p.category_id
+          WHERE p.status = 'active' AND s.status = 'active'
+            AND (c.slug = $1 OR c.parent_id IN (SELECT id FROM categories WHERE slug = $1))
+            AND COALESCE(s.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')
+          LIMIT 1`,
+        [category]
+      );
+      accessoryOnlyCategory = catCheck.rows.length === 0;
+    }
     let whereClauses = ["p.status = 'active'", "s.is_sample = false", "s.status = 'active'",
       "(pr.retail_price IS NULL OR pr.retail_price > 0)"];
-    if (!brandCollectionScoped) {
+    if (!brandCollectionScoped && !accessoryOnlyCategory) {
       whereClauses.push("COALESCE(s.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')");
     }
 
