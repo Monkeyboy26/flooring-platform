@@ -761,7 +761,7 @@
   }
   function normalizeSize(val) {
     if (!val || typeof val !== "string") return "";
-    return val.replace(/\s*[xX×]\s*/g, "x").replace(/\s+/g, " ").replace(/\.00/g, "").trim();
+    return val.replace(/["″]/g, "").replace(/\s*[xX×]\s*/g, "x").replace(/\s+/g, " ").replace(/\.00/g, "").trim();
   }
   function getVariantImage(sibling, options = {}) {
     if (!sibling) return null;
@@ -775,7 +775,7 @@
     const isFeet = /FT$/i.test(val);
     const isEZ = /EZ$/i.test(val);
     const cleaned = val.replace(/\s*(EZ|FT)\s*$/gi, "").trim();
-    const m = cleaned.match(/^(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)(.*)$/);
+    const m = cleaned.match(/^(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*["″]?\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*["″]?(.*)$/);
     if (!m) return formatCarpetValue(val);
     let d1 = m[1].replace(/\.00$/, ""), d2 = m[2].replace(/\.00$/, "");
     const suffix = (m[3] || "").trim();
@@ -6941,7 +6941,7 @@
           return sa ? sa.value : null;
         };
         const curSizeVal = _getSizeAttr(sku.attributes);
-        const dimRe = /(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)/;
+        const dimRe = /(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*["″]?\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*["″]?/;
         if (curSizeVal && dimRe.test(curSizeVal)) {
           const sizeMap = /* @__PURE__ */ new Map();
           sizeMap.set(normalizeSize(curSizeVal), { label: formatSizeDim(curSizeVal), sku_id: sku.sku_id, is_current: true, sort: parseFractionalInches(curSizeVal.match(dimRe)[1]) });

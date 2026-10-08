@@ -689,6 +689,7 @@
     function normalizeSize(val) {
       if (!val || typeof val !== 'string') return '';
       return val
+        .replace(/["″]/g, '')                // Strip inch marks so `4" x 4"` keys == `4x4`
         .replace(/\s*[xX×]\s*/g, 'x')       // Normalize separator to lowercase x, no spaces
         .replace(/\s+/g, ' ')                // Compact whitespace
         .replace(/\.00/g, '')                // Strip trailing .00
@@ -708,7 +709,9 @@
       const isFeet = /FT$/i.test(val);
       const isEZ = /EZ$/i.test(val);
       const cleaned = val.replace(/\s*(EZ|FT)\s*$/gi, '').trim();
-      const m = cleaned.match(/^(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)(.*)$/);
+      // ["″]? after each dimension so inch-mark sizes ("4\" x 4\"", Patricio Tile) render
+      // as "4″ × 4″" instead of falling through to the raw carpet-value fallback.
+      const m = cleaned.match(/^(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*["″]?\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*["″]?(.*)$/);
       if (!m) return formatCarpetValue(val);
       let d1 = m[1].replace(/\.00$/, ''), d2 = m[2].replace(/\.00$/, '');
       const suffix = (m[3] || '').trim();
@@ -9303,7 +9306,12 @@
                 if (!showSizePills && sibSizeItems.length === 0 && !slabSizeIsPrefab && mainSiblings.length > 0) {
                   const _getSizeAttr = (attrs) => { const sa = (attrs || []).find(a => a.slug === 'size'); return sa ? sa.value : null; };
                   const curSizeVal = _getSizeAttr(sku.attributes);
-                  const dimRe = /(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)/;
+                  // Tolerate an inch mark between the dimension and the separator — some
+                  // vendors (Patricio Tile) store sizes as `4" x 4"` / `6" x 6"`, where the
+                  // quote sits between the digit and the `x`. Without the optional ["″]? the
+                  // dimension never parses, so the size attribute pills never build and a
+                  // product's only navigation (4x4 ↔ 6x6) disappears.
+                  const dimRe = /(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*["″]?\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*["″]?/;
                   if (curSizeVal && dimRe.test(curSizeVal)) {
                     const sizeMap = new Map();
                     sizeMap.set(normalizeSize(curSizeVal), { label: formatSizeDim(curSizeVal), sku_id: sku.sku_id, is_current: true, sort: parseFractionalInches(curSizeVal.match(dimRe)[1]) });
