@@ -35,7 +35,40 @@ import {
   upsertMediaAsset, saveSkuImages,
   preferProductShot, isLifestyleUrl, filterImageUrls, filterImagesByVariant,
   appendLog, addJobError, applySheetSelling, isTrimPiece, PER_SHEET_CATEGORY_SLUGS,
+  normalizeAttributeValue,
 } from './base.js';
+
+// Generic EDI color families (characteristic 73). The feed labels most SKUs with
+// one of these, but the real marketing color ("Praia Crema") is what the catalog
+// curates. Never let a re-import DOWNGRADE a curated marketing color back to a
+// generic family — see upsertMsiColor. (Lowercased for comparison.)
+const MSI_GENERIC_COLORS = ['beige','brown','gray-light','gray-dark','white-cool',
+  'white-warm','black','blue','green','red','gold','cream','multicolor','orange',
+  'gray','grey','white','tan','charcoal'];
+let _msiColorAttrId;
+
+/**
+ * Upsert a SKU's color WITHOUT downgrading a marketing name to a generic family.
+ * Updates only when the existing value is empty/generic, or the incoming value is
+ * itself non-generic. Prevents the EDI re-import from reverting the phantom-color
+ * fix (base SKUs recolored "Beige" -> "Praia Crema").
+ */
+async function upsertMsiColor(pool, skuId, rawValue) {
+  const value = normalizeAttributeValue('color', rawValue);
+  if (!value) return;
+  if (_msiColorAttrId === undefined) {
+    const a = await pool.query("SELECT id FROM attributes WHERE slug = 'color'");
+    _msiColorAttrId = a.rows[0] ? a.rows[0].id : null;
+  }
+  if (!_msiColorAttrId) return;
+  await pool.query(`
+    INSERT INTO sku_attributes (sku_id, attribute_id, value) VALUES ($1, $2, $3)
+    ON CONFLICT (sku_id, attribute_id) DO UPDATE SET value = EXCLUDED.value
+    WHERE sku_attributes.value IS NULL OR sku_attributes.value = ''
+       OR LOWER(sku_attributes.value) = ANY($4::text[])
+       OR NOT (LOWER(EXCLUDED.value) = ANY($4::text[]))
+  `, [skuId, _msiColorAttrId, value, MSI_GENERIC_COLORS]);
+}
 import { classifyName } from '../lib/categoryClassifier.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1160,7 +1193,7 @@ async function phase2_edi832(pool, vendorId, source, log) {
       }
 
       // Attributes
-      if (item.color) { await upsertSkuAttribute(pool, skuId, 'color', item.color); attrsUpserted++; }
+      if (item.color) { await upsertMsiColor(pool, skuId, item.color); attrsUpserted++; }
       if (item.upc) { await upsertSkuAttribute(pool, skuId, 'upc', item.upc); attrsUpserted++; }
 
       const finishPid = item.descriptions.find(d => d.characteristic_label === 'finish');
@@ -2142,7 +2175,10 @@ async function phase3_tier2_puppeteer(pool, skuIndex, log) {
           // Upsert spec attributes
           for (const match of matchedSkus) {
             for (const [attrSlug, value] of Object.entries(data.attributes || {})) {
-              await upsertSkuAttribute(pool, match.sku_id, attrSlug, value);
+              // Route color through the guarded upsert so a generic "Primary Color"
+              // spec can't downgrade a curated marketing color (see upsertMsiColor).
+              if (attrSlug === 'color') await upsertMsiColor(pool, match.sku_id, value);
+              else await upsertSkuAttribute(pool, match.sku_id, attrSlug, value);
             }
             if (match.scraped.size) await upsertSkuAttribute(pool, match.sku_id, 'size', match.scraped.size);
             if (match.scraped.finish) await upsertSkuAttribute(pool, match.sku_id, 'finish', match.scraped.finish);
