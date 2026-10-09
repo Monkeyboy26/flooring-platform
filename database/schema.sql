@@ -174,6 +174,10 @@ CREATE TABLE skus (
     variant_type VARCHAR(50),
     is_sample BOOLEAN DEFAULT false,
     status VARCHAR(20) DEFAULT 'active',
+    -- Set when a distributor feed marks this SKU discontinued/closeout (e.g. Tri-West "ZZ" prefix).
+    -- The SKU stays status='active' and sellable while stock remains (sell-through); the nightly
+    -- EDI sweep flips it to status='inactive' once it falls out of the feed (stock exhausted).
+    discontinued_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

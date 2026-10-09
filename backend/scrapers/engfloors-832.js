@@ -953,19 +953,28 @@ export async function run(pool, job, source) {
       [vendorId]
     );
 
-    let deactivated = 0;
-    for (const row of activeResult.rows) {
-      if (!importedSkus.has(row.internal_sku)) {
+    // Safety cap (matches Emser/MSI/Shaw): a single 832 may be a partial/delta
+    // catalog, so refuse to deactivate if an outsized share of the active catalog
+    // would go inactive — that signals a truncated feed, not real discontinuation.
+    const totalActive = activeResult.rows.length;
+    const orphanSkus = activeResult.rows.filter(row => !importedSkus.has(row.internal_sku));
+    const cap = Math.max(25, Math.floor(totalActive * 0.20));
+    if (orphanSkus.length > cap) {
+      await appendLog(pool, job.id,
+        `WARNING: ${orphanSkus.length}/${totalActive} active SKUs would be deactivated (exceeds 20% cap ${cap}) — ` +
+        `skipping discontinuation; the 832 looks partial. Investigate the feed.`);
+    } else {
+      let deactivated = 0;
+      for (const row of orphanSkus) {
         await pool.query(
           `UPDATE skus SET status = 'inactive', updated_at = NOW() WHERE id = $1`,
           [row.id]
         );
         deactivated++;
       }
-    }
-
-    if (deactivated > 0) {
-      await appendLog(pool, job.id, `Deactivated ${deactivated} SKUs not found in latest 832`);
+      if (deactivated > 0) {
+        await appendLog(pool, job.id, `Deactivated ${deactivated} SKUs not found in latest 832`);
+      }
     }
   }
 

@@ -138,6 +138,10 @@ export async function run(pool, job, source) {
     const dumpRows = []; // raw portal rows for offline match analysis
     const jobBudgetMs = parseInt(config.job_budget_ms, 10) || DEFAULT_JOB_BUDGET_MS;
     const loopStart = Date.now();
+    // True if the manufacturer loop exits early (budget/abort/relogin-fail): the feed
+    // dump is then truncated, so we must NOT run the discontinued-drop sweep on it —
+    // un-scraped SKUs would look "sold through" and get wrongly deactivated.
+    let partialRun = false;
 
     for (let m = 0; m < mfgrCodes.length; m++) {
       // Stop gracefully before the reaper's hard time limit so incrementally
@@ -145,6 +149,7 @@ export async function run(pool, job, source) {
       if (Date.now() - loopStart > jobBudgetMs) {
         await appendLog(pool, job.id,
           `Wall-clock budget (${(jobBudgetMs / 3600000).toFixed(1)}h) reached — stopping with partial inventory at ${m}/${mfgrCodes.length} manufacturers`);
+        partialRun = true;
         break;
       }
 
@@ -193,13 +198,14 @@ export async function run(pool, job, source) {
           break;
         }
       }
-      if (reloginFailed) break;
+      if (reloginFailed) { partialRun = true; break; }
 
       if (rows.length === 0) {
         consecutiveEmpty++;
         if (consecutiveEmpty >= MAX_CONSECUTIVE_EMPTY) {
           await appendLog(pool, job.id,
             `${MAX_CONSECUTIVE_EMPTY} consecutive manufacturers returned 0 results — portal may be down, aborting`);
+          partialRun = true;
           break;
         }
       } else {
@@ -304,6 +310,7 @@ export async function run(pool, job, source) {
             page = session.page;
           } catch (err) {
             await appendLog(pool, job.id, `Re-login failed: ${err.message}`);
+            partialRun = true;
             break;
           }
         }
@@ -326,6 +333,30 @@ export async function run(pool, job, source) {
 
     if (totalUnmatched > 20) {
       await appendLog(pool, job.id, `(${totalUnmatched - 20} more unmatched SKUs not shown)`);
+    }
+
+    // Auto-handle discontinued ("ZZ"-marked) feed items: tag them so they keep
+    // selling through remaining stock, and deactivate any that have fallen out of
+    // the feed (sold through). Skipped on a partial run — a truncated feed would
+    // make un-scraped SKUs look sold-through. The sweep has its own freshness + cap
+    // guards; a failure here must never fail the inventory job.
+    if (partialRun) {
+      await appendLog(pool, job.id, 'Discontinued sweep skipped — partial scrape (truncated feed is unsafe to drop against)');
+    } else {
+      try {
+        const { runDiscontinuedSweep } = await import('../data/triwest-drop-discontinued.mjs');
+        const res = await runDiscontinuedSweep(pool, {
+          apply: true,
+          instockPath: '/app/data/triwest-instock.json',
+          log: (m) => appendLog(pool, job.id, m),
+        });
+        await appendLog(pool, job.id,
+          `Discontinued sweep: tagged +${res.tagged}, cleared ${res.untagged}, ` +
+          `dropped ${res.dropped} sold-through SKUs / ${res.productsDropped} products` +
+          (res.capped ? ` [CAP ${res.cap} HIT — drop skipped, review feed]` : ''));
+      } catch (err) {
+        await appendLog(pool, job.id, `Discontinued sweep failed (non-fatal): ${err.message}`);
+      }
     }
 
   } finally {
