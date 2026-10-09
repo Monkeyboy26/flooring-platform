@@ -34855,6 +34855,11 @@ cron.schedule('0 4 * * 0', async () => {
 // one-time bulk was mirror-images-backfill.mjs. Primaries mirror first, then
 // fragile CDNs (already-failing Caesarstone/Mapei/Wix/Cloudinary).
 const IMAGE_MIRROR_BATCH = parseInt(process.env.IMAGE_MIRROR_BATCH || '3000', 10);
+// Low default concurrency: now that galleries (large ~16MP lifestyle shots) are
+// in scope, each concurrent sharp decode can hold hundreds of MB. At conc 8 the
+// batch OOM-killed itself inside the 2GB api cgroup. 3 keeps peak RSS well under
+// the limit alongside the server; override via env on a bigger container.
+const IMAGE_MIRROR_CONCURRENCY = parseInt(process.env.IMAGE_MIRROR_CONCURRENCY || '3', 10);
 cron.schedule('30 4 * * *', async () => {
   if (process.env.IMAGE_MIRROR_DISABLE === '1') return;
   try {
@@ -34876,7 +34881,7 @@ cron.schedule('30 4 * * *', async () => {
         try { if (await mirrorMediaRow(pool, row)) ok++; } catch { /* keep vendor url */ }
       }
     };
-    await Promise.all(Array.from({ length: 8 }, worker));
+    await Promise.all(Array.from({ length: IMAGE_MIRROR_CONCURRENCY }, worker));
     console.log(`[Cron] Image mirror: ${ok}/${rows.length} newly self-hosted`);
   } catch (err) {
     console.error('[Cron] Image mirror failed:', err.message);
