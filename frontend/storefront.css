@@ -1557,6 +1557,27 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 .pdp-stock-badge.out-of-stock { color: var(--stone-800); }
 .pdp-stock-badge.discontinued .pdp-stock-dot { background: var(--stone-400); }
 .pdp-stock-badge.discontinued { color: var(--stone-800); }
+/* Availability prompt — replaces the "Call for availability" badge when there's
+   no live inventory feed. A solid status pill in the rep order-status aesthetic
+   (.rov-chip.live) that opens a small contact sheet (call / email / quote). */
+.avail-prompt { position: relative; display: inline-block; }
+.avail-pill { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; color: #ece5d8; border: none; font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap; }
+/* Tones track availability (mirrors rep order-status chips) */
+.avail-pill.in { background: #3a7a4e; }
+.avail-pill.low { background: #a87935; }
+.avail-pill.out { background: #c54731; }
+.avail-pill.disc { background: #57534e; }
+.avail-pill.check { background: #5c6e94; }
+button.avail-pill { cursor: pointer; transition: filter 0.15s; }
+button.avail-pill:hover, button.avail-pill.open { filter: brightness(0.92); }
+.avail-pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.avail-pill-caret { width: 12px; height: 12px; margin-left: 1px; flex-shrink: 0; transition: transform 0.15s; }
+.avail-pill.open .avail-pill-caret { transform: rotate(180deg); }
+.avail-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; min-width: 240px; background: #fff; border: 0.5px solid rgba(21,18,15,0.15); box-shadow: 0 10px 30px rgba(21,18,15,0.16); padding: 4px; }
+.avail-menu-item { display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.625rem 0.75rem; background: transparent; border: none; text-align: left; font-family: var(--font-body); font-size: 0.8125rem; color: var(--stone-900); text-decoration: none; cursor: pointer; box-sizing: border-box; }
+.avail-menu-item:hover { background: var(--stone-50); }
+.avail-menu-item svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--stone-500); }
+.avail-menu-item strong { font-weight: 600; }
 /* ── STOCK ALERTS ── */
 .stock-alert-box { background: var(--cream); border: 0.5px solid rgba(21,18,15,0.1); border-radius: var(--radius-md, 8px); padding: 1.125rem 1.25rem; margin: 0; }
 .stock-alert-head { display: flex; align-items: flex-start; gap: 0.75rem; margin: 0 0 0.875rem; }

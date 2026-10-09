@@ -2002,6 +2002,72 @@
       info.label
     );
   }
+  function availabilityState(sku) {
+    if (!sku || sku.vendor_has_inventory === false) {
+      return { tone: "check", label: "Check availability before you order", inquire: true };
+    }
+    const qty = sku.qty_on_hand;
+    const qtySqft = sku.qty_on_hand_sqft;
+    const sellBy = sku.sell_by;
+    const hasQty = qty != null && qty > 0;
+    switch (sku.stock_status) {
+      case "in_stock": {
+        let label = "In stock";
+        if (hasQty) {
+          if (sellBy === "unit") label = "In stock \u2014 " + Number(qty).toLocaleString() + " available";
+          else if (qtySqft && parseFloat(qtySqft) > 0) label = "In stock \u2014 " + Math.round(qtySqft).toLocaleString() + " sqft available";
+        }
+        return { tone: "in", label, inquire: false };
+      }
+      case "low_stock": {
+        let label = "Low stock \u2014 order soon";
+        if (hasQty) {
+          if (sellBy === "unit") label = "Only " + qty + " left \u2014 order soon";
+          else if (sellBy === "box" && qtySqft) label = "Only " + qty + " boxes left (" + Math.round(qtySqft) + " sqft) \u2014 order soon";
+          else if (sellBy === "roll") label = "Only " + (qtySqft ? Math.round(qtySqft) + " sqft" : qty + " rolls") + " left \u2014 order soon";
+          else label = "Only " + qty + " left \u2014 order soon";
+        }
+        return { tone: "low", label, inquire: false };
+      }
+      case "out_of_stock":
+        return { tone: "out", label: "Out of stock", inquire: true };
+      case "discontinued":
+        return { tone: "disc", label: "Discontinued", inquire: true };
+      default:
+        return { tone: "check", label: "Check availability before you order", inquire: true };
+    }
+  }
+  function AvailabilityBanner({ sku, onRequestInquiry }) {
+    const [open, setOpen] = useState(false);
+    const wrapRef = useRef(null);
+    const st = availabilityState(sku);
+    useEffect(() => {
+      if (!open) return;
+      const onDoc = (e) => {
+        if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+      };
+      const onKey = (e) => {
+        if (e.key === "Escape") setOpen(false);
+      };
+      document.addEventListener("mousedown", onDoc);
+      document.addEventListener("keydown", onKey);
+      return () => {
+        document.removeEventListener("mousedown", onDoc);
+        document.removeEventListener("keydown", onKey);
+      };
+    }, [open]);
+    if (!st.inquire) {
+      return /* @__PURE__ */ React.createElement("div", { className: "avail-prompt" }, /* @__PURE__ */ React.createElement("div", { className: "avail-pill " + st.tone }, /* @__PURE__ */ React.createElement("span", { className: "avail-pill-dot" }), st.label));
+    }
+    const subjectName = sku ? fullProductName(sku) || sku.product_name || "" : "";
+    const mailHref = "mailto:Sales@romaflooringdesigns.com?subject=" + encodeURIComponent(
+      subjectName ? "Availability \u2014 " + subjectName : "Availability inquiry"
+    );
+    return /* @__PURE__ */ React.createElement("div", { className: "avail-prompt", ref: wrapRef }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "avail-pill " + st.tone + (open ? " open" : ""), onClick: () => setOpen((o) => !o), "aria-expanded": open, "aria-haspopup": "true" }, /* @__PURE__ */ React.createElement("span", { className: "avail-pill-dot" }), st.label, /* @__PURE__ */ React.createElement("svg", { className: "avail-pill-caret", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("path", { d: "M6 9l6 6 6-6" }))), open && /* @__PURE__ */ React.createElement("div", { className: "avail-menu", role: "menu" }, /* @__PURE__ */ React.createElement("a", { href: "tel:7149990009", className: "avail-menu-item", role: "menuitem", onClick: () => setOpen(false) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" })), /* @__PURE__ */ React.createElement("span", null, "Call ", /* @__PURE__ */ React.createElement("strong", null, "(714) 999-0009"))), /* @__PURE__ */ React.createElement("a", { href: mailHref, className: "avail-menu-item", role: "menuitem", onClick: () => setOpen(false) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("rect", { x: "2", y: "4", width: "20", height: "16", rx: "2" }), /* @__PURE__ */ React.createElement("path", { d: "M22 7l-10 7L2 7" })), /* @__PURE__ */ React.createElement("span", null, "Email us")), onRequestInquiry && sku && /* @__PURE__ */ React.createElement("button", { type: "button", className: "avail-menu-item", role: "menuitem", onClick: () => {
+      setOpen(false);
+      onRequestInquiry(sku);
+    } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" }), /* @__PURE__ */ React.createElement("path", { d: "M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" })), /* @__PURE__ */ React.createElement("span", null, "Send an inquiry"))));
+  }
   function StarDisplay({ rating, size = 16, color = "#c8a97e" }) {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
@@ -2533,6 +2599,8 @@
     const [showInstallModal, setShowInstallModal] = useState(false);
     const [showFloorQuiz, setShowFloorQuiz] = useState(false);
     const [installModalProduct, setInstallModalProduct] = useState(null);
+    const [showProductInquiry, setShowProductInquiry] = useState(false);
+    const [productInquiryProduct, setProductInquiryProduct] = useState(null);
     const [completedOrder, setCompletedOrder] = useState(null);
     const [klarnaFinalizing, setKlarnaFinalizing] = useState(false);
     const [klarnaError, setKlarnaError] = useState("");
@@ -4099,6 +4167,10 @@
           setInstallModalProduct(p);
           setShowInstallModal(true);
         },
+        onRequestInquiry: (p) => {
+          setProductInquiryProduct(p);
+          setShowProductInquiry(true);
+        },
         tradeCustomer,
         wishlist,
         toggleWishlist: toggleWishlist2,
@@ -4286,7 +4358,7 @@
     ), showTradeModal && /* @__PURE__ */ React.createElement(TradeModal, { onClose: () => setShowTradeModal(false), onLogin: handleTradeLogin, initialMode: tradeModalMode, onCustomerSignIn: () => {
       setShowTradeModal(false);
       navigate("/signin");
-    } }), customer && !customer.phone && /* @__PURE__ */ React.createElement(CompleteProfileModal, { customer, customerToken, setCustomer }), showInstallModal && /* @__PURE__ */ React.createElement(InstallationModal, { onClose: () => setShowInstallModal(false), product: installModalProduct }), showFloorQuiz && /* @__PURE__ */ React.createElement(FloorQuizModal, { onClose: () => setShowFloorQuiz(false), onSkuClick: goSkuDetail, onViewAll: (qs) => {
+    } }), customer && !customer.phone && /* @__PURE__ */ React.createElement(CompleteProfileModal, { customer, customerToken, setCustomer }), showInstallModal && /* @__PURE__ */ React.createElement(InstallationModal, { onClose: () => setShowInstallModal(false), product: installModalProduct }), showProductInquiry && /* @__PURE__ */ React.createElement(ProductInquiryModal, { onClose: () => setShowProductInquiry(false), product: productInquiryProduct }), showFloorQuiz && /* @__PURE__ */ React.createElement(FloorQuizModal, { onClose: () => setShowFloorQuiz(false), onSkuClick: goSkuDetail, onViewAll: (qs) => {
       navigate("/shop?" + qs);
     } }), !isCheckoutFlow && /* @__PURE__ */ React.createElement(
       SiteFooter,
@@ -5740,7 +5812,7 @@
       document.body
     );
   }
-  function SkuDetailView({ skuId, goBack, addToCart, cart, onSkuClick, onRequestInstall, tradeCustomer, wishlist, toggleWishlist: toggleWishlist2, recentlyViewed, addRecentlyViewed, customer, customerToken, onShowAuth, showToast, categories, onCollectionClick, onBrandClick, onCategoryClick }) {
+  function SkuDetailView({ skuId, goBack, addToCart, cart, onSkuClick, onRequestInstall, onRequestInquiry, tradeCustomer, wishlist, toggleWishlist: toggleWishlist2, recentlyViewed, addRecentlyViewed, customer, customerToken, onShowAuth, showToast, categories, onCollectionClick, onBrandClick, onCategoryClick }) {
     const [sku, setSku] = useState(null);
     const [tierInfo, setTierInfo] = useState(null);
     const [media, setMedia] = useState([]);
@@ -7647,7 +7719,7 @@
           } }, displayVal(val));
         })));
       }));
-    })(), /* @__PURE__ */ React.createElement(StockBadge, { status: sku.stock_status, vendorHasInventory: sku.vendor_has_inventory, qtyOnHand: sku.qty_on_hand, qtyOnHandSqft: sku.qty_on_hand_sqft, sellBy: sku.sell_by }), sku.stock_status === "out_of_stock" && sku.vendor_has_inventory !== false && /* @__PURE__ */ React.createElement("div", { className: "stock-alert-box" }, alertSuccess || alertSubscribed ? /* @__PURE__ */ React.createElement("div", { className: "stock-alert-success" }, /* @__PURE__ */ React.createElement("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.75", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("path", { d: "M20 6L9 17l-5-5" })), /* @__PURE__ */ React.createElement("span", null, "You're on the list \u2014 we'll email you the moment this is back in stock.")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "stock-alert-head" }, /* @__PURE__ */ React.createElement("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("path", { d: "M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" }), /* @__PURE__ */ React.createElement("path", { d: "M13.73 21a2 2 0 0 1-3.46 0" })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "stock-alert-title" }, "Notify me when available"), /* @__PURE__ */ React.createElement("p", { className: "stock-alert-sub" }, "We'll send you a one-time email as soon as this item is back in stock."))), customer ? /* @__PURE__ */ React.createElement("button", { className: "stock-alert-btn", onClick: handleStockAlertSubmit, disabled: alertLoading }, alertLoading ? "Signing you up\u2026" : "Notify me") : /* @__PURE__ */ React.createElement("div", { className: "stock-alert-form" }, /* @__PURE__ */ React.createElement("input", { type: "email", placeholder: "you@email.com", value: alertEmail, onChange: (e) => setAlertEmail(e.target.value), onKeyDown: (e) => {
+    })(), /* @__PURE__ */ React.createElement(AvailabilityBanner, { sku, onRequestInquiry }), sku.stock_status === "out_of_stock" && sku.vendor_has_inventory !== false && /* @__PURE__ */ React.createElement("div", { className: "stock-alert-box" }, alertSuccess || alertSubscribed ? /* @__PURE__ */ React.createElement("div", { className: "stock-alert-success" }, /* @__PURE__ */ React.createElement("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.75", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("path", { d: "M20 6L9 17l-5-5" })), /* @__PURE__ */ React.createElement("span", null, "You're on the list \u2014 we'll email you the moment this is back in stock.")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "stock-alert-head" }, /* @__PURE__ */ React.createElement("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("path", { d: "M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" }), /* @__PURE__ */ React.createElement("path", { d: "M13.73 21a2 2 0 0 1-3.46 0" })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "stock-alert-title" }, "Notify me when available"), /* @__PURE__ */ React.createElement("p", { className: "stock-alert-sub" }, "We'll send you a one-time email as soon as this item is back in stock."))), customer ? /* @__PURE__ */ React.createElement("button", { className: "stock-alert-btn", onClick: handleStockAlertSubmit, disabled: alertLoading }, alertLoading ? "Signing you up\u2026" : "Notify me") : /* @__PURE__ */ React.createElement("div", { className: "stock-alert-form" }, /* @__PURE__ */ React.createElement("input", { type: "email", placeholder: "you@email.com", value: alertEmail, onChange: (e) => setAlertEmail(e.target.value), onKeyDown: (e) => {
       if (e.key === "Enter" && alertEmail) handleStockAlertSubmit();
     } }), /* @__PURE__ */ React.createElement("button", { className: "stock-alert-btn", onClick: handleStockAlertSubmit, disabled: alertLoading || !alertEmail }, alertLoading ? "Signing up\u2026" : "Notify me")))), !isCarpetSku && sqftPerBox > 0 && /* @__PURE__ */ React.createElement("div", { className: "packaging-info" }, /* @__PURE__ */ React.createElement("div", { className: "pdp-pkg-cell" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-label" }, isSlabUnit ? "Slab Size" : isSoldPerPiece(sku) ? "Piece Size" : "Coverage"), /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-value" }, sqftPerBox, " sqft", isSlabUnit || isSoldPerPiece(sku) ? "" : "/" + boxLabel)), !isSlabUnit && parseInt(sku.pieces_per_box) > 1 && /* @__PURE__ */ React.createElement("div", { className: "pdp-pkg-cell" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-label" }, "Pieces"), /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-value" }, sku.pieces_per_box, "/", boxLabel)), sku.weight_per_box_lbs && /* @__PURE__ */ React.createElement("div", { className: "pdp-pkg-cell" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-label" }, "Weight"), /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-value" }, parseFloat(sku.weight_per_box_lbs).toFixed(1), " lbs")), !isSlabUnit && sku.boxes_per_pallet && /* @__PURE__ */ React.createElement("div", { className: "pdp-pkg-cell" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-label" }, "Pallet"), /* @__PURE__ */ React.createElement("span", { className: "pdp-pkg-cell-value" }, sku.boxes_per_pallet, " ", boxLabelPlural, sku.sqft_per_pallet ? " (" + parseFloat(sku.sqft_per_pallet).toLocaleString() + " sqft)" : ""))), isCarpetSku && (rollLengthFt > 0 || sku.sqft_per_pallet || sku.weight_per_pallet_lbs) && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info" }, /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info-grid" }, rollLengthFt > 0 && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info-row" }, /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-label" }, "Roll Length"), /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-value" }, rollLengthFt, " ft")), sku.sqft_per_pallet && parseFloat(sku.sqft_per_pallet) > 0 && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info-row" }, /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-label" }, "Roll Area"), /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-value" }, parseFloat(sku.sqft_per_pallet).toLocaleString(), " sqft")), sku.weight_per_pallet_lbs && parseFloat(sku.weight_per_pallet_lbs) > 0 && /* @__PURE__ */ React.createElement("div", { className: "carpet-roll-info-row" }, /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-label" }, "Roll Weight"), /* @__PURE__ */ React.createElement("span", { className: "carpet-roll-info-value" }, parseFloat(sku.weight_per_pallet_lbs).toLocaleString(), " lbs")))), isCarpetSku && cutPrice > 0 && !isOutOfStock && /* @__PURE__ */ React.createElement("div", { className: "calculator-widget" }, /* @__PURE__ */ React.createElement("h3", null, "Carpet Calculator"), /* @__PURE__ */ React.createElement("div", { className: "calc-mode-tabs" }, rollWidthFt > 0 && /* @__PURE__ */ React.createElement("button", { className: "calc-mode-tab" + (carpetInputMode === "linear" ? " active" : ""), onClick: () => setCarpetInputMode("linear") }, "Linear Feet"), /* @__PURE__ */ React.createElement("button", { className: "calc-mode-tab" + (carpetInputMode === "dimensions" ? " active" : ""), onClick: () => setCarpetInputMode("dimensions") }, "Room Size"), /* @__PURE__ */ React.createElement("button", { className: "calc-mode-tab" + (carpetInputMode === "sqft" ? " active" : ""), onClick: () => setCarpetInputMode("sqft") }, "Enter Sqft")), carpetInputMode === "linear" ? /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group", style: { flex: 1 } }, /* @__PURE__ */ React.createElement("label", null, "Linear Feet Needed"), /* @__PURE__ */ React.createElement(
       "input",
@@ -12171,6 +12243,62 @@
       }
     };
     return /* @__PURE__ */ React.createElement("div", { className: "modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("button", { className: "modal-close", onClick: onClose }, "\xD7"), submitted ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "2rem 0" } }, /* @__PURE__ */ React.createElement("div", { style: { width: 60, height: 60, borderRadius: "50%", background: "#d1fae5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1.5rem" } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "#059669", strokeWidth: "2", style: { width: 30, height: 30 } }, /* @__PURE__ */ React.createElement("polyline", { points: "20 6 9 17 4 12" }))), /* @__PURE__ */ React.createElement("h2", { style: { marginBottom: "0.5rem" } }, "Thank You!"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", fontSize: "0.95rem" } }, "We'll be in touch within 1 business day.")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("h2", null, "Request Installation Quote"), product && /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", fontSize: "0.875rem", marginBottom: "1.5rem" } }, "For: ", fullProductName(product)), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit }, error && /* @__PURE__ */ React.createElement("div", { className: "checkout-error" }, error), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Name *"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", value: name, onChange: (e) => setName(e.target.value), required: true })), /* @__PURE__ */ React.createElement("div", { className: "checkout-row" }, /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Email *"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", type: "email", value: email, onChange: (e) => setEmail(e.target.value), required: true })), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Phone *"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", type: "tel", value: phone, onChange: (e) => setPhone(formatPhone(e.target.value)), required: true }))), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Company (optional)"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", value: companyName, onChange: (e) => setCompanyName(e.target.value), autoComplete: "organization" })), /* @__PURE__ */ React.createElement("div", { className: "checkout-row" }, /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "ZIP Code"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", value: zipCode, onChange: (e) => setZipCode(e.target.value), maxLength: 5 })), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Est. Square Feet"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", type: "number", value: sqft, onChange: (e) => setSqft(e.target.value) }))), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Message"), /* @__PURE__ */ React.createElement("textarea", { className: "checkout-input", value: message, onChange: (e) => setMessage(e.target.value), rows: 3, style: { resize: "vertical" } })), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn", style: { width: "100%" } }, "Submit Inquiry")))));
+  }
+  function ProductInquiryModal({ onClose, product }) {
+    const [name, setName] = useState("");
+    const [email, setEmail] = useState("");
+    const [phone, setPhone] = useState("");
+    const [companyName, setCompanyName] = useState("");
+    const [qty, setQty] = useState("");
+    const [message, setMessage] = useState("");
+    const [submitted, setSubmitted] = useState(false);
+    const [error, setError] = useState("");
+    const [saving, setSaving] = useState(false);
+    useEffect(() => {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }, []);
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      setError("");
+      if (name.trim().split(/\s+/).length < 2) {
+        setError("Please enter a first and last name.");
+        return;
+      }
+      setSaving(true);
+      try {
+        const body = { customer_name: name, customer_email: email, phone, company_name: companyName, estimated_sqft: qty || null, message };
+        if (product) {
+          body.product_id = product.product_id;
+          body.sku_id = product.sku_id;
+          body.product_name = product.product_name;
+          body.collection = product.collection;
+          body.product_label = fullProductName(product);
+        }
+        const res = await fetch(API + "/api/product-inquiries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (data.error) {
+          setError(data.error);
+          setSaving(false);
+          return;
+        }
+        setSubmitted(true);
+        try {
+          if (window.gtag) window.gtag("event", "generate_lead", { lead_source: "product_inquiry" });
+        } catch (e2) {
+        }
+      } catch (e2) {
+        setError("Unable to submit. Please try again.");
+        setSaving(false);
+      }
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("button", { className: "modal-close", onClick: onClose }, "\xD7"), submitted ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "2rem 0" } }, /* @__PURE__ */ React.createElement("div", { style: { width: 60, height: 60, borderRadius: "50%", background: "#d1fae5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1.5rem" } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "#059669", strokeWidth: "2", style: { width: 30, height: 30 } }, /* @__PURE__ */ React.createElement("polyline", { points: "20 6 9 17 4 12" }))), /* @__PURE__ */ React.createElement("h2", { style: { marginBottom: "0.5rem" } }, "Thank You!"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", fontSize: "0.95rem" } }, "We'll confirm pricing and availability within 1 business day.")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("h2", null, "Product Inquiry"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", fontSize: "0.875rem", marginBottom: product ? "0.5rem" : "1.5rem" } }, "Tell us what you need and we'll confirm pricing, availability, and lead time."), product && /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", fontSize: "0.875rem", marginBottom: "1.5rem" } }, "For: ", fullProductName(product)), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit }, error && /* @__PURE__ */ React.createElement("div", { className: "checkout-error" }, error), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Name *"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", value: name, onChange: (e) => setName(e.target.value), required: true })), /* @__PURE__ */ React.createElement("div", { className: "checkout-row" }, /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Email *"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", type: "email", value: email, onChange: (e) => setEmail(e.target.value), required: true })), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Phone *"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", type: "tel", value: phone, onChange: (e) => setPhone(formatPhone(e.target.value)), required: true }))), /* @__PURE__ */ React.createElement("div", { className: "checkout-row" }, /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Company (optional)"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", value: companyName, onChange: (e) => setCompanyName(e.target.value), autoComplete: "organization" })), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Quantity / sq ft needed"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", value: qty, onChange: (e) => setQty(e.target.value), placeholder: "e.g. 500 sqft" }))), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Message"), /* @__PURE__ */ React.createElement("textarea", { className: "checkout-input", value: message, onChange: (e) => setMessage(e.target.value), rows: 3, placeholder: "Any questions about this product, pricing, or availability?", style: { resize: "vertical" } })), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn", style: { width: "100%" }, disabled: saving }, saving ? "Submitting\u2026" : "Send Inquiry")))));
   }
   function InstallQuoteForm() {
     const [name, setName] = useState("");

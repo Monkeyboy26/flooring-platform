@@ -974,6 +974,30 @@ CREATE TABLE installation_inquiries (
 
 CREATE INDEX idx_installation_inquiries_status ON installation_inquiries(status);
 
+-- Product (pricing/availability) inquiries — a customer's pricing/stock question
+-- about a specific product (from the PDP availability pill). Distinct from
+-- installation_inquiries so product questions are never conflated with install leads.
+CREATE TABLE product_inquiries (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_name VARCHAR(200) NOT NULL,
+    customer_email VARCHAR(255) NOT NULL,
+    company_name VARCHAR(200),
+    phone VARCHAR(30),
+    estimated_sqft VARCHAR(100),
+    message TEXT,
+    product_id UUID REFERENCES products(id) ON DELETE SET NULL,
+    sku_id UUID REFERENCES skus(id) ON DELETE SET NULL,
+    product_name VARCHAR(300),
+    collection VARCHAR(200),
+    status VARCHAR(20) DEFAULT 'new',
+    staff_notes TEXT,
+    assigned_to UUID REFERENCES staff_accounts(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_product_inquiries_status ON product_inquiries(status);
+
 -- ==================== Customer Accounts ====================
 
 CREATE TABLE customers (

@@ -9,6 +9,8 @@ import { generateTradeDenialHTML } from '../templates/tradeDenial.js';
 import { generateTierPromotionHTML } from '../templates/tierPromotion.js';
 import { generateInstallationInquiryStaffHTML } from '../templates/installationInquiryStaff.js';
 import { generateInstallationInquiryConfirmationHTML } from '../templates/installationInquiryConfirmation.js';
+import { generateProductInquiryStaffHTML } from '../templates/productInquiryStaff.js';
+import { generateProductInquiryConfirmationHTML } from '../templates/productInquiryConfirmation.js';
 import { generatePasswordResetHTML } from '../templates/passwordReset.js';
 import { generateEmailChangeConfirmHTML } from '../templates/emailChangeConfirm.js';
 import { generateEmailChangeNoticeHTML } from '../templates/emailChangeNotice.js';
@@ -733,6 +735,93 @@ export async function sendInstallationInquiryConfirmation(inquiry) {
     console.log(`[Email] Installation inquiry confirmation sent to ${inquiry.customer_email}`);
   } catch (err) {
     console.error(`[Email] Failed to send installation inquiry confirmation to ${inquiry.customer_email}:`, err.message);
+  }
+}
+
+/**
+ * Alert the assigned rep that their customer sent a product (pricing/availability) inquiry.
+ */
+export async function sendNewProductInquiryRepAlert(inquiry) {
+  if (!inquiry.rep_email) return;
+  if (!transporter) {
+    console.log(`[Email] Skipping product-inquiry rep alert for ${inquiry.customer_email} — SMTP not configured`);
+    return;
+  }
+  try {
+    const facts = [];
+    if (inquiry.product_name) facts.push(escapeHtml((inquiry.product_display || inquiry.product_name) + (inquiry.collection && !inquiry.product_display ? ' (' + inquiry.collection + ')' : '')));
+    if (inquiry.estimated_sqft) facts.push(escapeHtml(String(inquiry.estimated_sqft)));
+    const html = `
+      <div style="font-family:Inter,Arial,sans-serif;max-width:560px;">
+        <p style="margin:0 0 12px;color:#44403c;">Hi ${escapeHtml(inquiry.rep_first_name || 'there')},</p>
+        <p style="margin:0 0 16px;color:#44403c;">Your customer just asked about pricing &amp; availability on a product.</p>
+        <h2 style="color:#1c1917;margin:0 0 4px;">Product inquiry</h2>
+        ${facts.length ? `<p style="font-size:18px;margin:0 0 16px;color:#1c1917;">${facts.join(' · ')}</p>` : ''}
+        <p style="margin:0 0 16px;color:#44403c;">
+          ${escapeHtml(inquiry.customer_name || '')} · ${escapeHtml(inquiry.customer_email || '')}${inquiry.phone ? ' · ' + escapeHtml(inquiry.phone) : ''}
+        </p>
+        ${inquiry.message ? `<p style="margin:0 0 16px;color:#44403c;border-left:3px solid #e7e5e4;padding-left:12px;">${escapeHtml(inquiry.message)}</p>` : ''}
+        <p style="margin:20px 0 0;">
+          <a href="https://romaflooringdesigns.com/rep" style="color:#8a6d3b;">Open in rep portal</a>
+        </p>
+      </div>`;
+    await deliver({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: inquiry.rep_email,
+      replyTo: inquiry.customer_email || undefined,
+      subject: `Your customer sent a product inquiry — ${inquiry.customer_name || ''}`,
+      html
+    });
+    console.log(`[Email] Product-inquiry rep alert sent to ${inquiry.rep_email} for ${inquiry.customer_email}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send product-inquiry rep alert for ${inquiry.customer_email}:`, err.message);
+  }
+}
+
+/**
+ * Send product inquiry notification to staff.
+ */
+export async function sendProductInquiryNotification(inquiry) {
+  if (!transporter) {
+    console.log(`[Email] Skipping product inquiry notification for ${inquiry.customer_email} — SMTP not configured`);
+    return;
+  }
+  try {
+    const html = generateProductInquiryStaffHTML(inquiry);
+    const toAddress = process.env.INSTALLATION_NOTIFY_EMAIL || 'Sales@romaflooringdesigns.com';
+    await deliver({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: toAddress,
+      replyTo: inquiry.customer_email,
+      subject: `New Product Inquiry — ${inquiry.customer_name}`,
+      html
+    });
+    console.log(`[Email] Product inquiry notification sent to ${toAddress} for ${inquiry.customer_email}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send product inquiry notification for ${inquiry.customer_email}:`, err.message);
+  }
+}
+
+/**
+ * Send product inquiry confirmation to customer.
+ */
+export async function sendProductInquiryConfirmation(inquiry) {
+  if (!transporter) {
+    console.log(`[Email] Skipping product inquiry confirmation for ${inquiry.customer_email} — SMTP not configured`);
+    return;
+  }
+  try {
+    const html = generateProductInquiryConfirmationHTML(inquiry);
+    await deliver({
+      from: repFrom(inquiry),
+      to: inquiry.customer_email,
+      replyTo: inquiry.rep_email || undefined,
+      subject: 'Product Inquiry Received — Roma Flooring Designs',
+      html
+    });
+    console.log(`[Email] Product inquiry confirmation sent to ${inquiry.customer_email}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send product inquiry confirmation to ${inquiry.customer_email}:`, err.message);
   }
 }
 

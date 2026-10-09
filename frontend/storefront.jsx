@@ -2079,6 +2079,106 @@
       );
     }
 
+    // Maps a SKU's availability to a status-pill tone + label. Tones mirror the
+    // rep order-status chips (green/amber/red/gray/slate). `inquire` marks the
+    // states where contacting us helps (no live feed, out of stock, discontinued)
+    // → the pill becomes a tappable contact sheet; confident states are static.
+    function availabilityState(sku) {
+      if (!sku || sku.vendor_has_inventory === false) {
+        return { tone: 'check', label: 'Check availability before you order', inquire: true };
+      }
+      const qty = sku.qty_on_hand;
+      const qtySqft = sku.qty_on_hand_sqft;
+      const sellBy = sku.sell_by;
+      const hasQty = qty != null && qty > 0;
+      switch (sku.stock_status) {
+        case 'in_stock': {
+          let label = 'In stock';
+          if (hasQty) {
+            if (sellBy === 'unit') label = 'In stock — ' + Number(qty).toLocaleString() + ' available';
+            else if (qtySqft && parseFloat(qtySqft) > 0) label = 'In stock — ' + Math.round(qtySqft).toLocaleString() + ' sqft available';
+          }
+          return { tone: 'in', label, inquire: false };
+        }
+        case 'low_stock': {
+          let label = 'Low stock — order soon';
+          if (hasQty) {
+            if (sellBy === 'unit') label = 'Only ' + qty + ' left — order soon';
+            else if (sellBy === 'box' && qtySqft) label = 'Only ' + qty + ' boxes left (' + Math.round(qtySqft) + ' sqft) — order soon';
+            else if (sellBy === 'roll') label = 'Only ' + (qtySqft ? Math.round(qtySqft) + ' sqft' : qty + ' rolls') + ' left — order soon';
+            else label = 'Only ' + qty + ' left — order soon';
+          }
+          return { tone: 'low', label, inquire: false };
+        }
+        case 'out_of_stock': return { tone: 'out', label: 'Out of stock', inquire: true };
+        case 'discontinued': return { tone: 'disc', label: 'Discontinued', inquire: true };
+        default: return { tone: 'check', label: 'Check availability before you order', inquire: true };
+      }
+    }
+
+    // Availability status pill — the PDP availability indicator, in the rep
+    // order-status aesthetic (.rov-chip: solid color block, filled dot, uppercase
+    // mono). Color + label track the SKU's stock status (availabilityState). For
+    // states where contacting us helps, tapping the pill opens a contact sheet:
+    // call, email, or the product-inquiry form (onRequestInquiry).
+    function AvailabilityBanner({ sku, onRequestInquiry }) {
+      const [open, setOpen] = useState(false);
+      const wrapRef = useRef(null);
+      const st = availabilityState(sku);
+      useEffect(() => {
+        if (!open) return;
+        const onDoc = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+        const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+        document.addEventListener('mousedown', onDoc);
+        document.addEventListener('keydown', onKey);
+        return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+      }, [open]);
+
+      // Confident state (in/low stock) — a static, non-interactive pill.
+      if (!st.inquire) {
+        return (
+          <div className="avail-prompt">
+            <div className={'avail-pill ' + st.tone}>
+              <span className="avail-pill-dot" />
+              {st.label}
+            </div>
+          </div>
+        );
+      }
+
+      const subjectName = sku ? (fullProductName(sku) || sku.product_name || '') : '';
+      const mailHref = 'mailto:Sales@romaflooringdesigns.com?subject=' + encodeURIComponent(
+        subjectName ? ('Availability — ' + subjectName) : 'Availability inquiry'
+      );
+      return (
+        <div className="avail-prompt" ref={wrapRef}>
+          <button type="button" className={'avail-pill ' + st.tone + (open ? ' open' : '')} onClick={() => setOpen(o => !o)} aria-expanded={open} aria-haspopup="true">
+            <span className="avail-pill-dot" />
+            {st.label}
+            <svg className="avail-pill-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          {open && (
+            <div className="avail-menu" role="menu">
+              <a href="tel:7149990009" className="avail-menu-item" role="menuitem" onClick={() => setOpen(false)}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+                <span>Call <strong>(714) 999-0009</strong></span>
+              </a>
+              <a href={mailHref} className="avail-menu-item" role="menuitem" onClick={() => setOpen(false)}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 7L2 7"/></svg>
+                <span>Email us</span>
+              </a>
+              {onRequestInquiry && sku && (
+                <button type="button" className="avail-menu-item" role="menuitem" onClick={() => { setOpen(false); onRequestInquiry(sku); }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  <span>Send an inquiry</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     function StarDisplay({ rating, size = 16, color = '#c8a97e' }) {
       const stars = [];
       for (let i = 1; i <= 5; i++) {
@@ -2857,6 +2957,9 @@
       const [showInstallModal, setShowInstallModal] = useState(false);
       const [showFloorQuiz, setShowFloorQuiz] = useState(false);
       const [installModalProduct, setInstallModalProduct] = useState(null);
+      // Product/availability inquiry modal (separate from the install-quote modal)
+      const [showProductInquiry, setShowProductInquiry] = useState(false);
+      const [productInquiryProduct, setProductInquiryProduct] = useState(null);
 
       // Order
       const [completedOrder, setCompletedOrder] = useState(null);
@@ -4480,6 +4583,7 @@
               addToCart={addToCart} cart={cart}
               onSkuClick={goSkuDetail}
               onRequestInstall={(p) => { setInstallModalProduct(p); setShowInstallModal(true); }}
+              onRequestInquiry={(p) => { setProductInquiryProduct(p); setShowProductInquiry(true); }}
               tradeCustomer={tradeCustomer}
               wishlist={wishlist} toggleWishlist={toggleWishlist}
               recentlyViewed={recentlyViewed} addRecentlyViewed={addRecentlyViewed}
@@ -4781,6 +4885,7 @@
           {showTradeModal && <TradeModal onClose={() => setShowTradeModal(false)} onLogin={handleTradeLogin} initialMode={tradeModalMode} onCustomerSignIn={() => { setShowTradeModal(false); navigate('/signin'); }} />}
           {customer && !customer.phone && <CompleteProfileModal customer={customer} customerToken={customerToken} setCustomer={setCustomer} />}
           {showInstallModal && <InstallationModal onClose={() => setShowInstallModal(false)} product={installModalProduct} />}
+          {showProductInquiry && <ProductInquiryModal onClose={() => setShowProductInquiry(false)} product={productInquiryProduct} />}
           {showFloorQuiz && <FloorQuizModal onClose={() => setShowFloorQuiz(false)} onSkuClick={goSkuDetail} onViewAll={(qs) => { navigate('/shop?' + qs); }} />}
 
           {!isCheckoutFlow && <SiteFooter goHome={goHome} goBrowse={goBrowse} goCollections={goCollections} goTrade={goTrade}
@@ -7569,7 +7674,7 @@
 
     // ==================== SKU Detail View ====================
 
-    function SkuDetailView({ skuId, goBack, addToCart, cart, onSkuClick, onRequestInstall, tradeCustomer, wishlist, toggleWishlist, recentlyViewed, addRecentlyViewed, customer, customerToken, onShowAuth, showToast, categories, onCollectionClick, onBrandClick, onCategoryClick }) {
+    function SkuDetailView({ skuId, goBack, addToCart, cart, onSkuClick, onRequestInstall, onRequestInquiry, tradeCustomer, wishlist, toggleWishlist, recentlyViewed, addRecentlyViewed, customer, customerToken, onShowAuth, showToast, categories, onCollectionClick, onBrandClick, onCategoryClick }) {
       const [sku, setSku] = useState(null);
       const [tierInfo, setTierInfo] = useState(null);
       const [media, setMedia] = useState([]);
@@ -10315,7 +10420,7 @@
                 );
               })()}
 
-              <StockBadge status={sku.stock_status} vendorHasInventory={sku.vendor_has_inventory} qtyOnHand={sku.qty_on_hand} qtyOnHandSqft={sku.qty_on_hand_sqft} sellBy={sku.sell_by} />
+              <AvailabilityBanner sku={sku} onRequestInquiry={onRequestInquiry} />
 
               {/* Stock Alert — Notify Me */}
               {sku.stock_status === 'out_of_stock' && sku.vendor_has_inventory !== false && (
@@ -17444,6 +17549,78 @@
                   </div>
                   <div className="checkout-field"><label>Message</label><textarea className="checkout-input" value={message} onChange={e => setMessage(e.target.value)} rows={3} style={{ resize: 'vertical' }} /></div>
                   <button type="submit" className="btn" style={{ width: '100%' }}>Submit Inquiry</button>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Product / availability inquiry modal — a pricing & stock question about a
+    // specific product (opened from the availability pill). Separate from the
+    // installation-quote modal: posts to /api/product-inquiries, its own backend
+    // table + rep routing, so these never get mistaken for install leads.
+    function ProductInquiryModal({ onClose, product }) {
+      const [name, setName] = useState('');
+      const [email, setEmail] = useState('');
+      const [phone, setPhone] = useState('');
+      const [companyName, setCompanyName] = useState('');
+      const [qty, setQty] = useState('');
+      const [message, setMessage] = useState('');
+      const [submitted, setSubmitted] = useState(false);
+      const [error, setError] = useState('');
+      const [saving, setSaving] = useState(false);
+      useEffect(() => { document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = ''; }; }, []);
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+        if (name.trim().split(/\s+/).length < 2) { setError('Please enter a first and last name.'); return; }
+        setSaving(true);
+        try {
+          const body = { customer_name: name, customer_email: email, phone, company_name: companyName, estimated_sqft: qty || null, message };
+          if (product) { body.product_id = product.product_id; body.sku_id = product.sku_id; body.product_name = product.product_name; body.collection = product.collection; body.product_label = fullProductName(product); }
+          const res = await fetch(API + '/api/product-inquiries', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+          });
+          const data = await res.json();
+          if (data.error) { setError(data.error); setSaving(false); return; }
+          setSubmitted(true);
+          try { if (window.gtag) window.gtag('event', 'generate_lead', { lead_source: 'product_inquiry' }); } catch (e) {}
+        } catch(e) { setError('Unable to submit. Please try again.'); setSaving(false); }
+      };
+
+      return (
+        <div className="modal-overlay" onClick={onClose}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={onClose}>&times;</button>
+            {submitted ? (
+              <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+                <div style={{ width: 60, height: 60, borderRadius: '50%', background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" style={{ width: 30, height: 30 }}><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <h2 style={{ marginBottom: '0.5rem' }}>Thank You!</h2>
+                <p style={{ color: 'var(--stone-600)', fontSize: '0.95rem' }}>We'll confirm pricing and availability within 1 business day.</p>
+              </div>
+            ) : (
+              <>
+                <h2>Product Inquiry</h2>
+                <p style={{ color: 'var(--stone-600)', fontSize: '0.875rem', marginBottom: product ? '0.5rem' : '1.5rem' }}>Tell us what you need and we'll confirm pricing, availability, and lead time.</p>
+                {product && <p style={{ color: 'var(--stone-600)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>For: {fullProductName(product)}</p>}
+                <form onSubmit={handleSubmit}>
+                  {error && <div className="checkout-error">{error}</div>}
+                  <div className="checkout-field"><label>Name *</label><input className="checkout-input" value={name} onChange={e => setName(e.target.value)} required /></div>
+                  <div className="checkout-row">
+                    <div className="checkout-field"><label>Email *</label><input className="checkout-input" type="email" value={email} onChange={e => setEmail(e.target.value)} required /></div>
+                    <div className="checkout-field"><label>Phone *</label><input className="checkout-input" type="tel" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} required /></div>
+                  </div>
+                  <div className="checkout-row">
+                    <div className="checkout-field"><label>Company (optional)</label><input className="checkout-input" value={companyName} onChange={e => setCompanyName(e.target.value)} autoComplete="organization" /></div>
+                    <div className="checkout-field"><label>Quantity / sq ft needed</label><input className="checkout-input" value={qty} onChange={e => setQty(e.target.value)} placeholder="e.g. 500 sqft" /></div>
+                  </div>
+                  <div className="checkout-field"><label>Message</label><textarea className="checkout-input" value={message} onChange={e => setMessage(e.target.value)} rows={3} placeholder="Any questions about this product, pricing, or availability?" style={{ resize: 'vertical' }} /></div>
+                  <button type="submit" className="btn" style={{ width: '100%' }} disabled={saving}>{saving ? 'Submitting…' : 'Send Inquiry'}</button>
                 </form>
               </>
             )}

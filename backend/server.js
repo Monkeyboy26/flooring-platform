@@ -9,7 +9,7 @@ import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
 import dns from 'dns';
-import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendWeeklyTrafficReport, sendBankTransferAwaitingEmail, sendNewOrderStaffAlert, sendNewOrderRepAlert, sendNewSampleRequestRepAlert, sendNewInstallInquiryRepAlert, sendMaterialRelease, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer, sendQualityDiffAlert, SCRAPER_ALERT_ADDR } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendProductInquiryNotification, sendProductInquiryConfirmation, sendNewProductInquiryRepAlert, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendWeeklyTrafficReport, sendBankTransferAwaitingEmail, sendNewOrderStaffAlert, sendNewOrderRepAlert, sendNewSampleRequestRepAlert, sendNewInstallInquiryRepAlert, sendMaterialRelease, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer, sendQualityDiffAlert, SCRAPER_ALERT_ADDR } from './services/emailService.js';
 import { queueReviewRequest, processDueReviewRequests, recordRating, saveFeedback, recordPublicClick, getByToken as getReviewByToken, reviewsEnabled, autoReviewEnabled, sendTestReviewRequest, saveFirstPartyReview, listFirstPartyReviews, setReviewPublished, MIN_PUBLIC_RATING } from './services/reviewService.js';
 import { reviewStarPickerPage, reviewWriteReviewPage, reviewPrivateFeedbackPage, reviewGenericThanksPage } from './templates/reviewRequest.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
@@ -7107,6 +7107,10 @@ app.get('/api/admin/worklist', staffAuth, requireRole('admin', 'manager', 'sales
         SELECT id, customer_name, customer_email, phone, zip_code, estimated_sqft, product_name, collection, message, created_at
         FROM installation_inquiries WHERE status = 'new'
         ORDER BY created_at ASC LIMIT $1`, [KIND_LIMIT]),
+      newProductInquiries: pool.query(`
+        SELECT id, customer_name, customer_email, phone, estimated_sqft, product_name, collection, message, created_at
+        FROM product_inquiries WHERE status = 'new'
+        ORDER BY created_at ASC LIMIT $1`, [KIND_LIMIT]),
     };
 
     if (isManager) {
@@ -7243,6 +7247,31 @@ app.get('/api/admin/worklist', staffAuth, requireRole('admin', 'manager', 'sales
         actions: [
           { label: 'Mark contacted', type: 'primary', method: 'PUT', path: `/api/admin/installation-inquiries/${q.id}`, body: { status: 'contacted' }, noteField: 'staff_notes' },
           { label: 'Close as lost', type: 'alt', method: 'PUT', path: `/api/admin/installation-inquiries/${q.id}`, body: { status: 'closed' }, noteField: 'staff_notes' },
+        ],
+      });
+    }
+
+    for (const q of (data.newProductInquiries || [])) {
+      items.push({
+        id: `product-inquiry:${q.id}`, stream: 'decide', kind: 'Product inquiry',
+        sla: sla(q.created_at, 48, 24), age: ageLabel(q.created_at), created_at: q.created_at,
+        who: q.customer_name, entity: q.product_name || 'inquiry', amount: 0,
+        title: q.product_name
+          ? `${q.customer_name} asked about ${q.product_name}`
+          : `${q.customer_name} sent a product inquiry`,
+        line: [q.estimated_sqft ? String(q.estimated_sqft) : null,
+               q.message ? `"${q.message.slice(0, 90)}${q.message.length > 90 ? '…' : ''}"` : null]
+          .filter(Boolean).join(' · ') || 'Pricing & availability question — reach out to confirm.',
+        reason: 'A new product lead has had no contact yet. Pricing/stock questions convert best when answered the same day.',
+        facts: [
+          ['Name', q.customer_name], ['Email', q.customer_email], ['Phone', q.phone || '—'],
+          ['Qty / sqft', q.estimated_sqft ? String(q.estimated_sqft) : '—'],
+          ['Product', q.product_name || '—'], ['Collection', q.collection || '—'],
+        ],
+        log: [[trailTime(q.created_at), q.customer_name, 'Submitted a product inquiry from the storefront']],
+        actions: [
+          { label: 'Mark contacted', type: 'primary', method: 'PUT', path: `/api/admin/product-inquiries/${q.id}`, body: { status: 'contacted' }, noteField: 'staff_notes' },
+          { label: 'Close as lost', type: 'alt', method: 'PUT', path: `/api/admin/product-inquiries/${q.id}`, body: { status: 'closed' }, noteField: 'staff_notes' },
         ],
       });
     }
@@ -30542,6 +30571,20 @@ app.get('/api/rep/customers/:id/timeline', repAuth, async (req, res) => {
           timestamp: inq.created_at
         });
       }
+
+      const prodInqRes = await pool.query(`
+        SELECT id, status, product_name, collection, estimated_sqft, created_at
+        FROM product_inquiries WHERE LOWER(customer_email) = $1 ORDER BY created_at DESC
+      `, [customerEmail]);
+      for (const inq of prodInqRes.rows) {
+        const qtyText = inq.estimated_sqft ? ' \u2014 ' + inq.estimated_sqft : '';
+        timeline.push({
+          event_type: 'product_inquiry', entity_id: inq.id, entity_type: 'inquiry',
+          title: 'Product inquiry' + (inq.product_name ? ': ' + inq.product_name : ''),
+          description: (inq.collection || '') + qtyText + (inq.status !== 'new' ? ' \u2014 ' + inq.status : ''),
+          timestamp: inq.created_at
+        });
+      }
     }
 
     // Sort by timestamp desc, limit to 100
@@ -35684,6 +35727,181 @@ app.delete('/api/admin/installation-inquiries/:id', staffAuth, requireRole('admi
   }
 });
 
+// ==================== Product (pricing/availability) Inquiries ====================
+// A customer's pricing/stock question about a specific product (from the PDP
+// availability pill). Separate from installation inquiries so install leads and
+// product questions never get conflated. Mirrors the install-inquiry flow:
+// insert → rep assignment → staff/customer emails → rep alert + notification.
+
+app.post('/api/product-inquiries', async (req, res) => {
+  try {
+    const { customer_name, customer_email, phone, company_name, estimated_sqft, message, product_id, sku_id, product_label } = req.body;
+
+    if (!customer_name || customer_name.trim().split(/\s+/).length < 2 || !customer_email) {
+      return res.status(400).json({ error: 'A first and last name, and email, are required' });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer_email)) {
+      return res.status(400).json({ error: 'Invalid email address' });
+    }
+    if (!phone || String(phone).replace(/\D/g, '').length < 10) {
+      return res.status(400).json({ error: 'A valid 10-digit phone number is required' });
+    }
+
+    let product_name = null;
+    let collection = null;
+    let product_display = null;
+    if (product_id) {
+      const prodResult = await pool.query(
+        `SELECT p.name, p.collection, c.name AS category_name
+           FROM products p LEFT JOIN categories c ON c.id = p.category_id
+          WHERE p.id = $1`,
+        [product_id]
+      );
+      if (prodResult.rows.length > 0) {
+        product_name = prodResult.rows[0].name;
+        collection = prodResult.rows[0].collection;
+        product_display = fullProductName({
+          product_name,
+          collection,
+          category_name: prodResult.rows[0].category_name,
+        });
+      }
+    }
+
+    // The storefront sends product_label = the full PDP title (includes the SKU
+    // variant — size/finish — e.g. "Almond 4″ × 16″, Glossy Wall Tile"). It's the
+    // exact product the customer was viewing, so prefer it for the display + the
+    // stored name; fall back to the product_id-derived title when it's absent.
+    const label = (product_label || '').trim();
+    const displayName = label || product_display || product_name || null;
+    product_display = displayName;
+    const storedName = displayName || product_name;
+
+    const qtyNote = (estimated_sqft == null ? '' : String(estimated_sqft)).trim() || null;
+    const result = await pool.query(
+      `INSERT INTO product_inquiries (customer_name, customer_email, phone, company_name, estimated_sqft, message, product_id, sku_id, product_name, collection)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING id`,
+      [customer_name, customer_email, phone || null, (company_name || '').trim() || null, qtyNote, message || null, product_id || null, sku_id || null, storedName, collection]
+    );
+
+    const inquiry = {
+      id: result.rows[0].id,
+      customer_name, customer_email, phone,
+      company_name: (company_name || '').trim() || null,
+      estimated_sqft: qtyNote,
+      message, product_id, sku_id, product_name: storedName, collection, product_display
+    };
+
+    // Fire-and-forget emails
+    sendProductInquiryNotification(inquiry).catch(err => console.error('[Product Inquiry] Staff email error:', err.message));
+    sendProductInquiryConfirmation(inquiry).catch(err => console.error('[Product Inquiry] Confirmation email error:', err.message));
+
+    // Assign to the inquirer's rep (or a new active rep), same as install inquiries.
+    const inqRep = await assignRepForStorefront(pool, { customer_email });
+    if (inqRep) {
+      await pool.query('UPDATE product_inquiries SET assigned_to = $1 WHERE id = $2', [inqRep.id, result.rows[0].id]);
+    }
+
+    const inqDetails = [];
+    if (product_display || product_name) inqDetails.push(product_display || product_name);
+    if (qtyNote) inqDetails.push(qtyNote);
+    const inqTitle = 'Product inquiry from ' + customer_name;
+    const inqBody = inqDetails.join(' · ') || null;
+    setImmediate(async () => {
+      if (inqRep) {
+        sendNewProductInquiryRepAlert({ ...inquiry, rep_email: inqRep.email, rep_first_name: inqRep.first_name, rep_last_name: inqRep.last_name });
+        createRepNotification(pool, inqRep.id, 'product_inquiry', inqTitle, inqBody, 'product_inquiry', result.rows[0].id);
+      } else {
+        notifyAllActiveReps(pool, 'product_inquiry', inqTitle, inqBody, 'product_inquiry', result.rows[0].id);
+      }
+    });
+
+    res.json({ success: true, inquiry_id: result.rows[0].id });
+  } catch (err) {
+    console.error('Product inquiry error:', err);
+    res.status(500).json({ error: 'Failed to submit inquiry' });
+  }
+});
+
+app.get('/api/admin/product-inquiries', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    const { status, search, limit = 50, offset = 0 } = req.query;
+    const params = [];
+    const conditions = [];
+    if (status) { params.push(status); conditions.push(`pi.status = $${params.length}`); }
+    if (search) { params.push(`%${search}%`); conditions.push(`(pi.customer_name ILIKE $${params.length} OR pi.customer_email ILIKE $${params.length})`); }
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+    const countResult = await pool.query(`SELECT COUNT(*)::int as total FROM product_inquiries pi ${where}`, params);
+    params.push(parseInt(limit));
+    params.push(parseInt(offset));
+    const result = await pool.query(`
+      SELECT pi.*, sa.first_name || ' ' || sa.last_name as assigned_name
+      FROM product_inquiries pi
+      LEFT JOIN staff_accounts sa ON sa.id = pi.assigned_to
+      ${where}
+      ORDER BY CASE WHEN pi.status = 'new' THEN 0 ELSE 1 END, pi.created_at DESC
+      LIMIT $${params.length - 1} OFFSET $${params.length}
+    `, params);
+    res.json({ inquiries: result.rows, total: countResult.rows[0].total });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/admin/product-inquiries/:id', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT pi.*, sa.first_name || ' ' || sa.last_name as assigned_name
+      FROM product_inquiries pi
+      LEFT JOIN staff_accounts sa ON sa.id = pi.assigned_to
+      WHERE pi.id = $1
+    `, [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Inquiry not found' });
+    res.json({ inquiry: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.put('/api/admin/product-inquiries/:id', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    const { status, staff_notes, assigned_to } = req.body;
+    const validStatuses = ['new', 'contacted', 'quoted', 'converted', 'closed'];
+    if (status && !validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+    const sets = [];
+    const params = [];
+    if (status !== undefined) { params.push(status); sets.push(`status = $${params.length}`); }
+    if (staff_notes !== undefined) { params.push(staff_notes); sets.push(`staff_notes = $${params.length}`); }
+    if (assigned_to !== undefined) { params.push(assigned_to || null); sets.push(`assigned_to = $${params.length}`); }
+    if (!sets.length) return res.status(400).json({ error: 'No fields to update' });
+    params.push(req.params.id);
+    await pool.query(`UPDATE product_inquiries SET ${sets.join(', ')} WHERE id = $${params.length}`, params);
+    const result = await pool.query(`
+      SELECT pi.*, sa.first_name || ' ' || sa.last_name as assigned_name
+      FROM product_inquiries pi
+      LEFT JOIN staff_accounts sa ON sa.id = pi.assigned_to
+      WHERE pi.id = $1
+    `, [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Inquiry not found' });
+    res.json({ inquiry: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.delete('/api/admin/product-inquiries/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM product_inquiries WHERE id = $1 RETURNING id', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Inquiry not found' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // === Sitemap XML ===
 function generateSlugBackend(text) {
   return (text || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -36346,6 +36564,34 @@ async function runMigrations() {
       ALTER TABLE installation_inquiries ADD COLUMN IF NOT EXISTS assigned_to UUID REFERENCES staff_accounts(id);
     `);
     console.log('Migrations: Installation inquiries management columns applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
+
+  // Product (pricing/availability) inquiries table
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS product_inquiries (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        customer_name VARCHAR(200) NOT NULL,
+        customer_email VARCHAR(255) NOT NULL,
+        company_name VARCHAR(200),
+        phone VARCHAR(30),
+        estimated_sqft VARCHAR(100),
+        message TEXT,
+        product_id UUID REFERENCES products(id) ON DELETE SET NULL,
+        sku_id UUID REFERENCES skus(id) ON DELETE SET NULL,
+        product_name VARCHAR(300),
+        collection VARCHAR(200),
+        status VARCHAR(20) DEFAULT 'new',
+        staff_notes TEXT,
+        assigned_to UUID REFERENCES staff_accounts(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_product_inquiries_status ON product_inquiries(status);
+    `);
+    console.log('Migrations: Product inquiries table applied');
   } catch (err) {
     console.error('Migration warning:', err.message);
   }
