@@ -35,6 +35,13 @@ const MAX_EDGE = 1600;
 const WEBP_QUALITY = 82;
 const MIN_DOWNLOAD = 100; // an empty/HTML error body; a real image is never this small
 const MIN_DIM = 16;       // skip 1x1 tracking pixels / placeholder chips, keep real swatches
+// Pixel-count ceiling. A decode allocates ~width*height*4 bytes of raw bitmap
+// REGARDLESS of concurrency or file size — a single oversized source (e.g. a
+// 100MP+ TIFF/PNG, or a decompression bomb that's tiny on disk) can allocate
+// gigabytes and SIGKILL the whole process inside the 2GB api cgroup. Real
+// product/lifestyle shots are well under this; skip anything larger rather than
+// OOM. libvips' own default limit (~268MP ≈ 1GB/decode) is far too high here.
+const MAX_INPUT_PIXELS = 50_000_000; // 50MP (e.g. ~7000x7143)
 
 function mirrorPaths(sourceUrl) {
   const key = crypto.createHash('md5').update(sourceUrl).digest('hex');
@@ -84,14 +91,17 @@ export async function mirrorImage(sourceUrl, opts = {}) {
   // a validity signal — legitimate small swatches compress well under 1KB.
   let out;
   try {
-    const meta = await sharp(buf, { failOn: 'none' }).metadata();
+    // metadata() reads headers only (no full decode) — cheap, and safe because
+    // limitInputPixels caps the header-declared dimensions too.
+    const meta = await sharp(buf, { failOn: 'none', limitInputPixels: MAX_INPUT_PIXELS }).metadata();
     if (!meta.width || !meta.height || meta.width < MIN_DIM || meta.height < MIN_DIM) return null;
-    out = await sharp(buf, { failOn: 'none' })
+    if (meta.width * meta.height > MAX_INPUT_PIXELS) return null; // too big to decode safely — skip, don't OOM
+    out = await sharp(buf, { failOn: 'none', limitInputPixels: MAX_INPUT_PIXELS })
       .rotate()
       .resize(MAX_EDGE, MAX_EDGE, { fit: 'inside', withoutEnlargement: true })
       .webp({ quality: WEBP_QUALITY })
       .toBuffer();
-  } catch { return null; } // undecodable (HTML error page, corrupt, etc.)
+  } catch { return null; } // undecodable (HTML error page, corrupt, oversized, etc.)
   if (!out || out.length < 64) return null;
 
   try {
