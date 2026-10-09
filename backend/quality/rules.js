@@ -958,11 +958,35 @@ export const RULES = [
     },
   },
 
-  // NOTE: the AI-vision correctness rule ('image-vision-mismatch') is deliberately
-  // NOT in the active ruleset yet — owner is holding off on the AI image check.
-  // The runner (verify-image-vision.mjs) + image_vision_checks table stay in the
-  // repo, dormant. To activate: run the vision scan, then re-add the rule object
-  // here (it reads the cached verdicts). See [[image-management]].
+  {
+    key: 'image-vision-mismatch',
+    title: 'AI vision: primary image color/material does not match the SKU',
+    severity: 'warn',
+    // Read-only detector: reads the CACHED verdicts in image_vision_checks
+    // (populated out-of-band by verify-image-vision.mjs). It does NOT make any
+    // OpenAI calls itself. Only confident mismatches (confidence >= 0.7) surface,
+    // so fix-msi-vision-demote.mjs (or a human) can demote the wrong primary.
+    async run(pool, { vendorId }) {
+      const { rows } = await pool.query(`
+        SELECT ivc.sku_id, s.product_id, v.id AS vendor_id, v.code AS vendor_code,
+               p.name, ivc.observed_color, ivc.confidence, ivc.note,
+               (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+                  WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1) AS color
+        FROM image_vision_checks ivc
+        JOIN skus s ON s.id = ivc.sku_id
+        JOIN products p ON p.id = s.product_id
+        JOIN vendors v ON v.id = p.vendor_id
+        WHERE ivc.matched = false AND ivc.confidence >= 0.7
+          AND s.status = 'active' AND p.status = 'active'
+          AND ($1::uuid IS NULL OR v.id = $1)
+      `, [vendorId]);
+      return rows.map(r => ({
+        sku_id: r.sku_id, product_id: r.product_id, vendor_id: r.vendor_id,
+        summary: `${r.vendor_code}: "${r.name}" primary image looks like ${r.observed_color || 'a different color'} but SKU color is ${r.color || 'unknown'} (vision confidence ${r.confidence})`,
+        detail: { sku_color: r.color, observed_color: r.observed_color, confidence: r.confidence, note: r.note },
+      }));
+    },
+  },
 
   {
     key: 'broken-image',

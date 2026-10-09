@@ -6,6 +6,7 @@ import {
   normalizeSize, buildVariantName
 } from './base.js';
 import { bosphorusLogin, bosphorusLoginFromCookies, bosphorusFetch } from './bosphorus-auth.js';
+import { colorsMatch } from './lib/colorGate.js';
 
 /**
  * Bosphorus Imports catalog scraper.
@@ -40,69 +41,9 @@ const DEFAULT_DELAY_MS = 800;
 // pairs like Memory Cobalt Blue (dL 20) and Forma White (dL 66).
 // NOT applied to filename-verified matches — black tile shot on a white
 // background legitimately reads light (Arrow Black dL 71 is a correct image).
-const COLOR_GATE_MAX_DL = 70;  // luminance
-const COLOR_GATE_MAX_DBY = 28; // yellow-blue axis
-const COLOR_GATE_MAX_DA = 22;  // red-green axis
-
-let sharpModulePromise = null;
-function loadSharp() {
-  if (!sharpModulePromise) {
-    sharpModulePromise = import('sharp').then(m => m.default).catch(() => null);
-  }
-  return sharpModulePromise;
-}
-
-/**
- * Trimmed mid-tone color stats for an image URL: downscale to 64x64, sort
- * pixels by luminance, average the middle two quartiles. Returns
- * {L, by, aa} or null on any failure (callers treat null as "can't verify").
- */
-async function fetchColorStats(url, cache) {
-  if (cache.has(url)) return cache.get(url);
-  let stats = null;
-  try {
-    const sharp = await loadSharp();
-    if (sharp) {
-      const resp = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
-        signal: AbortSignal.timeout(20000),
-      });
-      if (resp.ok) {
-        const buf = Buffer.from(await resp.arrayBuffer());
-        const S = 64;
-        const raw = await sharp(buf).resize(S, S, { fit: 'fill' })
-          .removeAlpha().toColourspace('srgb').raw().toBuffer();
-        const px = [];
-        for (let i = 0; i < raw.length; i += 3) {
-          const r = raw[i], g = raw[i + 1], b = raw[i + 2];
-          px.push([(r + g + b) / 3, (r + g) / 2 - b, r - g]);
-        }
-        px.sort((a, b2) => a[0] - b2[0]);
-        const mid = px.slice(px.length >> 2, (3 * px.length) >> 2);
-        const n = mid.length || 1;
-        stats = {
-          L: mid.reduce((s, p) => s + p[0], 0) / n,
-          by: mid.reduce((s, p) => s + p[1], 0) / n,
-          aa: mid.reduce((s, p) => s + p[2], 0) / n,
-        };
-      }
-    }
-  } catch { /* stats stays null */ }
-  cache.set(url, stats);
-  return stats;
-}
-
-/** True when the shot's pixels are plausibly the same color as the swatch.
- *  Fail-closed: any fetch/decode failure returns false (keep the swatch). */
-async function shotMatchesSwatch(shotUrl, swatchUrl, cache) {
-  const [shot, sw] = await Promise.all([
-    fetchColorStats(shotUrl, cache), fetchColorStats(swatchUrl, cache),
-  ]);
-  if (!shot || !sw) return false;
-  return Math.abs(shot.L - sw.L) <= COLOR_GATE_MAX_DL
-    && Math.abs(shot.by - sw.by) <= COLOR_GATE_MAX_DBY
-    && Math.abs(shot.aa - sw.aa) <= COLOR_GATE_MAX_DA;
-}
+// The gate itself lives in ./lib/colorGate.js (shared with the MSI matcher);
+// shotMatchesSwatch keeps the swatch-centric name this scraper's call site uses.
+const shotMatchesSwatch = (shotUrl, swatchUrl, cache) => colorsMatch(shotUrl, swatchUrl, cache);
 
 // Words that describe product type/finish, NOT color — never color evidence
 // on their own (shared by getColorSliderImages and fnHasColorToken).

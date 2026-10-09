@@ -35,6 +35,15 @@ import {
   delay,
   upsertMediaAsset,
 } from './base.js';
+import { colorStem, cleanDamSku, stemsAgree, classifyRank, RANK } from './lib/msiSku.js';
+import { colorsMatch } from './lib/colorGate.js';
+
+// SKUs matched via a low-confidence strategy (prefix/reverse-prefix) or filled by
+// an unverified CDN guess — written to msi-ambiguous-skus.json for the bounded AI
+// vision pass. Populated across processMatches + cdnFallback, flushed in run().
+const ambiguousSkuIds = new Set();
+// Shared across pixel-gate comparisons within a run.
+const colorStatsCache = new Map();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -83,22 +92,13 @@ function extractDamCategory(damPath) {
 }
 
 /**
- * Extract the SKU/color identifier from a DAM filename.
- * Handles multiple naming patterns:
- *   "QUARZQUARTZITEGRI2424-Primary-Web-Image.tif" → "QUARZQUARTZITEGRI2424"
- *   "NGRAGLO3X6BEV Iso Product Photo.jpg"          → "NGRAGLO3X6BEV"
- *   "NGRICON2X2_b.tif"                              → "NGRICON2X2"
- *   "NGRICON2X2_b_2.tif"                            → "NGRICON2X2"
+ * Extract the SKU/color identifier from a DAM filename. Delegates to the shared
+ * cleanDamSku (lib/msiSku.js), which also strips the AEM view-type / debris tails
+ * (Single-Product-Photo, -3DH, -MULT, -ALT, -A2/_B1) the old inline cleaner left
+ * on the id — those leaks were the dominant cause of false match-rejections.
  */
 function extractDamSku(damPath) {
-  const filename = damPath.split('/').pop();
-  return filename
-    .replace(/-Primary-Web-Image\.\w+$/i, '')
-    .replace(/_Primary-Web-Image\.\w+$/i, '')
-    .replace(/[\s_-]*Iso[\s_-]*Product[\s_-]*Photo\.\w+$/i, '')
-    .replace(/_b(?:_\d+)?\.\w+$/i, '')
-    .replace(/\.\w+$/, '')
-    .trim();
+  return cleanDamSku(damPath);
 }
 
 // ─── Asset type definitions ─────────────────────────────────────────────────
@@ -497,6 +497,10 @@ function matchDamToSku(damSku, skuIndex) {
       if (remainder.includes('COR') && !sku.toUpperCase().includes('COR')) continue;
       // Prevent bullnose (BN) DAM images from matching field tile SKUs via prefix
       if (/^BN\b|^BN-/.test(remainder) && !sku.toUpperCase().includes('BN')) continue;
+      // Color-safety veto: the DAM file and the candidate SKU must share a color
+      // stem. A shared family prefix (e.g. SMOT-GLSIL-) is NOT enough — this is
+      // what let a white AKOYA shot land on a black AKANER SKU.
+      if (!stemsAgree(damSku, sku)) continue;
       if (!bestMatch || sku.length > bestMatch.vendor_sku.length) {
         bestMatch = { ...entry, strategy: 'prefix' };
       }
@@ -510,6 +514,8 @@ function matchDamToSku(damSku, skuIndex) {
     if (sku.startsWith(damSku) && damSku.length >= 8 && (sku.length - damSku.length) <= 3) {
       // Prevent non-corner DAM images from matching corner SKUs
       if (sku.toUpperCase().includes('COR') && !damSku.toUpperCase().includes('COR')) continue;
+      // Color-safety veto (see strategy 3)
+      if (!stemsAgree(damSku, sku)) continue;
       if (!bestMatch || sku.length < bestMatch.vendor_sku.length) {
         bestMatch = { ...entry, strategy: 'reverse-prefix' };
       }
@@ -526,11 +532,9 @@ function matchDamToSku(damSku, skuIndex) {
 
 const UPLOADS_BASE = process.env.UPLOADS_PATH || path.join(__dirname, '..', '..', 'uploads');
 const DAM_IMG_DIR  = path.join(UPLOADS_BASE, 'msi-dam');
-
-// Generic source-stone swatches / field-tile shots that older image passes left
-// on unrelated SKUs (e.g. colornames/white-oak-marble.jpg on a ledger panel) —
-// an exact-SKU DAM match may overwrite these.
-const REPLACEABLE_SWATCH_RE = /\/colornames\/(?:videos\/)?[^/]*-(marble|granite|slate|travertine|quartzite|limestone|sandstone|onyx)\.jpg$|\/images\/skus\//i;
+// Generic source-stone swatches / field-tile shots from older passes (e.g.
+// colornames/white-oak-marble.jpg on a ledger panel) are classified as the
+// lowest rank in lib/msiSku.js classifyRank, so any DAM match replaces them.
 
 /**
  * Download a single image from the DAM via the authenticated Puppeteer page.
@@ -587,6 +591,13 @@ async function processMatches(pool, page, matches, { assetType, sortOrder, fileS
   for (let i = 0; i < matches.length; i++) {
     const match = matches[i];
 
+    // Flag low-confidence matches for the bounded AI vision pass. exact/normalized
+    // are definitionally correct; prefix/reverse-prefix passed the stem veto but
+    // still warrant a visual check.
+    if (match.strategy === 'prefix' || match.strategy === 'reverse-prefix') {
+      ambiguousSkuIds.add(match.sku_id);
+    }
+
     if (DRY_RUN) {
       log(`  [DRY] Would save ${assetType}: ${match.damSku} → SKU ${match.vendor_sku} (${match.strategy})`);
       saved++;
@@ -595,22 +606,21 @@ async function processMatches(pool, page, matches, { assetType, sortOrder, fileS
       continue;
     }
 
-    // Check if this SKU already has this asset type
+    // Quality-aware precedence: never let this write downgrade a better existing
+    // image. Rank the existing row from the columns we already store and compare
+    // to the incoming match's rank. A DAM match (80-100) upgrades a swatch (10),
+    // CDN guess (40) or website image (30); it does NOT replace an equal/higher
+    // DAM image except for a genuine exact/normalized upgrade over a prior prefix.
     const { rows: existing } = await pool.query(
-      'SELECT id, url, original_url FROM media_assets WHERE sku_id = $1 AND asset_type = $2 AND sort_order = $3 LIMIT 1',
+      'SELECT id, url, original_url, mirror_bytes FROM media_assets WHERE sku_id = $1 AND asset_type = $2 AND sort_order = $3 LIMIT 1',
       [match.sku_id, assetType, sortOrder]
     );
 
     if (existing.length > 0) {
-      const existingUrl = existing[0].original_url || '';
-      // Skip if already has an image (unless it's a DAM image from a previous run — allow re-download)
-      const isDamImage = existingUrl.includes('msi-dam/') || existingUrl.includes('images.msisurfaces.com');
-      // Source-stone swatches / field-tile shots from older passes are downgrades
-      // vs an exact-SKU DAM asset — always replaceable (keep in sync with
-      // fix-msi-panel-images.mjs isBadPanelImage)
-      const isLowQualitySwatch = REPLACEABLE_SWATCH_RE.test(existing[0].url || '');
-      if (!isDamImage && !isLowQualitySwatch) {
-        if (VERBOSE) log(`  SKIP (has ${assetType}): ${match.vendor_sku}`);
+      const existingRank = classifyRank(existing[0].url, existing[0].original_url, existing[0].mirror_bytes);
+      const incomingRank = RANK[match.strategy] ?? RANK.prefix;
+      if (existingRank >= incomingRank) {
+        if (VERBOSE) log(`  SKIP (rank ${existingRank} >= ${incomingRank}): ${match.vendor_sku}`);
         skipped++;
         continue;
       }
@@ -684,6 +694,7 @@ async function processMatches(pool, page, matches, { assetType, sortOrder, fileS
  */
 async function inheritSiblings(pool, skuIndex, matchedSkuIds) {
   log('Sibling inheritance pass...');
+  if (DRY_RUN) { log('  (skipping inheritance writes in dry-run mode)'); return 0; }
   let inherited = 0;
 
   for (const [, entries] of skuIndex.byProduct) {
@@ -701,11 +712,12 @@ async function inheritSiblings(pool, skuIndex, matchedSkuIds) {
       );
       if (existing.length > 0) continue;
 
-      // Find a sibling with an image — only donors from the same SKU-code line.
-      // Mixed-line products exist (e.g. LPNLTPHI panel + TTPHIL pattern grouped
-      // together); inheriting across lines puts a panel shot on a field tile.
-      const alphaPrefix = (sku) => ((sku.match(/^[A-Za-z]+/) || [''])[0]).slice(0, 3).toUpperCase();
-      const sibling = withImage.find(e => alphaPrefix(e.vendor_sku) === alphaPrefix(entry.vendor_sku));
+      // Donate only from a sibling of the SAME COLOR. We gate on the shared
+      // colorStem (lib/msiSku.js) — the same primitive the DAM matcher uses — so
+      // a white AKOYA8MM image can never donate onto a black AKANER8MM SKU merged
+      // into the same product. Different-color siblings (different stems) are
+      // left imageless rather than given a wrong photo.
+      const sibling = withImage.find(e => stemsAgree(e.vendor_sku, entry.vendor_sku));
       if (!sibling) continue;
       const { rows: sibImg } = await pool.query(
         "SELECT url FROM media_assets WHERE sku_id = $1 AND asset_type = 'primary' LIMIT 1",
@@ -913,7 +925,7 @@ async function cdnFallback(pool, skuIndex, matchedSkuIds) {
     return 0;
   }
 
-  let saved = 0, probed = 0, noCandidates = 0;
+  let saved = 0, probed = 0, noCandidates = 0, rejected = 0;
 
   for (const [, entry] of skuIndex.exact) {
     if (!missingSet.has(entry.sku_id)) continue;
@@ -933,6 +945,32 @@ async function cdnFallback(pool, skuIndex, matchedSkuIds) {
     }
 
     if (hit) {
+      // cdnFallback guesses URLs from slugs with NO SKU signal, so a wrong-slug
+      // hit (often a generic colorname swatch) can be a different color. If a
+      // same-color sibling already has a confirmed local image, pixel-gate the
+      // guess against it; reject on a clear color mismatch. With no reference the
+      // guess is accepted but flagged for the AI vision pass.
+      let verified = null; // true = passed gate, false = failed, null = no reference
+      const sibs = (skuIndex.byProduct.get(entry.product_id) || [])
+        .filter(e => e.sku_id !== entry.sku_id && stemsAgree(e.vendor_sku, entry.vendor_sku));
+      if (sibs.length) {
+        const { rows: ref } = await pool.query(
+          `SELECT url FROM media_assets WHERE sku_id = ANY($1) AND asset_type = 'primary'
+             AND url LIKE '/uploads/%' ORDER BY sort_order LIMIT 1`,
+          [sibs.map(e => e.sku_id)]
+        );
+        if (ref.length) {
+          const refLocal = path.join(UPLOADS_BASE, ref[0].url.replace(/^\/uploads\//, ''));
+          verified = await colorsMatch(hit, refLocal, colorStatsCache);
+          if (!verified) {
+            if (VERBOSE) log(`  CDN REJECT (color gate): ${entry.vendor_sku} ${hit}`);
+            rejected++;
+            if (probed % 50 === 0) await delay(500);
+            continue;
+          }
+        }
+      }
+
       await upsertMediaAsset(pool, {
         product_id: entry.product_id,
         sku_id: entry.sku_id,
@@ -942,6 +980,7 @@ async function cdnFallback(pool, skuIndex, matchedSkuIds) {
         sort_order: 0,
       });
       matchedSkuIds.add(entry.sku_id);
+      if (verified === null) ambiguousSkuIds.add(entry.sku_id); // unverified guess
       saved++;
     }
 
@@ -950,7 +989,7 @@ async function cdnFallback(pool, skuIndex, matchedSkuIds) {
     if (probed % 50 === 0) await delay(500);
   }
 
-  log(`  CDN fallback: ${probed} probed, ${saved} saved, ${noCandidates} no candidates`);
+  log(`  CDN fallback: ${probed} probed, ${saved} saved, ${rejected} rejected (color gate), ${noCandidates} no candidates`);
   return saved;
 }
 
@@ -1155,6 +1194,16 @@ async function run() {
 
     // ── Sibling inheritance (primary images only) ────────────────────────────
     const inherited = await inheritSiblings(pool, skuIndex, allSavedSkuIds);
+
+    // ── Ambiguous set → bounded AI vision pass ───────────────────────────────
+    // Low-confidence matches (prefix/reverse-prefix) + unverified CDN guesses.
+    // Consumed by: node verify-image-vision.mjs --vendor MSI
+    //   --only-skus backend/data/msi-ambiguous-skus.json --limit 300
+    if (!DRY_RUN) {
+      const ambigPath = path.join(__dirname, '..', 'data', 'msi-ambiguous-skus.json');
+      fs.writeFileSync(ambigPath, JSON.stringify([...ambiguousSkuIds], null, 0));
+      log(`  Ambiguous (flagged for AI vision): ${ambiguousSkuIds.size} → ${ambigPath}`);
+    }
 
     // ── Summary ──────────────────────────────────────────────────────────────
     log('');

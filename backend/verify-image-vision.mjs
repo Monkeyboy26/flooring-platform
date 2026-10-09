@@ -6,6 +6,7 @@
 // mismatch quality rule reads the cache. Cost-tracked, bounded by --limit.
 //
 //   node verify-image-vision.mjs [--limit N] [--vendor CODE] [--recheck] [--concurrency N]
+//                                [--only-skus <json-file of sku_ids>]
 //
 // Sends a PUBLIC image URL (OpenAI must fetch it): a mirrored /uploads image via
 // SITE_URL (alive, served even in maintenance mode), else the vendor URL.
@@ -18,6 +19,16 @@ const LIMIT = parseInt(arg('--limit', '200'), 10);
 const CONC = parseInt(arg('--concurrency', '4'), 10);
 const VENDOR = arg('--vendor', null);
 const RECHECK = process.argv.includes('--recheck');
+// --only-skus <file>: restrict the scan to a JSON array of sku_ids (e.g. the
+// matcher's backend/data/msi-ambiguous-skus.json), so the nightly pass checks
+// only the SKUs flagged as low-confidence rather than the whole vendor.
+const ONLY_SKUS_FILE = arg('--only-skus', null);
+let ONLY_SKUS = null;
+if (ONLY_SKUS_FILE) {
+  const fs = await import('fs');
+  ONLY_SKUS = JSON.parse(fs.readFileSync(ONLY_SKUS_FILE, 'utf8'));
+  console.log(`--only-skus: ${ONLY_SKUS.length} sku_ids from ${ONLY_SKUS_FILE}`);
+}
 const MODEL = process.env.VISION_MODEL || 'gpt-4o-mini';
 const SITE = (process.env.SITE_URL || 'https://www.romaflooringdesigns.com').replace(/\/$/, '');
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -41,11 +52,12 @@ const { rows } = await pool.query(`
   JOIN media_assets ma ON ma.sku_id = s.id AND ma.asset_type = 'primary'
   WHERE s.status = 'active' AND p.status = 'active'
     AND ($1::text IS NULL OR v.code = $1)
+    AND ($2::uuid[] IS NULL OR s.id = ANY($2))
     AND EXISTS (SELECT 1 FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'color' AND sa.value <> '')
     ${RECHECK ? '' : 'AND NOT EXISTS (SELECT 1 FROM image_vision_checks ivc WHERE ivc.sku_id = s.id)'}
   ORDER BY md5(s.id::text)
   LIMIT ${LIMIT}
-`, [VENDOR]);
+`, [VENDOR, ONLY_SKUS]);
 
 console.log(`${rows.length} SKUs to vision-check (model ${MODEL}, concurrency ${CONC})`);
 
