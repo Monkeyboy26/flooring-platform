@@ -2475,6 +2475,17 @@ async function scrapeProductPage(browser, url) {
           if (!trusted && nameKeywords.length > 0) {
             if (!nameKeywords.some(kw => urlLower.includes(kw))) return;
           }
+          // Reject SIBLING-FORMAT images: MSI pages show the same color in other
+          // formats (hex/mosaic/slab), whose URLs share the color name and so pass
+          // the keyword filter. Drop an image whose slug names a mosaic PATTERN or
+          // a full SLAB the product's own name doesn't claim (a hex-mosaic product
+          // keeps its hex images; a field tile does not). Trim is dropped above.
+          if (!trusted) {
+            const nameLower = (result.name || '').toLowerCase();
+            const pm = urlLower.match(/hexagon|herringbone|chevron|cheveron|basketweave|pinwheel|arabesque|\bdotty\b|\blynx\b|\bpicket\b|penny-?round|octagon|\blantern\b/);
+            if (pm && !nameLower.replace(/[^a-z]/g, '').includes(pm[0].replace(/[^a-z]/g, ''))) return;
+            if (/full-?slab/.test(urlLower) && !/\bslab|countertop|prefab\b/.test(nameLower)) return;
+          }
           seenUrls.add(href);
           if (/roomscene/i.test(href)) {
             roomScenes.push(href);
