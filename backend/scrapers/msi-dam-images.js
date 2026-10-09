@@ -152,6 +152,43 @@ function buildRenditionUrl(damPath) {
  *
  * Falls back to --manual-login if automated flow fails.
  */
+/**
+ * MSI's B2B login now drops you on a 2FA VerificationCode interstitial after the
+ * password step. Credentials auto-fill, but the emailed/texted code can only be
+ * entered by a person — so detect the interstitial and WAIT for the human to
+ * clear it in the visible Chrome window. Returns true once past it (or if no 2FA
+ * was present), false on timeout.
+ */
+async function clearTwoFactorIfPresent(page) {
+  const onVerify = () => /verification|verifycode|twofactor|2fa|otp/i.test(page.url());
+  const hasCodeField = async () => page.evaluate(() =>
+    !!document.querySelector(
+      'input[name*="code" i], input[id*="code" i], input[name*="verif" i], input[id*="verif" i], input[autocomplete="one-time-code"]'
+    )
+  ).catch(() => false);
+
+  if (!onVerify() && !(await hasCodeField())) return true; // no 2FA step
+
+  log('');
+  log('══════════════════════════════════════════════════════════');
+  log('  2FA REQUIRED — MSI sent a verification code (email/SMS).');
+  log('  Type it into the open Chrome window and submit.');
+  log('  Waiting up to 10 minutes for you to clear it...');
+  log('══════════════════════════════════════════════════════════');
+
+  for (let i = 0; i < 120; i++) { // 120 × 5s = 10 min
+    await delay(5000);
+    if (!onVerify() && !(await hasCodeField())) {
+      log('  2FA cleared — continuing.');
+      await delay(2000);
+      return true;
+    }
+    if ((i + 1) % 6 === 0) log(`  ...still waiting for 2FA code (${(i + 1) * 5}s)`);
+  }
+  log('  ERROR: 2FA not cleared within 10 minutes.');
+  return false;
+}
+
 async function authenticateDAM(page) {
   const PORTAL_URL = 'https://www.msisurfaces.com/customer-portal/';
 
@@ -238,7 +275,7 @@ async function authenticateDAM(page) {
     const postLoginUrl = page.url();
     log(`  Post-login URL: ${postLoginUrl}`);
 
-    // Check if login succeeded
+    // Fail fast on a rejected password (still on a login form with a password field).
     const stillHasPassword = await page.evaluate(() =>
       document.querySelectorAll('input[type="password"]').length > 0
     ).catch(() => false);
@@ -246,7 +283,16 @@ async function authenticateDAM(page) {
       log('ERROR: B2B login failed. Check MSI_PORTAL_USERNAME/PASSWORD in .env, or use --manual-login.');
       return false;
     }
-    log('  B2B login successful!');
+
+    // MSI now shows a 2FA verification-code interstitial after the password step —
+    // wait for the human to enter the code before we treat login as complete.
+    const twoFaOk = await clearTwoFactorIfPresent(page);
+    if (!twoFaOk) return false;
+
+    // Let the dashboard settle after clearing 2FA.
+    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 }).catch(() => {});
+    await delay(3000);
+    log(`  B2B login successful! Dashboard: ${page.url()}`);
 
     // ── Step 2: Find and click "Digital Photography" ─────────────────────
     log('  Looking for "Digital Photography" link...');
@@ -312,6 +358,22 @@ async function authenticateDAM(page) {
       }
     } else {
       log('  "Digital Photography" tile not found on dashboard.');
+      // Surface what IS on the page so the selector can be updated without guessing.
+      const diag = await page.evaluate(() => ({
+        url: location.href,
+        title: document.title,
+        links: Array.from(document.querySelectorAll('a, button, .selectoritemclick, [onclick]'))
+          .map(el => (el.textContent || '').trim())
+          .filter(t => t && t.length < 60)
+          .slice(0, 40),
+      })).catch(() => null);
+      if (diag) {
+        log(`  [diag] url=${diag.url}`);
+        log(`  [diag] title=${diag.title}`);
+        log(`  [diag] clickable labels: ${diag.links.join(' | ')}`);
+      }
+      log('  If the DAM link is in that list under a new label, update the');
+      log('  tile matcher in authenticateDAM (search terms near this line).');
     }
   }
 
