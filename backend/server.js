@@ -34850,39 +34850,42 @@ cron.schedule('0 4 * * 0', async () => {
 // Self-host new/un-mirrored active-product images to uploads/mirror so a vendor
 // CDN can't break them (uploads/ is synced to S3 nightly). Covers the hero
 // (primary) AND the gallery (alternate/lifestyle/swatch) — galleries rot the
-// same way, they just aren't the card image so it goes unnoticed. spec_pdf is
-// excluded (not an image). Bounded per run so it can't run for hours; the
-// one-time bulk was mirror-images-backfill.mjs. Primaries mirror first, then
-// fragile CDNs (already-failing Caesarstone/Mapei/Wix/Cloudinary).
-const IMAGE_MIRROR_BATCH = parseInt(process.env.IMAGE_MIRROR_BATCH || '3000', 10);
-// Low default concurrency: now that galleries (large ~16MP lifestyle shots) are
-// in scope, each concurrent sharp decode can hold hundreds of MB. At conc 8 the
-// batch OOM-killed itself inside the 2GB api cgroup. 3 keeps peak RSS well under
-// the limit alongside the server; override via env on a bigger container.
-const IMAGE_MIRROR_CONCURRENCY = parseInt(process.env.IMAGE_MIRROR_CONCURRENCY || '3', 10);
+// same way, they just aren't the card image so it goes unnoticed.
+//
+// CRITICAL: mirroring runs in SPAWNED CHILD PROCESSES, never inline. sharp/libvips
+// leak ~15-22MB of RSS per decode that glibc never returns to the OS; mirroring a
+// few hundred images inline would grow THIS long-lived server until the 2GB cgroup
+// OOM-kills it. Each child is bounded by --max-mirrors and exits, reclaiming the
+// leaked RSS. We spawn children until the nightly budget is met or the pool runs
+// dry. Same recycling the one-time bulk uses (drain-mirror.sh / mirror-images-backfill.mjs).
+const IMAGE_MIRROR_BATCH = parseInt(process.env.IMAGE_MIRROR_BATCH || '3000', 10); // max mirrors/night
+const IMAGE_MIRROR_CONCURRENCY = parseInt(process.env.IMAGE_MIRROR_CONCURRENCY || '2', 10);
+const IMAGE_MIRROR_PER_CHILD = parseInt(process.env.IMAGE_MIRROR_PER_CHILD || '50', 10); // < OOM threshold
 cron.schedule('30 4 * * *', async () => {
   if (process.env.IMAGE_MIRROR_DISABLE === '1') return;
+  const { spawn } = await import('child_process');
+  // One recycled child: mirrors up to PER_CHILD images then exits. Resolves to
+  // the number actually mirrored (parsed from the script's "Done: N mirrored").
+  const runChild = () => new Promise((resolve) => {
+    const child = spawn('node', [
+      'mirror-images-backfill.mjs',
+      '--max-mirrors', String(IMAGE_MIRROR_PER_CHILD),
+      '--concurrency', String(IMAGE_MIRROR_CONCURRENCY),
+      '--random',
+    ], { cwd: import.meta.dirname, env: { ...process.env, MALLOC_ARENA_MAX: '2' } });
+    let out = '';
+    child.stdout.on('data', (d) => { out += d; });
+    child.on('close', () => { const m = out.match(/Done: (\d+) mirrored/); resolve(m ? parseInt(m[1], 10) : 0); });
+    child.on('error', () => resolve(0));
+  });
   try {
-    const { mirrorMediaRow } = await import('./lib/imageMirror.js');
-    const fragile = 'caesarstone|cdnmedia\\.mapei|wixstatic|cloudinary';
-    const { rows } = await pool.query(`
-      SELECT ma.id, ma.url, ma.original_url
-      FROM media_assets ma JOIN products p ON p.id = ma.product_id
-      WHERE ma.asset_type IN ('primary','alternate','lifestyle','swatch') AND p.status = 'active'
-        AND ma.mirrored_at IS NULL AND ma.url ~ '^https?://'
-      ORDER BY (ma.asset_type = 'primary') DESC, (ma.url ~ '${fragile}') DESC, md5(ma.id::text)
-      LIMIT $1
-    `, [IMAGE_MIRROR_BATCH]);
-    if (!rows.length) return;
-    let ok = 0, cursor = 0;
-    const worker = async () => {
-      while (cursor < rows.length) {
-        const row = rows[cursor++];
-        try { if (await mirrorMediaRow(pool, row)) ok++; } catch { /* keep vendor url */ }
-      }
-    };
-    await Promise.all(Array.from({ length: IMAGE_MIRROR_CONCURRENCY }, worker));
-    console.log(`[Cron] Image mirror: ${ok}/${rows.length} newly self-hosted`);
+    let total = 0, misses = 0;
+    while (total < IMAGE_MIRROR_BATCH && misses < 3) {
+      const n = await runChild();
+      total += n;
+      misses = n === 0 ? misses + 1 : 0;
+    }
+    if (total) console.log(`[Cron] Image mirror: ${total} newly self-hosted (recycled children)`);
   } catch (err) {
     console.error('[Cron] Image mirror failed:', err.message);
   }

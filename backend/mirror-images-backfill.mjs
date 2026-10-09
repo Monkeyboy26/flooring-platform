@@ -23,6 +23,18 @@ const FRAGILE_RE = 'caesarstone|cdnmedia\\.mapei|wixstatic|cloudinary';
 // Google's "invalid image encoding" bucket). Sanitized to url-safe chars since
 // it's interpolated into the query, same as FRAGILE_RE.
 const HOST = (arg('--host', '') || '').replace(/[^a-z0-9.\\|_-]/gi, '');
+// --max-mirrors N: exit after N SUCCESSFUL mirrors. libvips/sharp leaks ~15MB of
+// RSS per decode that glibc never returns to the OS, so a long-lived process
+// OOM-kills itself after ~80-100 decodes inside a 2GB cgroup (see imageMirror.js).
+// The cure is process recycling: an orchestrator loops this script with a safe
+// --max-mirrors so each process exits (reclaiming all leaked RSS) well before the
+// ceiling. See drain-mirror.sh and the server.js nightly cron.
+const MAX_MIRRORS = parseInt(arg('--max-mirrors', '0'), 10);
+// --random: sample rows in a fresh random order each run instead of fragile-first.
+// Essential with --max-mirrors: dead/unmirrorable rows keep mirrored_at NULL and
+// otherwise cluster at the front of the deterministic order, so every recycled
+// process would re-scan the same skips and never advance. Random spreads them.
+const RANDOM = process.argv.includes('--random');
 // Image asset types to mirror. spec_pdf is intentionally excluded. Override with
 // --types (e.g. --types primary to restore the old primary-only behaviour).
 const DEFAULT_TYPES = ['primary', 'alternate', 'lifestyle', 'swatch'];
@@ -31,6 +43,13 @@ const TYPES = (arg('--types', '') || '')
 const ASSET_TYPES = TYPES.length ? TYPES : DEFAULT_TYPES;
 const TYPE_LIST = ASSET_TYPES.map(t => `'${t}'`).join(',');
 
+// With --max-mirrors but no explicit --limit, only pull a bounded window (enough
+// rows to find MAX_MIRRORS mirrorable past the skips) rather than the whole table.
+const EFFECTIVE_LIMIT = LIMIT || (MAX_MIRRORS ? MAX_MIRRORS * 25 : 0);
+const ORDER_BY = RANDOM
+  ? 'random()'
+  : `(ma.url ~ '${FRAGILE_RE}') DESC, (ma.asset_type = 'primary') DESC, md5(ma.id::text)`;
+
 const { rows } = await pool.query(`
   SELECT ma.id, ma.url, ma.original_url
   FROM media_assets ma JOIN products p ON p.id = ma.product_id
@@ -38,8 +57,8 @@ const { rows } = await pool.query(`
     AND ma.mirrored_at IS NULL AND ma.url ~ '^https?://'
     ${FRAGILE_ONLY ? `AND ma.url ~ '${FRAGILE_RE}'` : ''}
     ${HOST ? `AND ma.url ~ '${HOST}'` : ''}
-  ORDER BY (ma.url ~ '${FRAGILE_RE}') DESC, (ma.asset_type = 'primary') DESC, md5(ma.id::text)
-  ${LIMIT ? `LIMIT ${LIMIT}` : ''}
+  ORDER BY ${ORDER_BY}
+  ${EFFECTIVE_LIMIT ? `LIMIT ${EFFECTIVE_LIMIT}` : ''}
 `);
 
 console.log(`${rows.length} images to mirror [${ASSET_TYPES.join(',')}] (concurrency ${CONC}${FRAGILE_ONLY ? ', fragile-only' : ''}${HOST ? `, host~${HOST}` : ''})`);
@@ -48,6 +67,7 @@ const t0 = Date.now();
 let cursor = 0;
 async function worker() {
   while (cursor < rows.length) {
+    if (MAX_MIRRORS && ok >= MAX_MIRRORS) break; // recycle: let the process exit + free leaked RSS
     const row = rows[cursor++];
     try {
       const b = await mirrorMediaRow(pool, row);
