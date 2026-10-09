@@ -19,6 +19,16 @@ import path from 'path';
 import crypto from 'crypto';
 import sharp from 'sharp';
 
+// Memory discipline for the mirror pipeline — the api container runs under a
+// 2GB cgroup and batch mirroring decodes many large (up to ~16MP) vendor images
+// at once. Default libvips behaviour (per-op N-thread pool + an operation/file
+// cache that grows with RSS) OOM-killed a concurrency-20 backfill on prod. Cap
+// libvips to one thread per decode and disable the cache so peak RSS scales with
+// the caller's concurrency, not with libvips internals. ~No throughput cost here
+// since parallelism comes from the caller running many mirrorImage() at once.
+sharp.concurrency(1);
+sharp.cache(false);
+
 const UPLOADS_DIR = process.env.UPLOADS_PATH || './uploads';
 const MIRROR_SUBDIR = 'mirror';
 const MAX_EDGE = 1600;
