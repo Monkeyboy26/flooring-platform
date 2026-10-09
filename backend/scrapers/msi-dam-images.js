@@ -277,8 +277,11 @@ async function authenticateDAM(page) {
     });
 
     log('  Clicking "Access Digital Photography"...');
-    // Use Puppeteer's native click (not evaluate) so popups aren't blocked
-    const tileEl = await page.evaluateHandle(() => {
+    // Use Puppeteer's native click (not evaluate) so popups aren't blocked.
+    // evaluateHandle wraps the result in a JSHandle even when the callback
+    // returns null; .asElement() yields the ElementHandle (or null) so a missing
+    // link fails cleanly instead of crashing with "tileEl.click is not a function".
+    const tileHandle = await page.evaluateHandle(() => {
       const all = Array.from(document.querySelectorAll('a, div, span'));
       for (const el of all) {
         const text = (el.textContent || '').trim().toLowerCase();
@@ -291,6 +294,7 @@ async function authenticateDAM(page) {
       }
       return null;
     });
+    const tileEl = tileHandle.asElement();
 
     if (tileEl) {
       await tileEl.click();
