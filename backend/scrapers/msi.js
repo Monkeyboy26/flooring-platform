@@ -1257,6 +1257,20 @@ async function scrapeProductPage(browser, url, config) {
             const matches = nameKeywords.some(kw => urlLower.includes(kw));
             if (!matches) return;
           }
+          // Reject SIBLING-FORMAT images of a DIFFERENT format than this product.
+          // MSI product pages show the same color in other formats (hex/mosaic/
+          // slab/trim); those share the color name so they pass the keyword check.
+          // Drop an image whose slug names a mosaic PATTERN, a TRIM piece, or a
+          // full SLAB that the product's own name does not claim. (A hex-mosaic
+          // product keeps its hex images; a 12x24 field tile does not.)
+          if (!trusted) {
+            const slug = decodeURIComponent(href).toLowerCase();
+            const nameLower = (result.name || '').toLowerCase();
+            const PATTERN_TRIM = /hexagon|herringbone|chevron|cheveron|basketweave|pinwheel|arabesque|\bdotty\b|\blynx\b|\bpicket\b|penny-?round|octagon|\blantern\b|bullnose|bull-nose|quarter-?round|chair-?rail|\bjolly\b|pencil-?(?:liner|rail|molding)/;
+            const pm = slug.match(PATTERN_TRIM);
+            if (pm && !nameLower.replace(/[^a-z]/g, '').includes(pm[0].replace(/[^a-z]/g, ''))) return;
+            if (/full-?slab/.test(slug) && !/\bslab|countertop|prefab\b/.test(nameLower)) return;
+          }
           seenUrls.add(href);
           const type = result.images.length === 0 ? 'primary' : 'alternate';
           result.images.push({ url: href, type });
