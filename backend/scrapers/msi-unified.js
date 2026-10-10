@@ -1984,11 +1984,25 @@ async function phase3_tier2_puppeteer(pool, skuIndex, log) {
     let pagesInSession = 0;
     const BROWSER_RESTART_INTERVAL = 80; // restart browser every N product pages
 
+    // Efficiency: only scrape product pages that match a TARGET product (one of
+    // the imageless SKUs in skuIndex). Without this the crawl loads EVERY product
+    // page in EVERY category — ~2000 pages to image a handful of new products.
+    // We still fetch each category LISTING (1 cheap page) but skip the expensive
+    // per-product scrape for non-targets. Matching after the scrape (by SKU code)
+    // is unchanged — this only prunes which pages we bother loading.
+    const slugify = s => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const targetSlugs = [...new Set(
+      [...skuIndex.values()].filter(e => !e._hasImage && e.product_name).map(e => slugify(e.product_name))
+    )].filter(s => s.length >= 4);
+    log(`    Targeting ${targetSlugs.size ?? targetSlugs.length} product slug(s); non-target pages will be skipped`);
+
     for (const categoryPath of MSI_CATEGORIES) {
-      // In test mode, stop early once all test SKUs have images
-      if (TEST_SKUS) {
-        const allDone = [...skuIndex.values()].every(e => e._hasImage);
-        if (allDone) { log(`    All test SKUs have images — stopping early`); break; }
+      // Stop crawling once every target SKU has an image — don't keep walking the
+      // rest of the category tree (the whole point of the targeted crawl). SKUs
+      // with no findable page simply stay imageless, same as before.
+      if ([...skuIndex.values()].every(e => e._hasImage)) {
+        log(`    All target SKUs imaged — stopping category crawl early`);
+        break;
       }
       const categoryUrl = baseUrl + categoryPath;
       log(`    Category: ${categoryPath}`);
@@ -2044,6 +2058,11 @@ async function phase3_tier2_puppeteer(pool, skuIndex, log) {
         const normalizedUrl = url.replace(/\/$/, '').toLowerCase();
         if (visitedUrls.has(normalizedUrl)) continue;
         visitedUrls.add(normalizedUrl);
+
+        // Skip the expensive page load unless this URL matches a target product
+        // slug. (Belt-and-suspenders: if no targets were derived, fall back to the
+        // old behavior of scraping everything so we never silently image nothing.)
+        if (targetSlugs.length && !targetSlugs.some(t => normalizedUrl.includes(t))) continue;
 
         try {
           const data = await scrapeProductPage(browser, url);
