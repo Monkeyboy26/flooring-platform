@@ -52,7 +52,7 @@ const FTP_CONFIG = {
   host: process.env.TRIWEST_FTP_HOST || 'ftp.triwestltd.com',
   port: parseInt(process.env.TRIWEST_FTP_PORT || '21', 10),
   user: process.env.TRIWEST_FTP_USER || 'xpresfl',
-  password: process.env.TRIWEST_FTP_PASS || 'xpf012728!',
+  password: process.env.TRIWEST_FTP_PASS || '',
 };
 const REMOTE_DIR = '/outbox';
 

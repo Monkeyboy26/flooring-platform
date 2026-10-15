@@ -135,6 +135,13 @@ services:
       EF_CLIENT_ID: ${EF_CLIENT_ID:-}
       EF_FTP_USER: ${EF_FTP_USER:-}
       EF_FTP_PASS: ${EF_FTP_PASS:-}
+      # Vendor EDI FTP/SFTP passwords (host/user stay as non-secret defaults in the
+      # scrapers). Empty = scraper falls back to '' and the EDI connect fails loudly.
+      EMSER_SFTP_PASS: ${EMSER_SFTP_PASS:-}
+      EMSER_FTP_PASS: ${EMSER_FTP_PASS:-}
+      SHAW_SFTP_PASS: ${SHAW_SFTP_PASS:-}
+      DALTILE_FTP_PASS: ${DALTILE_FTP_PASS:-}
+      TRIWEST_FTP_PASS: ${TRIWEST_FTP_PASS:-}
       EF_CLOUDINARY_API_KEY: ${EF_CLOUDINARY_API_KEY:-}
       EF_CLOUDINARY_API_SECRET: ${EF_CLOUDINARY_API_SECRET:-}
       PENTZ_API_KEY: ${PENTZ_API_KEY:-}

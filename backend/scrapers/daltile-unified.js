@@ -56,7 +56,7 @@ const DEFAULT_FTP = {
   host: 'daltileb2b.daltile.com',
   port: 21,
   user: '7149990009',
-  password: 'W5y5p6L6',
+  password: process.env.DALTILE_FTP_PASS || '',
 };
 
 const REMOTE_DIRS = [

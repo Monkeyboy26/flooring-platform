@@ -34,7 +34,7 @@ const DEFAULT_SFTP = {
   host: 'shawedi.shawfloors.com',
   port: 22,
   username: 'edi07408',
-  password: 'ef6049',
+  password: process.env.SHAW_SFTP_PASS || '',
 };
 
 // Directories to scan on the remote server

@@ -41,7 +41,7 @@ const DEFAULT_CONN = {
   host: 'ediftp.emser.com',
   port: 22,
   user: '345253',
-  password: 'CnPrElB8v1I6TkInliQr',
+  password: process.env.EMSER_SFTP_PASS || process.env.EMSER_FTP_PASS || '',
   transport: 'sftp',
 };
 
