@@ -985,7 +985,7 @@ ${isWillCall ? willCallStamp({ accent, top: '16px', left: '50%' }) : ''}
 <span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:1em;letter-spacing:normal;text-indent:0;color:var(--ink);">FLOORING</em></span>
 <span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
 </div>
-<div class="small" style="margin-top:14px;">Roma Flooring Designs<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 &middot; orders@romaflooringdesigns.com<br />License #830966</div>
+<div class="small" style="margin-top:14px;">Roma Flooring Designs<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 &middot; Sales@romaflooringdesigns.com<br />License #830966</div>
 </div>
 <div style="text-align:right;min-width:240px;">
 <div class="mono" style="letter-spacing:0.22em;">Purchase order</div>
