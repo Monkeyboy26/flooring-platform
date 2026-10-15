@@ -89,6 +89,31 @@ const CATEGORY_MAP = {
   'cement': 'porcelain-tile',
 };
 
+// Bedrosians listing sections that imply a specific look/format/use category,
+// overriding the material-based CATEGORY_MAP default (which can't tell a wood-look
+// porcelain plank from a bathroom floor tile — both are MaterialType "Porcelain").
+// Matched by path substring against the sections a product was scraped from. Generic
+// material sections (porcelain, ceramic, marble, natural-stone…) are intentionally
+// absent so they fall through to CATEGORY_MAP. See categorizeBedSlug + sectionSlugsFor.
+const SECTION_CATEGORY_MAP = [
+  ['/by-look/mosaic', 'mosaic-tile'],
+  ['/by-look/wood-look', 'wood-look-tile'],
+  ['/by-look/large-format', 'large-format-tile'],
+  ['/by-look/zellige', 'zellige-tile'],
+  ['/by-look/subway', 'backsplash-wall'],   // subway IS wall tile — existing category
+  ['/decorative-tiles', 'decorative-tile'],
+];
+/** Map the set of Bedrosians listing sections a product appeared in → platform slugs. */
+function sectionSlugsFor(sections) {
+  const out = [];
+  for (const sec of sections || []) {
+    for (const [frag, slug] of SECTION_CATEGORY_MAP) {
+      if (sec.includes(frag) && !out.includes(slug)) out.push(slug);
+    }
+  }
+  return out;
+}
+
 /**
  * Bedrosians scraper.
  *
@@ -155,6 +180,10 @@ export async function run(pool, job, source) {
 
     // ── Phase 1: Collect all products from listing pages ──
     const allProducts = new Map(); // keyed by ProductCode for dedup
+    // ProductCode → Set of listing section paths it appeared in. A product shows up in
+    // both a material section (porcelain) AND any look/format section (wood-look,
+    // large-format…); we keep ALL so categorizeBedSlug can pick the most specific.
+    const productSections = new Map();
 
     for (const categoryPath of config.categories) {
       await appendLog(pool, job.id, `Scraping category: ${categoryPath}`);
@@ -163,10 +192,13 @@ export async function run(pool, job, source) {
         const products = await scrapeListingPages(browser, baseUrl, categoryPath, config);
         let newInCategory = 0;
         for (const p of products) {
-          if (p.ProductCode && !allProducts.has(p.ProductCode)) {
+          if (!p.ProductCode) continue;
+          if (!allProducts.has(p.ProductCode)) {
             allProducts.set(p.ProductCode, p);
             newInCategory++;
           }
+          if (!productSections.has(p.ProductCode)) productSections.set(p.ProductCode, new Set());
+          productSections.get(p.ProductCode).add(categoryPath);
         }
         await appendLog(pool, job.id, `Found ${products.length} products in ${categoryPath} (${newInCategory} new, ${products.length - newInCategory} duplicates)`);
       } catch (err) {
@@ -196,13 +228,16 @@ export async function run(pool, job, source) {
           continue;
         }
 
-        // Resolve category_id from MaterialType + shape/slab context
+        // Resolve category_id from MaterialType + shape/slab context + the Bedrosians
+        // listing section(s) the product came from (wood-look, large-format, mosaic…).
+        const sourceSlugs = sectionSlugsFor(productSections.get(productCode));
         const categoryId = resolveCategoryId(mapped.materialType, categoryLookup, mapped.collection, {
           shape: mapped.shape,
           isSlab: mapped.isSlab,
           name: mapped.name,
           size: mapped.size,
           application: mapped.attributes && mapped.attributes.application,
+          sourceSlugs,
         });
         if (mapped.materialType && !categoryId) {
           await appendLog(pool, job.id, `Unmapped MaterialType "${mapped.materialType}" for ${productCode} — product will have no category`);
@@ -218,6 +253,7 @@ export async function run(pool, job, source) {
           name: mapped.name,
           size: mapped.size,
           application: mapped.attributes && mapped.attributes.application,
+          sourceSlugs,
         });
         let productName = mapped.name;
         let productCollection = mapped.collection;
@@ -1141,7 +1177,15 @@ function mapListingProduct(raw) {
   // Collection: GroupVariantsBy groups all variants; ProductSeries is the series name
   const collection = raw.GroupVariantsBy || raw.ProductSeries || raw.Series || null;
   if (collection && !accessoryType && !productName.toLowerCase().startsWith(collection.toLowerCase())) {
-    productName = `${collection} ${productName}`;
+    // Guard against a doubled title when the color echoes a collection word: collection
+    // "Calacatta Oro" + SeriesColor "Calacatta" → don't build "Calacatta Oro Calacatta".
+    // If every color token already lives in the collection, the color adds nothing, so
+    // use the collection alone. A genuinely additive color is still prefixed.
+    const colToks = new Set(collection.toLowerCase().split(/\s+/).filter(Boolean));
+    const pnToks = productName.toLowerCase().split(/\s+/).filter(Boolean);
+    productName = (pnToks.length && pnToks.every(t => colToks.has(t)))
+      ? collection
+      : `${collection} ${productName}`;
   }
 
   // Variant name: for accessories use the type label + size, otherwise size + finish + shape
@@ -1336,7 +1380,7 @@ function classifyShapeSuffix(shape) {
  * Priority: slab → ledger → tile-trim (name-based) → mosaic-shape → wall-only
  * (application) → floor moldings → material default (CATEGORY_MAP).
  */
-function categorizeBedSlug(materialType, collection, { shape, isSlab, name, application } = {}) {
+function categorizeBedSlug(materialType, collection, { shape, isSlab, name, application, sourceSlugs } = {}) {
   if (!materialType) return null;
   const mt = materialType.toLowerCase();
   let slug = CATEGORY_MAP[mt];
@@ -1352,6 +1396,23 @@ function categorizeBedSlug(materialType, collection, { shape, isSlab, name, appl
   // "Fan Deco Porcelain Tile"). Bare collection+color mosaics (e.g. "360 Beige") have no such word.
   const hasFieldTileWord = !nameLower.includes('mosaic')
     && /(field tile|floor ?& ?wall tile|floor and wall tile|porcelain tile\b|ceramic tile\b|wall tile)/.test(nameLower);
+
+  // ── Source-section override: Bedrosians groups products into look/format sections
+  // (mosaic, wood-look, large-format, zellige, subway, decorative) that the material
+  // default can't see. Prefer the MOST specific section the product was scraped from.
+  // Mosaic wins regardless of material (a marble/glass mosaic is still a mosaic), but
+  // respects the field-tile name guard so a "...Porcelain Tile" line isn't pulled in.
+  // The other look/format sections only refine the generic porcelain/ceramic buckets —
+  // a stone/wood/vinyl product keeps its material identity. The semantic overrides
+  // below (slab/trim/ledger/wall) still run and can further refine.
+  const SECTION_PRECEDENCE = ['mosaic-tile', 'wood-look-tile', 'zellige-tile',
+    'decorative-tile', 'large-format-tile', 'backsplash-wall'];
+  const srcSlugs = sourceSlugs || [];
+  if (srcSlugs.length) {
+    const pick = SECTION_PRECEDENCE.find(s => srcSlugs.includes(s));
+    if (pick === 'mosaic-tile' && !hasFieldTileWord) slug = 'mosaic-tile';
+    else if (pick && pick !== 'mosaic-tile' && ['porcelain-tile', 'ceramic-tile'].includes(slug)) slug = pick;
+  }
 
   // ── Shape override: mosaic shapes → mosaic-tile ──
   if (shape) {
