@@ -16239,7 +16239,10 @@
             unit_price: price.toFixed(2),
             subtotal: parseFloat(sub.toFixed(2)).toFixed(2),
             sell_by: sellBy,
-            area_id: targetAreaId
+            area_id: targetAreaId,
+            // Persist vendor cost — estimate read-back has no SKU-master fallback,
+            // so an unsent cost is lost (unlike quotes' COALESCE(qi.cost, pr.cost)).
+            vendor_cost: (isPerPieceRow(p) && p.cost != null ? parseFloat(p.cost) * sqftPerBox : p.cost) || null
           },
           extra: {
             _sqft_per_box: sqftPerBox,
@@ -16275,7 +16278,8 @@
             unit_price: price.toFixed(2),
             subtotal: (price * qty).toFixed(2),
             sell_by: acc.sell_by || "unit",
-            area_id: targetAreaId
+            area_id: targetAreaId,
+            vendor_cost: acc.cost || null
           },
           extra: {
             vendor_cost: acc.cost || null,
@@ -16305,9 +16309,10 @@
             unit_price: parseFloat(c.unit_price || 0).toFixed(2),
             subtotal: parseFloat(c.subtotal || 0).toFixed(2),
             sell_by: c.sell_by || "box",
-            area_id: targetAreaId
+            area_id: targetAreaId,
+            vendor_cost: c.cost || null
           },
-          extra: {}
+          extra: { vendor_cost: c.cost || null }
         });
       }
       try {

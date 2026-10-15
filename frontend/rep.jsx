@@ -23775,7 +23775,10 @@
               product_name: productName, collection: p.collection || '',
               sqft_needed: sqftNeeded || null, num_boxes: isCarpet ? 1 : qty,
               unit_price: price.toFixed(2), subtotal: parseFloat(sub.toFixed(2)).toFixed(2), sell_by: sellBy,
-              area_id: targetAreaId
+              area_id: targetAreaId,
+              // Persist vendor cost — estimate read-back has no SKU-master fallback,
+              // so an unsent cost is lost (unlike quotes' COALESCE(qi.cost, pr.cost)).
+              vendor_cost: (isPerPieceRow(p) && p.cost != null ? parseFloat(p.cost) * sqftPerBox : p.cost) || null
             },
             extra: { _sqft_per_box: sqftPerBox, vendor_cost: (isPerPieceRow(p) && p.cost != null ? parseFloat(p.cost) * sqftPerBox : p.cost) || null, primary_image: p.primary_image || null,
               vendor_name: p.vendor_name || p.brand_name || null, vendor_sku: p.vendor_sku || p.internal_sku || null,
@@ -23796,7 +23799,8 @@
               variant_type: 'accessory', accessory_label: acc.accessory_label || '',
               sqft_needed: null, num_boxes: qty,
               unit_price: price.toFixed(2), subtotal: (price * qty).toFixed(2), sell_by: acc.sell_by || 'unit',
-              area_id: targetAreaId
+              area_id: targetAreaId,
+              vendor_cost: acc.cost || null
             },
             extra: { vendor_cost: acc.cost || null, primary_image: acc.primary_image || null,
               vendor_name: parent ? (parent.vendor_name || parent.brand_name || null) : (acc.vendor_name || null),
@@ -23814,9 +23818,10 @@
               sqft_needed: null, num_boxes: c.num_boxes,
               unit_price: parseFloat(c.unit_price || 0).toFixed(2),
               subtotal: parseFloat(c.subtotal || 0).toFixed(2), sell_by: c.sell_by || 'box',
-              area_id: targetAreaId
+              area_id: targetAreaId,
+              vendor_cost: c.cost || null
             },
-            extra: {}
+            extra: { vendor_cost: c.cost || null }
           });
         }
         try {
