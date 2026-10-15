@@ -28212,6 +28212,9 @@ app.post('/api/rep/estimates/:id/items', repAuth, async (req, res) => {
             sqft_needed, num_boxes, sell_by,
             labor_category, rate_type, rate_sqft, labor_sqft,
             unit_price, quantity, subtotal, sort_order, area_id, vendor_cost } = req.body;
+    // Vendor cost: orders/quotes send `cost`, estimates historically send `vendor_cost`.
+    // Accept either so no client path silently drops the margin basis (estimate_items.cost has no SKU fallback on read).
+    const effVendorCost = vendor_cost !== undefined ? vendor_cost : req.body.cost;
 
     const guard = await getEditableEstimate(client, id);
     if (guard.errorStatus) return res.status(guard.errorStatus).json({ error: guard.errorMessage });
@@ -28237,7 +28240,7 @@ app.post('/api/rep/estimates/:id/items', repAuth, async (req, res) => {
         rug ? null : (labor_category || null), rug ? null : (rate_type || null), rug ? null : (rate_sqft || null), rug ? null : (labor_sqft || null),
         parseFloat((rug ? rug.unit_price : unit_price) || 0).toFixed(2), rug ? rug.num_boxes : (quantity || 1),
         parseFloat((rug ? rug.subtotal : subtotal) || 0).toFixed(2), sort_order || 0, area_id || null,
-        rug ? (rug.cost != null ? parseFloat(rug.cost).toFixed(2) : null) : ((vendor_cost == null || vendor_cost === '') ? null : parseFloat(vendor_cost).toFixed(2)),
+        rug ? (rug.cost != null ? parseFloat(rug.cost).toFixed(2) : null) : ((effVendorCost == null || effVendorCost === '') ? null : parseFloat(effVendorCost).toFixed(2)),
         rug ? true : false, rug ? rug.custom_width_ft : null, rug ? rug.custom_length_ft : null]);
 
     await recalculateEstimateTotals(id, client);
@@ -28261,6 +28264,11 @@ app.put('/api/rep/estimates/:id/items/:itemId', repAuth, async (req, res) => {
     const { product_name, collection, description, sqft_needed, num_boxes, sell_by,
             labor_category, rate_type, rate_sqft, labor_sqft,
             unit_price, quantity, subtotal, sort_order, vendor_cost } = req.body;
+    // Accept either `vendor_cost` (estimate convention) or `cost` (order/quote convention)
+    // for both presence (does the client want to touch cost?) and value.
+    const hasVendorCost = Object.prototype.hasOwnProperty.call(req.body, 'vendor_cost')
+      || Object.prototype.hasOwnProperty.call(req.body, 'cost');
+    const effVendorCost = vendor_cost !== undefined ? vendor_cost : req.body.cost;
 
     const guard = await getEditableEstimate(client, id);
     if (guard.errorStatus) return res.status(guard.errorStatus).json({ error: guard.errorMessage });
@@ -28295,8 +28303,8 @@ app.put('/api/rep/estimates/:id/items/:itemId', repAuth, async (req, res) => {
         unit_price, quantity, subtotal, sort_order,
         Object.prototype.hasOwnProperty.call(req.body, 'area_id'), req.body.area_id || null,
         itemId, id,
-        Object.prototype.hasOwnProperty.call(req.body, 'vendor_cost'),
-        (vendor_cost == null || vendor_cost === '') ? null : parseFloat(vendor_cost).toFixed(2)]);
+        hasVendorCost,
+        (effVendorCost == null || effVendorCost === '') ? null : parseFloat(effVendorCost).toFixed(2)]);
 
     if (!result.rows.length) {
       await client.query('ROLLBACK');
