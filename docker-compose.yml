@@ -67,7 +67,7 @@ services:
       # Review requests: auto-queue on delivered orders (reviewService.js). Off by
       # default so dev/test order flows never email real customers.
       REVIEW_AUTO_ENABLED: ${REVIEW_AUTO_ENABLED:-false}
-      REVIEW_REQUEST_DELAY_HOURS: ${REVIEW_REQUEST_DELAY_HOURS:-72}
+      REVIEW_REQUEST_DELAY_HOURS: ${REVIEW_REQUEST_DELAY_HOURS:-3}
       # In-app redirect base (Stripe return URLs, claim links) — localhost for dev
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
