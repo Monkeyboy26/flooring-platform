@@ -3,7 +3,9 @@
 /**
  * Ottimo Ceramics — Stock Check Scraper
  *
- * Source: https://ottimostockcheck.netlify.app
+ * Source: https://stockcheck-ottimoceramics.netlify.app
+ *   (Ottimo redeployed the stock-check site under this hostname; the old
+ *    ottimostockcheck.netlify.app deployment is dead and serves stale numbers.)
  *   Static page with embedded ALL_DATA JSON array containing live inventory.
  *
  * Tile quantities are shown by full carton → multiplied by sqft_per_box.
@@ -15,7 +17,7 @@
 import pg from 'pg';
 import { upsertInventorySnapshot, appendLog, addJobError } from './base.js';
 
-const STOCK_URL = 'https://ottimostockcheck.netlify.app';
+const STOCK_URL = 'https://stockcheck-ottimoceramics.netlify.app';
 const WAREHOUSE = 'Ottimo';
 const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36';
 
@@ -119,7 +121,7 @@ async function runStockCheck(pool, jobId, log) {
   }
 
   // Phase 2: Fetch stock data from Netlify
-  log('Phase 2: Fetching stock data from ottimostockcheck.netlify.app...');
+  log('Phase 2: Fetching stock data from stockcheck-ottimoceramics.netlify.app...');
   const stockData = await fetchStockData();
   stats.stockItems = stockData.length;
   log(`  ${stockData.length} items in stock feed`);
