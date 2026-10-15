@@ -6417,7 +6417,7 @@
               <span className="pd-sep" />
               <a onClick={() => navigate('catalog')}>{product.category_name || 'Products'}</a>
               <span className="pd-sep" />
-              <span className="pd-current">{mainSku ? mainSku.internal_sku : product.name}</span>
+              <span className="pd-current">{mainSku ? (mainSku.vendor_sku || mainSku.internal_sku) : product.name}</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
               <span className="pd-breadcrumb-status" style={{ color: activeStock.c }}>
@@ -6439,7 +6439,7 @@
               ) : (
                 <span style={{ color: 'var(--brass-muted)', font: '400 13px/1 Inter, sans-serif' }}>No image</span>
               )}
-              {mainSku && <div className="pd-image-sku">{mainSku.internal_sku}</div>}
+              {mainSku && <div className="pd-image-sku">{mainSku.vendor_sku || mainSku.internal_sku}</div>}
             </div>
             <div>
               <div className="pd-meta-tag">
