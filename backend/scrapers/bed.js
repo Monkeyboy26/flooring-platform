@@ -1524,6 +1524,20 @@ function stripTypeSuffix(text) {
   return s;
 }
 
+// Finish/shape/format tokens that belong on the SKU variant_name, never on the
+// product-level display_name. A verbose name/display ("Crema Marfil Satin, Field
+// Tile") would otherwise collide with the variant ("24x48, Polished, Field Tile")
+// and double up in the composed title. Order doesn't matter — stripped one
+// trailing token at a time, comma- or space-joined, until the tail is clean.
+const VARIANT_TAIL = /[\s,]+(?:matte|polished|honed|satin|glossy|gloss|natural|brushed|tumbled|chiseled|lappato|textured|flamed|leathered|sandblasted|split face|antiqued|field tile|bullnose|quarter round|pencil liner|wall tile|floor tile|subway tile|hexagon|herringbone|chevron|deco(?:rative)?|listello|chair rail|cove base|basketweave|arabesque|picket|diamond|lantern|penny round|mosaic)$/i;
+/** Peel trailing finish/shape tokens off a display name so it carries color only. */
+function stripVariantTail(text) {
+  const trimSep = (x) => x.replace(/[\s,&/–—-]+$/, '').trim();
+  let s = trimSep(text || '');
+  while (VARIANT_TAIL.test(s)) s = trimSep(s.replace(VARIANT_TAIL, ''));
+  return s;
+}
+
 /**
  * Reconcile every Bedrosians product against its fully-scraped SKUs.
  * Returns a stats object. Idempotent.
@@ -1715,14 +1729,18 @@ export async function reconcileBedProducts(pool, vendor_id) {
       }
     }
 
-    // ── d. display_name — strip baked type-suffix (fallback to name minus collection). For
-    // accessory products the name is often mangled ("Trim in Chambord"), so use the derived color
-    // (the type is shown separately via accessory_label + category suffix). ──
+    // ── d. display_name — ALWAYS re-derive from the canonical `name`, never trust the
+    // stored display_name (it may be a stale verbose value that baked in per-SKU finish
+    // and shape, e.g. "Crema Marfil Satin, Field Tile", which then doubles up against the
+    // variant_name in the composed title). Strip the collection prefix, any baked category
+    // type-suffix, and trailing finish/shape tokens so the product-level name carries color
+    // only — finish/size/shape live on the SKU variant_name, and the type comes from the
+    // live category. For accessory products the name is often mangled ("Trim in Chambord"),
+    // so use the derived color (type is shown via accessory_label + category suffix). ──
     const nameMinusColl = (p.name || '').replace(new RegExp('^' + esc(p.collection) + '\\s*', 'i'), '').trim();
     const dnBase = (ACCESSORY_CATEGORY_SLUGS.includes(p.cat) && deriveProductColor(p.name, p.collection))
-      || (p.display_name && p.display_name.trim())
       || nameMinusColl || p.name;
-    const dn = stripTypeSuffix(dnBase);
+    const dn = stripVariantTail(stripTypeSuffix(dnBase));
     if (dn && dn !== p.display_name) {
       await pool.query('UPDATE products SET display_name=$2, updated_at=CURRENT_TIMESTAMP WHERE id=$1', [p.id, dn]);
       stats.displayNameFixed++;
