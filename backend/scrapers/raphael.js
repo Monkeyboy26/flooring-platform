@@ -21,7 +21,7 @@ import { filterImageUrls, saveProductImages } from './base.js';
 
 const pool = new pg.Pool({
   host: process.env.DB_HOST || 'localhost',
-  port: 5432, database: 'flooring_pim', user: 'postgres', password: 'postgres',
+  port: parseInt(process.env.DB_PORT || '5432', 10), database: process.env.DB_NAME || 'flooring_pim', user: process.env.DB_USER || 'postgres', password: process.env.DB_PASSWORD || 'postgres',
 });
 
 // Both Raphael websites and their sitemaps

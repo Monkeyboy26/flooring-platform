@@ -309,7 +309,7 @@ async function loadCategoryMap() {
     port: Number(process.env.DB_PORT) || 5432,
     database: process.env.DB_NAME || 'flooring_pim',
     user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASS || 'postgres',
+    password: process.env.DB_PASSWORD || 'postgres',
   });
 
   try {
