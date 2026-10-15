@@ -2903,7 +2903,7 @@
         padding: "16px 20px",
         borderBottom: "0.5px solid rgba(28,25,23,0.1)",
         flexShrink: 0
-      } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: mono(TH.accent) }, "Quick view \xB7 spec + economics"), activeSku.sku_id && /* @__PURE__ */ React.createElement("div", { style: { ...mono(TH.muted), marginTop: 7 } }, "SKU ", activeSku.sku_id)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, flexShrink: 0 } }, productId && /* @__PURE__ */ React.createElement(
+      } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: mono(TH.accent) }, "Quick view \xB7 spec + economics"), (activeSku.vendor_sku || activeSku.internal_sku) && /* @__PURE__ */ React.createElement("div", { style: { ...mono(TH.muted), marginTop: 7 } }, "SKU ", activeSku.vendor_sku || activeSku.internal_sku)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, flexShrink: 0 } }, productId && /* @__PURE__ */ React.createElement(
         "button",
         {
           onClick: () => repOpenDoc("/api/rep/labels?format=image&productIds=" + productId, true).catch((err) => alert(err.message || "Failed to generate labels")),

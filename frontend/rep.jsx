@@ -4648,7 +4648,7 @@
             }}>
               <div>
                 <div style={mono(TH.accent)}>Quick view · spec + economics</div>
-                {activeSku.sku_id && <div style={{ ...mono(TH.muted), marginTop: 7 }}>SKU {activeSku.sku_id}</div>}
+                {(activeSku.vendor_sku || activeSku.internal_sku) && <div style={{ ...mono(TH.muted), marginTop: 7 }}>SKU {activeSku.vendor_sku || activeSku.internal_sku}</div>}
               </div>
               <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                 {productId && <button onClick={() => repOpenDoc('/api/rep/labels?format=image&productIds=' + productId, true).catch(err => alert(err.message || 'Failed to generate labels'))}
