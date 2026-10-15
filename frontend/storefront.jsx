@@ -8164,7 +8164,10 @@
         if (sqftPerBox > 0 && val) {
           let sqft = parseFloat(val) || 0;
           if (includeOverage) sqft *= 1.1;
-          const boxes = Math.ceil(sqft / sqftPerBox);
+          // Round the ratio to 4dp before ceil: 200*1.1 = 220.00000000000003 (and
+          // FP division error) would otherwise push an exact box boundary up to an
+          // extra box/piece and over-order.
+          const boxes = Math.ceil(+((sqft / sqftPerBox).toFixed(4)));
           setBoxesInput(boxes > 0 ? boxes.toString() : '');
         } else {
           setBoxesInput('');
@@ -8185,7 +8188,10 @@
         if (sqftInput && sqftPerBox > 0) {
           let sqft = parseFloat(sqftInput) || 0;
           if (includeOverage) sqft *= 1.1;
-          const boxes = Math.ceil(sqft / sqftPerBox);
+          // Round the ratio to 4dp before ceil: 200*1.1 = 220.00000000000003 (and
+          // FP division error) would otherwise push an exact box boundary up to an
+          // extra box/piece and over-order.
+          const boxes = Math.ceil(+((sqft / sqftPerBox).toFixed(4)));
           setBoxesInput(boxes > 0 ? boxes.toString() : '');
         }
       }, [includeOverage]);

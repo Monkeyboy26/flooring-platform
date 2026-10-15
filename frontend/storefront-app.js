@@ -6211,7 +6211,7 @@
       if (sqftPerBox > 0 && val) {
         let sqft = parseFloat(val) || 0;
         if (includeOverage) sqft *= 1.1;
-        const boxes = Math.ceil(sqft / sqftPerBox);
+        const boxes = Math.ceil(+(sqft / sqftPerBox).toFixed(4));
         setBoxesInput(boxes > 0 ? boxes.toString() : "");
       } else {
         setBoxesInput("");
@@ -6230,7 +6230,7 @@
       if (sqftInput && sqftPerBox > 0) {
         let sqft = parseFloat(sqftInput) || 0;
         if (includeOverage) sqft *= 1.1;
-        const boxes = Math.ceil(sqft / sqftPerBox);
+        const boxes = Math.ceil(+(sqft / sqftPerBox).toFixed(4));
         setBoxesInput(boxes > 0 ? boxes.toString() : "");
       }
     }, [includeOverage]);

@@ -4605,7 +4605,10 @@
       const price = calcPrice !== null ? calcPrice : retail;
       const calcMargin = price > 0 ? ((price - cost) / price) * 100 : 0;
       const sqftPerBox = activeSku.sqft_per_box ? parseFloat(activeSku.sqft_per_box) : null;
-      const boxes = sqftPerBox ? Math.ceil((coverSqft * 1.1) / sqftPerBox) : 0;
+      // Round the ratio to 4dp before ceil: coverSqft*1.1 carries IEEE-754 error
+      // (200*1.1 = 220.00000000000003), which would push an exact box boundary up
+      // to an extra box/piece and over-order.
+      const boxes = sqftPerBox ? Math.ceil(+(((coverSqft * 1.1) / sqftPerBox).toFixed(4))) : 0;
       // Carpet is priced per sqyd but reps take the area in sqft (9 sf = 1 sqyd)
       const carpetSqyd = isCarpet ? (coverSqft * 1.1) / 9 : 0;
       // Per-piece: price is already the piece total, so coverage = pieces × price
@@ -4804,7 +4807,7 @@
                     </div>}
 
                     {/* Coverage calculator */}
-                    {(sqftPerBox || isCarpet) && activeSku.sell_by !== 'unit' && <div style={{ background: TH.warm, padding: 16, border: '0.5px solid rgba(28,25,23,0.06)' }}>
+                    {(sqftPerBox || isCarpet) && (activeSku.sell_by !== 'unit' || _isPerPiece) && <div style={{ background: TH.warm, padding: 16, border: '0.5px solid rgba(28,25,23,0.06)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
                         <h4 style={sectionTitle}>Coverage calculator</h4>
                         <span style={mono(TH.muted)}>at {fmtMoney(price)}{unitLabel}</span>
@@ -4818,7 +4821,7 @@
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'rgba(28,25,23,0.1)', border: '0.5px solid rgba(28,25,23,0.1)' }}>
                         {(isCarpet
                           ? [['Sq yds', carpetSqyd.toFixed(1)], ['Covers', (coverSqft * 1.1).toFixed(0) + ' sf'], ['Est. total', fmtMoney(coverTotal)]]
-                          : [['Boxes', boxes], ['Covers', (boxes * sqftPerBox).toFixed(0) + ' sf'], ['Est. total', fmtMoney(coverTotal)]]
+                          : [[_isPerPiece ? 'Pieces' : 'Boxes', boxes], ['Covers', (boxes * sqftPerBox).toFixed(0) + ' sf'], ['Est. total', fmtMoney(coverTotal)]]
                         ).map(([l, v]) => (
                           <div key={l} style={{ background: TH.paper, padding: '11px 12px' }}>
                             <div style={mono(TH.muted)}>{l}</div>
@@ -4826,7 +4829,7 @@
                           </div>
                         ))}
                       </div>
-                      <div style={{ font: '400 11px/1.4 var(--roma-sans)', color: TH.muted, marginTop: 9 }}>{isCarpet ? '9 sf per sq yd · cut from roll · ' + fmtMoney(price / 9) + '/sf equivalent' : sqftPerBox + ' sf / box · sold by full box'}</div>
+                      <div style={{ font: '400 11px/1.4 var(--roma-sans)', color: TH.muted, marginTop: 9 }}>{isCarpet ? '9 sf per sq yd · cut from roll · ' + fmtMoney(price / 9) + '/sf equivalent' : _isPerPiece ? sqftPerBox + ' sf / piece · sold by the piece · ' + fmtMoney(price / sqftPerBox) + '/sf equivalent' : sqftPerBox + ' sf / box · sold by full box'}</div>
                     </div>}
 
                     {/* Customer tier pricing */}
