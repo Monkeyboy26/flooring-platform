@@ -6708,6 +6708,7 @@
       const [addItemMode, setAddItemMode] = useState('sku');
       const [customItemName, setCustomItemName] = useState('');
       const [customItemPrice, setCustomItemPrice] = useState('');
+      const [customItemCost, setCustomItemCost] = useState('');
       const [customItemVendor, setCustomItemVendor] = useState('');
       const [customItemDesc, setCustomItemDesc] = useState('');
       const [customItemBoxes, setCustomItemBoxes] = useState(1);
@@ -7657,7 +7658,7 @@
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button className="btn btn-sm btn-secondary" onClick={() => {
                       setAddingItem(true); setAddItemMode('sku'); setAddItemSku(''); setAddItemBoxes(1);
-                      setSkuSearchResults([]); setCustomItemName(''); setCustomItemPrice('');
+                      setSkuSearchResults([]); setCustomItemName(''); setCustomItemPrice(''); setCustomItemCost('');
                       setCustomItemVendor(''); setCustomItemDesc(''); setCustomItemBoxes(1);
                       if (addItemVendors.length === 0) {
                         adminFetch('/api/admin/vendors').then(d => setAddItemVendors(d.vendors || [])).catch(() => {});
@@ -7671,7 +7672,7 @@
                     {/* Mode toggle */}
                     <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
                       <button className={addItemMode === 'sku' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary'}
-                        onClick={() => { setAddItemMode('sku'); setCustomItemName(''); setCustomItemPrice(''); setCustomItemVendor(''); setCustomItemDesc(''); setCustomItemBoxes(1); }}>
+                        onClick={() => { setAddItemMode('sku'); setCustomItemName(''); setCustomItemPrice(''); setCustomItemCost(''); setCustomItemVendor(''); setCustomItemDesc(''); setCustomItemBoxes(1); }}>
                         Search SKU
                       </button>
                       <button className={addItemMode === 'custom' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary'}
@@ -7807,6 +7808,12 @@
                             placeholder="0.00"
                             style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
                         </div>
+                        <div style={{ width: '100px' }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Cost</label>
+                          <input type="number" min="0" step="0.01" value={customItemCost} onChange={e => setCustomItemCost(e.target.value)}
+                            placeholder="0.00"
+                            style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-200)' }} />
+                        </div>
                         <div style={{ width: '90px' }}>
                           <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem' }}>Sold By *</label>
                           <select value={customItemSellBy} onChange={e => setCustomItemSellBy(e.target.value)}
@@ -7835,6 +7842,7 @@
                                 method: 'POST', body: JSON.stringify({
                                   product_name: customItemName.trim(),
                                   unit_price: parseFloat(customItemPrice),
+                                  cost: customItemCost !== '' ? parseFloat(customItemCost) : undefined,
                                   vendor_id: customItemVendor,
                                   num_boxes: customItemBoxes,
                                   sell_by: customItemSellBy,
@@ -7845,6 +7853,7 @@
                               if (data.items) setItems(data.items);
                               if (data.balance) setBalanceInfo(data.balance);
                               loadPOs();
+                              setCustomItemCost('');
                               setAddingItem(false);
                             } catch (err) { alert(err.message); }
                           }}>
