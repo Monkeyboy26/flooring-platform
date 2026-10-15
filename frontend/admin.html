@@ -1434,19 +1434,36 @@
       return url;
     }
 
+    // Per-piece stone: sold as whole tiles but priced from a per-sqft rate with a
+    // known piece area. Mirrors storefront.jsx isSoldPerPiece()/rep.jsx isPerPieceRow().
+    function isPerPieceRow(row) {
+      if (!row) return false;
+      const basis = row.price_basis;
+      return (row.sell_by === 'unit' || row.sell_by === 'piece')
+        && (basis === 'sqft' || basis === 'per_sqft')
+        && parseFloat(row.sqft_per_box) > 0;
+    }
     // Canonical price-unit suffix — mirrors storefront.jsx priceSuffix().
     // Slabs (sell_by='unit' + per-sqft rate + no known box area) show /sqft
-    // since a piece price can't be computed; everything else follows sell_by.
+    // since a piece price can't be computed; per-piece stone reads /pc; everything
+    // else follows sell_by.
     function skuPriceSuffix(row) {
       row = row || {};
       const basis = row.price_basis;
-      const soldPerUnit = row.sell_by ? row.sell_by === 'unit' : basis === 'per_unit';
+      const soldPerUnit = row.sell_by ? (row.sell_by === 'unit' || row.sell_by === 'piece') : basis === 'per_unit';
       if (soldPerUnit) {
         if ((basis === 'sqft' || basis === 'per_sqft') && !(parseFloat(row.sqft_per_box) > 0)) return '/sqft';
-        return '/ea';
+        return isPerPieceRow(row) ? '/pc' : '/ea';
       }
       if ((row.sell_by ? row.sell_by === 'roll' : basis === 'per_sqyd')) return '/sqyd';
       return '/sqft';
+    }
+    // "· $X/sf" companion beside a /pc price on order lines so staff see both the
+    // per-piece price and the comparable per-sqft rate. '' for non-per-piece rows.
+    function perSfNote(row, perPcPrice) {
+      if (!isPerPieceRow(row)) return '';
+      const spb = parseFloat(row.sqft_per_box || 0), pc = parseFloat(perPcPrice || 0);
+      return (spb > 0 && pc > 0) ? ' · $' + (pc / spb).toFixed(2) + '/sf' : '';
     }
 
     // ========== Canonical line-item formatter ==========
@@ -7594,7 +7611,7 @@
                     </td>
                     <td data-label="SqFt">{item.sell_by === 'unit' || item.sell_by === 'piece' ? <span style={{ color: 'var(--stone-400)' }}>—</span> : item.sqft_needed ? parseFloat(item.sqft_needed).toFixed(1) : '—'}</td>
                     <td data-label="Qty">{item.sell_by === 'roll' ? (item.sqft_needed || 0) : item.num_boxes} <span style={{ fontSize: '0.7rem', color: 'var(--stone-400)' }}>{qtyLabel}</span></td>
-                    <td data-label="Unit Price">{item.unit_price ? '$' + parseFloat(item.unit_price).toFixed(2) : '—'} <span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)' }}>{skuPriceSuffix(item)}</span></td>
+                    <td data-label="Unit Price">{item.unit_price ? '$' + parseFloat(item.unit_price).toFixed(2) : '—'} <span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)' }}>{skuPriceSuffix(item)}{perSfNote(item, item.unit_price)}</span></td>
                     <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>{item.subtotal ? '$' + parseFloat(item.subtotal).toFixed(2) : '—'}</td>
                     {showReadyCol && (
                       <td data-label="Store Pickup">

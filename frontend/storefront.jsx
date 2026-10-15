@@ -835,6 +835,23 @@
     function cardPriceSuffix(sku) {
       return isSoldPerPiece(sku) ? '/sqft' : priceSuffix(sku);
     }
+    // Per-piece stone is shown two ways so customers can both compare (per-sqft) and
+    // see what one tile costs (per-piece). These return the small companion string to
+    // append next to whichever price a surface headlines; '' for non-per-piece lines.
+    // perSfCompanion: when the cell headlines the /pc price (cart/order/quote lines),
+    // append the per-sqft rate (perPcPrice ÷ piece area).
+    function perSfCompanion(sku, perPcPrice) {
+      if (!isSoldPerPiece(sku)) return '';
+      const spb = parseFloat(sku.sqft_per_box || 0), pc = parseFloat(perPcPrice || 0);
+      return (spb > 0 && pc > 0) ? ` · $${(pc / spb).toFixed(2)}/sf` : '';
+    }
+    // perPcCompanion: when the cell headlines the per-sqft rate (catalog/browse cards),
+    // append what one piece costs (perSfRate × piece area).
+    function perPcCompanion(sku, perSfRate) {
+      if (!isSoldPerPiece(sku)) return '';
+      const spb = parseFloat(sku.sqft_per_box || 0), sf = parseFloat(perSfRate || 0);
+      return (spb > 0 && sf > 0) ? ` · $${(sf * spb).toFixed(2)}/pc` : '';
+    }
 
     // ==================== Image Aspect Ratio Detection ====================
     // Switches non-square product images from cover to contain so they aren't cropped
@@ -5921,7 +5938,7 @@
                       <span className="qv-price-original">${displayPrice(activeSku, skuListPrice(activeSku)).toFixed(2)}</span>
                     )}
                     ${effectivePrice.toFixed(2)}
-                    <span className="qv-price-suffix">{priceSuffix(activeSku)}</span>
+                    <span className="qv-price-suffix">{priceSuffix(activeSku)}{perSfCompanion(activeSku, effectivePrice)}</span>
                     {!activeSku.trade_price && activeSku.sale_price && parseFloat(skuListPrice(activeSku)) > 0 && (
                       <span className="qv-sale-tag">{Math.round((1 - parseFloat(activeSku.sale_price) / parseFloat(skuListPrice(activeSku))) * 100)}% off</span>
                     )}
@@ -6493,7 +6510,7 @@
                           {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 600)} alt={sku.product_name} loading="lazy" decoding="async" />}
                         </div>
                         <div className="form-specimen-card-meta">No. {String(i + 1).padStart(2, '0')} &middot; {sku.category_name || 'Flooring'}</div>
-                        {price && <div className="form-specimen-card-price">${cardPriceOf(sku, price).toFixed(2)}{cardPriceSuffix(sku)}</div>}
+                        {price && <div className="form-specimen-card-price">${cardPriceOf(sku, price).toFixed(2)}{cardPriceSuffix(sku)}{perPcCompanion(sku, cardPriceOf(sku, price))}</div>}
                         <div className="form-specimen-card-name">{fullProductName(sku)}</div>
                         {publicBrand(sku) && <div className="form-specimen-card-desc">{publicBrand(sku)}</div>}
                         <div className="form-specimen-card-cta">View in catalog &rarr;</div>
@@ -6661,7 +6678,7 @@
                         <div className="shop-featured-card-name">{fullProductName(sku)}</div>
                         {publicBrand(sku) && <div className="shop-featured-card-meta">{publicBrand(sku)}</div>}
                         <div className="shop-featured-card-bottom">
-                          <span className="shop-featured-card-price">{price ? '$' + cardPriceOf(sku, price).toFixed(2) + cardPriceSuffix(sku) : 'Call for price'}</span>
+                          <span className="shop-featured-card-price">{price ? '$' + cardPriceOf(sku, price).toFixed(2) + cardPriceSuffix(sku) + perPcCompanion(sku, cardPriceOf(sku, price)) : 'Call for price'}</span>
                           <span className="shop-featured-card-cta">View &rarr;</span>
                         </div>
                       </div>
@@ -7656,7 +7673,7 @@
                     <span className={onSale ? 'sale-price-text' : ''}>
                       ${cardPriceOf(sku, price).toFixed(2)}
                     </span>
-                    <span className="price-suffix">{cardPriceSuffix(sku)}</span>
+                    <span className="price-suffix">{cardPriceSuffix(sku)}{perPcCompanion(sku, cardPriceOf(sku, price))}</span>
                   </>
                 ) : 'Call for Price'}
               </div>
@@ -11622,7 +11639,7 @@
                       {!item.is_sample && (
                         <div className="ct-line-unit-price">
                           <span>Unit price</span>
-                          <span className="ct-line-unit-price-value">${unitPrice.toFixed(2)}<span className="ct-line-unit-price-suffix">{priceSuf}</span></span>
+                          <span className="ct-line-unit-price-value">${unitPrice.toFixed(2)}<span className="ct-line-unit-price-suffix">{priceSuf}{perSfCompanion(item, unitPrice)}</span></span>
                         </div>
                       )}
 
@@ -14370,7 +14387,7 @@
                                       </div>
                                       <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                                         <span style={{ color: 'var(--warm-muted)', fontSize: '0.75rem', marginRight: '0.75rem' }}>
-                                          ${parseFloat(item.unit_price || 0).toFixed(2)}{priceSuffix(item)}
+                                          ${parseFloat(item.unit_price || 0).toFixed(2)}{priceSuffix(item)}{perSfCompanion(item, parseFloat(item.unit_price || 0))}
                                         </span>
                                         <span style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>${parseFloat(item.subtotal || 0).toFixed(2)}</span>
                                       </div>
@@ -14725,7 +14742,7 @@
                                     </div>
                                     {skuListPrice(item) && (
                                       <span style={{ fontWeight: 500, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-                                        ${displayPrice(item, skuListPrice(item)).toFixed(2)}{priceSuffix(item)}
+                                        ${displayPrice(item, skuListPrice(item)).toFixed(2)}{priceSuffix(item)}{perSfCompanion(item, displayPrice(item, skuListPrice(item)))}
                                       </span>
                                     )}
                                   </div>
@@ -15974,7 +15991,7 @@
                                         <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{itemLineName(item)}</div>
                                         {item.rep_note && <div style={{ fontSize: '0.75rem', color: '#7a5a1e', fontStyle: 'italic', marginTop: 2 }}>{item.rep_note}</div>}
                                       </div>
-                                      {skuListPrice(item) && <span style={{ fontWeight: 500, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>${displayPrice(item, skuListPrice(item)).toFixed(2)}{priceSuffix(item)}</span>}
+                                      {skuListPrice(item) && <span style={{ fontWeight: 500, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>${displayPrice(item, skuListPrice(item)).toFixed(2)}{priceSuffix(item)}{perSfCompanion(item, displayPrice(item, skuListPrice(item)))}</span>}
                                     </div>
                                   ))}
                                 </div>

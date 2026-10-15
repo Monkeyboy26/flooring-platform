@@ -229,6 +229,14 @@
       const price = parseFloat(rawPrice != null ? rawPrice : (row && (row.retail_price != null ? row.retail_price : row.price))) || 0;
       return isPerPieceRow(row) ? price * (parseFloat(row.sqft_per_box) || 0) : price;
     }
+    // Per-piece stone companion: "· $X/sf" appended beside a /pc price on order/quote
+    // lines so reps see both the per-piece price and the comparable per-sqft rate
+    // (perPcPrice ÷ piece area). '' for non-per-piece rows. Mirrors storefront.
+    function perSfNote(row, perPcPrice) {
+      if (!isPerPieceRow(row)) return '';
+      const spb = parseFloat(row.sqft_per_box || 0), pc = parseFloat(perPcPrice || 0);
+      return (spb > 0 && pc > 0) ? ' · $' + (pc / spb).toFixed(2) + '/sf' : '';
+    }
 
     // ========== Canonical line-item formatter ==========
     // Returns { name, meta } for any order/quote/PO/estimate line so accessories
@@ -9219,7 +9227,7 @@
                 <div style={{ minWidth: 0 }}>
                   <div style={{ font: '400 13px/1.2 var(--roma-sans)', color: TH.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.display_name || item.name}</div>
                   <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: TH.muted }}>
-                    {qty} {(item.price_basis === 'per_sqyd' || item.sell_by === 'roll') ? 'sq yd' : isPerPieceRow(item) ? 'pcs' : (item.sell_by === 'unit' || item.sell_by === 'piece') ? 'units' : 'bx'} {'×'} {fmtMoney(pieceRetail(item, tUnit))}
+                    {qty} {(item.price_basis === 'per_sqyd' || item.sell_by === 'roll') ? 'sq yd' : isPerPieceRow(item) ? 'pcs' : (item.sell_by === 'unit' || item.sell_by === 'piece') ? 'units' : 'bx'} {'×'} {fmtMoney(pieceRetail(item, tUnit))}{perSfNote(item, pieceRetail(item, tUnit))}
                   </div>
                 </div>
                 <span style={{ font: '400 13px/1 var(--roma-serif)', color: TH.ink, whiteSpace: 'nowrap' }}>{fmtMoney(rofCatExtOv(item, qty, tUnit, overage))}</span>
@@ -9777,7 +9785,7 @@
                     <button className="rof-edit-cell" onClick={() => startEdit(item._key, 'price', item.unit_price.toFixed(2))}>
                       ${item.unit_price.toFixed(2)}
                       <span style={{ fontSize: '0.5rem', color: '#8a7e68', marginLeft: '0.15rem' }}>
-                        {skuPriceSuffix(item)}
+                        {skuPriceSuffix(item)}{perSfNote(item, item.unit_price)}
                       </span>
                     </button>
                   )}
@@ -14607,7 +14615,7 @@
                           style={{ width: '100%', padding: '0.35rem 0.5rem', border: '0.5px solid rgba(28,25,23,0.18)', background: 'transparent', font: '400 0.75rem/1.3 Inter, sans-serif', color: '#1c1917', boxSizing: 'border-box' }} />
                         <div className="rof-item-price">
                           {item.retail_price ? '$' + pieceRetail(item, item.retail_price).toFixed(2) : '—'}
-                          {item.retail_price && item.price_basis === 'per_sqft' ? <span style={{ font: '400 0.625rem/1 Inter, sans-serif', color: '#8a7e68' }}>{isPerPieceRow(item) ? '/pc' : '/sqft'}</span> : null}
+                          {item.retail_price && item.price_basis === 'per_sqft' ? <span style={{ font: '400 0.625rem/1 Inter, sans-serif', color: '#8a7e68' }}>{isPerPieceRow(item) ? '/pc' : '/sqft'}{perSfNote(item, pieceRetail(item, item.retail_price))}</span> : null}
                         </div>
                         <button className="rof-remove-btn" onClick={() => removeItem(item._key)} title="Remove">{'✕'}</button>
                       </div>
@@ -27180,7 +27188,7 @@
                                 }
                                 <div className="sku-info">
                                   <div className="sku-name">{formatLineItem(r).name}</div>
-                                  <div className="product-meta">{r.vendor_name}{r.vendor_public_code ? ' · ' + r.vendor_public_code : ''}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}{r.cost ? ' · Cost $' + parseFloat(r.cost).toFixed(2) + skuPriceSuffix(r) : ''}</div>
+                                  <div className="product-meta">{r.vendor_name}{r.vendor_public_code ? ' · ' + r.vendor_public_code : ''}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}{r.cost ? ' · Cost $' + parseFloat(r.cost).toFixed(2) + skuPriceSuffix(r) + perSfNote(r, parseFloat(r.cost)) : ''}</div>
                                 </div>
                               </div>
                             ))}
