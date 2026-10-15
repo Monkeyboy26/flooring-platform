@@ -10431,8 +10431,8 @@ app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type,
-        (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1) AS sqft_per_box
+        COALESCE(oi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(oi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1)) AS sqft_per_box
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
@@ -11233,6 +11233,12 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
   try {
     const { id } = req.params;
     const { sku_id, num_boxes, sqft_needed, product_name, unit_price, vendor_id, description, sell_by: customSellBy } = req.body;
+    // Custom-line sell-by basis. Plain per-unit lines leave these null; per-sqft
+    // and per-piece-stone lines carry a per_sqft basis + the box/piece area so the
+    // line prices + displays like a catalog SKU of the same kind. See [[custom-sell-by]].
+    const customPriceBasis = req.body.price_basis ? String(req.body.price_basis).trim() : null;
+    const customSqftPerBox = req.body.sqft_per_box != null && !isNaN(parseFloat(req.body.sqft_per_box)) && parseFloat(req.body.sqft_per_box) > 0
+      ? parseFloat(req.body.sqft_per_box) : null;
     const customVendorName = req.body.custom_vendor ? String(req.body.custom_vendor).trim().slice(0, 120) : '';
     const customVendorEmail = req.body.custom_vendor_email ? String(req.body.custom_vendor_email).trim() : '';
     const customCost = req.body.cost != null && !isNaN(parseFloat(req.body.cost)) && parseFloat(req.body.cost) > 0
@@ -11406,17 +11412,23 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       newItemId = insertResult.rows[0].id;
     } else {
       const isCustomCarpet = customSellBy === 'roll';
+      // Per-sqft / per-piece lines record coverage (boxes × area); carpet keeps its
+      // sqyd count in sqft_needed; plain per-unit lines carry only an explicit value.
+      const customSqftNeeded = isCustomCarpet
+        ? num_boxes
+        : (customSqftPerBox ? parseFloat((num_boxes * customSqftPerBox).toFixed(2)) : (sqft_needed || null));
       const insertResult = await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
           sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, description,
-          vendor_id, custom_vendor, vendor_sku, cost)
-        VALUES ($1, NULL, NULL, $2, NULL, $3, $4, $5, $6, false, $7, $8, $9, $10, $11, $12)
+          vendor_id, custom_vendor, vendor_sku, cost, price_basis, sqft_per_box)
+        VALUES ($1, NULL, NULL, $2, NULL, $3, $4, $5, $6, false, $7, $8, $9, $10, $11, $12, $13, $14)
         RETURNING id
-      `, [id, product_name.trim(), isCustomCarpet ? num_boxes : (sqft_needed || null),
+      `, [id, product_name.trim(), customSqftNeeded,
           isCustomCarpet ? 1 : num_boxes, unitPrice.toFixed(2),
           itemSubtotal.toFixed(2), customSellBy || null, description || null,
           itemVendorId, customVendorName || null, customVendorSku,
-          customCost != null ? customCost.toFixed(2) : null]);
+          customCost != null ? customCost.toFixed(2) : null,
+          customPriceBasis, customSqftPerBox]);
       newItemId = insertResult.rows[0].id;
     }
 
@@ -11542,8 +11554,8 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type,
-        (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1) AS sqft_per_box
+        COALESCE(oi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(oi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1)) AS sqft_per_box
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
@@ -11665,8 +11677,8 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type,
-        (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1) AS sqft_per_box
+        COALESCE(oi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(oi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1)) AS sqft_per_box
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
@@ -15284,8 +15296,8 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       SELECT oi.*, s.variant_name, s.accessory_label, s.variant_type, s.vendor_sku, s.internal_sku,
         sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
         COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
-        (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1) AS sqft_per_box
+        COALESCE(oi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(oi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1)) AS sqft_per_box
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
@@ -15683,8 +15695,8 @@ app.get('/api/trade/orders/:id', tradeAuth, async (req, res) => {
       SELECT oi.*, s.variant_name, s.accessory_label, s.variant_type, s.vendor_sku, s.internal_sku,
         sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
         COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
-        (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1) AS sqft_per_box
+        COALESCE(oi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(oi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1)) AS sqft_per_box
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
@@ -16078,8 +16090,8 @@ app.get('/api/trade/quotes/:id', tradeAuth, async (req, res) => {
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
     const items = await pool.query(`
       SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
-        (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1) AS sqft_per_box,
+        COALESCE(qi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(qi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1)) AS sqft_per_box,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -16505,8 +16517,8 @@ async function loadPublicQuoteItems(quoteId) {
       v.code AS vendor_code, v.public_code AS vendor_public_code,
       s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type,
       sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
-      (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1) AS price_basis,
-      (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1) AS sqft_per_box,
+      COALESCE(qi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1)) AS price_basis,
+      COALESCE(qi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1)) AS sqft_per_box,
       (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
        ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
     FROM quote_items qi
@@ -20157,6 +20169,13 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         }
         const customCost = item.cost != null && !isNaN(parseFloat(item.cost)) && parseFloat(item.cost) > 0
           ? parseFloat(item.cost) : null;
+        // Custom-line sell-by basis: per-sqft coverage (unit_price is $/sqft over
+        // numBoxes × sqft_per_box) vs per-piece stone / plain unit (price × qty).
+        const customPriceBasis = item.price_basis ? String(item.price_basis).trim() : null;
+        const customSqftPerBox = item.sqft_per_box != null && !isNaN(parseFloat(item.sqft_per_box)) && parseFloat(item.sqft_per_box) > 0
+          ? parseFloat(item.sqft_per_box) : null;
+        const customPerSqft = (customPriceBasis === 'per_sqft' || customPriceBasis === 'sqft')
+          && customSqftPerBox && sellBy !== 'unit' && sellBy !== 'piece';
         resolvedItems.push({
           product_id: null,
           sku_id: null,
@@ -20164,16 +20183,18 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
           collection: null,
           category_id: null,
           description: item.description || null,
-          sqft_needed: isRoll ? numBoxes : null,
+          sqft_needed: isRoll ? numBoxes : (customSqftPerBox ? parseFloat((numBoxes * customSqftPerBox).toFixed(2)) : null),
           num_boxes: isRoll ? 1 : numBoxes,
           unit_price: unitPrice,
-          subtotal: isRoll ? unitPrice * (numBoxes / 9) : unitPrice * numBoxes,
+          subtotal: isRoll ? unitPrice * (numBoxes / 9) : (customPerSqft ? unitPrice * (numBoxes * customSqftPerBox) : unitPrice * numBoxes),
           sell_by: sellBy,
           is_sample: false,
           vendor_id: customVendorId,
           custom_vendor: oneOffName || null,
           vendor_sku: item.vendor_sku ? String(item.vendor_sku).trim().slice(0, 64) || null : null,
-          cost: customCost
+          cost: customCost,
+          price_basis: customPriceBasis,
+          sqft_per_box: customSqftPerBox
         });
       } else {
         await client.query('ROLLBACK');
@@ -20311,14 +20332,15 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
       await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description,
           sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, vendor_sku, cost,
-          is_custom_rug, custom_width_ft, custom_length_ft)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+          is_custom_rug, custom_width_ft, custom_length_ft, price_basis, sqft_per_box)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
       `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection,
           item.description || null, item.sqft_needed, item.num_boxes,
           item.unit_price.toFixed(2), item.subtotal.toFixed(2), item.sell_by || null, item.is_sample,
           item.vendor_id || null, item.custom_vendor || null, item.vendor_sku || null,
           item.cost != null ? item.cost.toFixed(2) : null,
-          item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
+          item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null,
+          item.price_basis || null, item.sqft_per_box || null]);
     }
 
     // Link uploaded documents to the order
@@ -20392,8 +20414,8 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
       SELECT oi.*, s.variant_name, s.accessory_label, s.variant_type, s.vendor_sku, s.internal_sku,
         sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
         COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
-        (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1) AS sqft_per_box
+        COALESCE(oi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(oi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1)) AS sqft_per_box
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
@@ -20564,8 +20586,8 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type,
-        (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1) AS sqft_per_box,
+        COALESCE(oi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(oi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1)) AS sqft_per_box,
         cat.name as category_name,
         COALESCE((SELECT SUM(ri.release_qty) FROM release_items ri
           JOIN material_releases mr ON mr.id = ri.release_id
@@ -21733,8 +21755,8 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type,
-        (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1) AS sqft_per_box
+        COALESCE(oi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(oi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1)) AS sqft_per_box
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
@@ -21863,8 +21885,8 @@ app.put('/api/rep/orders/:id/items/:itemId/cost', repAuth, async (req, res) => {
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type,
-        (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1) AS sqft_per_box,
+        COALESCE(oi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(oi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1)) AS sqft_per_box,
         cat.name as category_name,
         (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
       FROM order_items oi
@@ -21898,6 +21920,12 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { sku_id, num_boxes, sqft_needed, product_name, unit_price, vendor_id, description, sell_by: customSellBy } = req.body;
+    // Custom-line sell-by basis. Plain per-unit lines leave these null; per-sqft
+    // and per-piece-stone lines carry a per_sqft basis + the box/piece area so the
+    // line prices + displays like a catalog SKU of the same kind. See [[custom-sell-by]].
+    const customPriceBasis = req.body.price_basis ? String(req.body.price_basis).trim() : null;
+    const customSqftPerBox = req.body.sqft_per_box != null && !isNaN(parseFloat(req.body.sqft_per_box)) && parseFloat(req.body.sqft_per_box) > 0
+      ? parseFloat(req.body.sqft_per_box) : null;
     const customVendorName = req.body.custom_vendor ? String(req.body.custom_vendor).trim().slice(0, 120) : '';
     const customVendorEmail = req.body.custom_vendor_email ? String(req.body.custom_vendor_email).trim() : '';
     const customCost = req.body.cost != null && !isNaN(parseFloat(req.body.cost)) && parseFloat(req.body.cost) > 0
@@ -22019,9 +22047,17 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       itemVendorId = sku.vendor_id;
     } else {
       unitPrice = parseFloat(unit_price);
+      const customPerSqft = (customPriceBasis === 'per_sqft' || customPriceBasis === 'sqft')
+        && customSqftPerBox && customSellBy !== 'unit' && customSellBy !== 'piece';
       if (customSellBy === 'roll') {
+        // Carpet: unit_price is per sqyd, num_boxes carries the sqyd count.
         itemSubtotal = parseFloat((unitPrice * (num_boxes / 9)).toFixed(2));
+      } else if (customPerSqft) {
+        // Per-sqft coverage: unit_price is $/sqft, num_boxes is full boxes,
+        // so the line covers num_boxes × sqft_per_box square feet.
+        itemSubtotal = parseFloat((unitPrice * (num_boxes * customSqftPerBox)).toFixed(2));
       } else {
+        // Per-unit / each, and per-piece stone (unit_price already per piece).
         itemSubtotal = parseFloat((unitPrice * num_boxes).toFixed(2));
       }
       itemVendorId = vendor_id || null;
@@ -22067,17 +22103,23 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       newItemId = insertResult.rows[0].id;
     } else {
       const isCustomCarpet = customSellBy === 'roll';
+      // Per-sqft / per-piece lines record coverage (boxes × area); carpet keeps its
+      // sqyd count in sqft_needed; plain per-unit lines carry only an explicit value.
+      const customSqftNeeded = isCustomCarpet
+        ? num_boxes
+        : (customSqftPerBox ? parseFloat((num_boxes * customSqftPerBox).toFixed(2)) : (sqft_needed || null));
       const insertResult = await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
           sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, description,
-          vendor_id, custom_vendor, vendor_sku, cost)
-        VALUES ($1, NULL, NULL, $2, NULL, $3, $4, $5, $6, false, $7, $8, $9, $10, $11, $12)
+          vendor_id, custom_vendor, vendor_sku, cost, price_basis, sqft_per_box)
+        VALUES ($1, NULL, NULL, $2, NULL, $3, $4, $5, $6, false, $7, $8, $9, $10, $11, $12, $13, $14)
         RETURNING id
-      `, [id, product_name.trim(), isCustomCarpet ? num_boxes : (sqft_needed || null),
+      `, [id, product_name.trim(), customSqftNeeded,
           isCustomCarpet ? 1 : num_boxes, unitPrice.toFixed(2),
           itemSubtotal.toFixed(2), customSellBy || null, description || null,
           itemVendorId, customVendorName || null, customVendorSku,
-          customCost != null ? customCost.toFixed(2) : null]);
+          customCost != null ? customCost.toFixed(2) : null,
+          customPriceBasis, customSqftPerBox]);
       newItemId = insertResult.rows[0].id;
     }
 
@@ -22208,8 +22250,8 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type,
-        (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1) AS sqft_per_box
+        COALESCE(oi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(oi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1)) AS sqft_per_box
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
@@ -22338,8 +22380,8 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type,
-        (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1) AS sqft_per_box
+        COALESCE(oi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(oi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1)) AS sqft_per_box
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
@@ -25120,8 +25162,8 @@ app.put('/api/staff/orders/:id/items/:itemId/cost', staffAuth, requireRole('admi
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type,
-        (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1) AS sqft_per_box,
+        COALESCE(oi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(oi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1)) AS sqft_per_box,
         cat.name as category_name,
         (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
       FROM order_items oi
@@ -26525,8 +26567,8 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
         const rugCost = rug ? (rug.cost != null ? parseFloat(rug.cost).toFixed(2) : null)
           : (item.cost != null && item.cost !== '' && !isNaN(parseFloat(item.cost)) && parseFloat(item.cost) >= 0 ? parseFloat(item.cost).toFixed(2) : null);
         await client.query(`
-          INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, vendor_sku, cost, is_custom_rug, custom_width_ft, custom_length_ft)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+          INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, vendor_sku, cost, is_custom_rug, custom_width_ft, custom_length_ft, price_basis, sqft_per_box)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
         `, [quote.id, item.product_id || null, item.sku_id || null,
             item.product_name || null, item.collection || null,
             item.description || null,
@@ -26539,7 +26581,10 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
             oneOffName || null,
             (!item.sku_id && item.vendor_sku) ? String(item.vendor_sku).trim().slice(0, 64) || null : null,
             rugCost,
-            item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
+            item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null,
+            // Custom-line sell-by basis + box/piece area (SKU lines derive on read)
+            (!item.sku_id && item.price_basis) ? String(item.price_basis).trim() : null,
+            (!item.sku_id && item.sqft_per_box != null && !isNaN(parseFloat(item.sqft_per_box)) && parseFloat(item.sqft_per_box) > 0) ? parseFloat(item.sqft_per_box) : null]);
       }
 
       // Recalculate totals
@@ -26598,8 +26643,8 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
     const quoteItems = await pool.query(`
       SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         COALESCE(qi.cost, pr.cost) as vendor_cost,
-        (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1) AS sqft_per_box,
+        COALESCE(qi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(qi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1)) AS sqft_per_box,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -26641,8 +26686,8 @@ app.get('/api/rep/quotes/:id', repAuth, async (req, res) => {
     const items = await pool.query(`
       SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         COALESCE(qi.cost, pr.cost) as vendor_cost,
-        (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1) AS sqft_per_box,
+        COALESCE(qi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(qi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1)) AS sqft_per_box,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -26818,6 +26863,11 @@ app.post('/api/rep/quotes/:id/items', repAuth, async (req, res) => {
       ? parseFloat(req.body.cost) : null;
     // Custom-line vendor item # — lets the line carry a PO1/VP identifier on EDI 850s
     const customVendorSku = req.body.vendor_sku ? String(req.body.vendor_sku).trim().slice(0, 64) || null : null;
+    // Custom-line sell-by basis + box/piece area (per-sqft coverage, per-piece stone
+    // dual price). Stored only for custom lines; SKU lines derive from pricing/packaging.
+    const customPriceBasis = (!sku_id && req.body.price_basis) ? String(req.body.price_basis).trim() : null;
+    const customSqftPerBox = (!sku_id && req.body.sqft_per_box != null && !isNaN(parseFloat(req.body.sqft_per_box)) && parseFloat(req.body.sqft_per_box) > 0)
+      ? parseFloat(req.body.sqft_per_box) : null;
     // One-off vendor with an email → create/reuse the vendor record now so the
     // PO is sendable when the quote converts. Email optional at quote stage.
     let quoteItemVendorId = (!sku_id && req.body.vendor_id) || null;
@@ -26825,8 +26875,8 @@ app.post('/api/rep/quotes/:id/items', repAuth, async (req, res) => {
       quoteItemVendorId = await findOrCreateOneOffVendor(client, customVendorName, customVendorEmail);
     }
     const itemResult = await client.query(`
-      INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, vendor_sku, cost, is_custom_rug, custom_width_ft, custom_length_ft)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+      INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, vendor_sku, cost, is_custom_rug, custom_width_ft, custom_length_ft, price_basis, sqft_per_box)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
       RETURNING *
     `, [id, rug ? rug.product_id : (product_id || null), rug ? rug.sku_id : (sku_id || null),
         rug ? rug.product_name : (product_name || null), rug ? rug.collection : (collection || null),
@@ -26840,7 +26890,8 @@ app.post('/api/rep/quotes/:id/items', repAuth, async (req, res) => {
         rug ? null : (!sku_id ? (customVendorName || null) : null),
         (rug || sku_id) ? null : customVendorSku,
         rug ? (rug.cost != null ? parseFloat(rug.cost).toFixed(2) : null) : (customCost != null ? customCost.toFixed(2) : null),
-        rug ? true : false, rug ? rug.custom_width_ft : null, rug ? rug.custom_length_ft : null]);
+        rug ? true : false, rug ? rug.custom_width_ft : null, rug ? rug.custom_length_ft : null,
+        rug ? null : customPriceBasis, rug ? null : customSqftPerBox]);
 
     // Recompute subtotal/tax/total from the current line items.
     await recalcQuoteTotals(client, id);
@@ -26980,8 +27031,8 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
     // Fetch quote items for the email
     const quoteItems = await pool.query(`
       SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
-        (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1) AS sqft_per_box,
+        COALESCE(qi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(qi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1)) AS sqft_per_box,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -27078,8 +27129,8 @@ app.get('/api/rep/quotes/:id/preview', repAuth, async (req, res) => {
     const q = quote.rows[0];
     const quoteItems = await pool.query(`
       SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
-        (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1) AS sqft_per_box,
+        COALESCE(qi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(qi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1)) AS sqft_per_box,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -27259,13 +27310,14 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
     // Copy quote items to order items (incl. custom-line vendor + cost + custom rug)
     for (const item of itemsResult.rows) {
       await client.query(`
-        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, parent_collection, parent_color, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, vendor_sku, cost, is_custom_rug, custom_width_ft, custom_length_ft)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, parent_collection, parent_color, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, vendor_sku, cost, is_custom_rug, custom_width_ft, custom_length_ft, price_basis, sqft_per_box)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
       `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection,
           item.parent_collection || null, item.parent_color || null,
           item.description, item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample,
           item.vendor_id || null, item.custom_vendor || null, item.vendor_sku || null, item.cost || null,
-          item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
+          item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null,
+          item.sku_id ? null : (item.price_basis || null), item.sku_id ? null : (item.sqft_per_box || null)]);
     }
 
     // Carry the quote's internal notes onto the order so they show in the order
@@ -27378,8 +27430,8 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
       SELECT oi.*, s.variant_name, s.accessory_label, s.variant_type, s.vendor_sku, s.internal_sku,
         sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
         COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
-        (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1) AS sqft_per_box
+        COALESCE(oi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(oi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1)) AS sqft_per_box
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
@@ -27666,8 +27718,8 @@ app.get('/api/admin/quotes/:id', staffAuth, async (req, res) => {
     const items = await pool.query(`
       SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         COALESCE(qi.cost, pr.cost) as vendor_cost,
-        (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1) AS sqft_per_box,
+        COALESCE(qi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(qi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1)) AS sqft_per_box,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -28215,6 +28267,11 @@ app.post('/api/rep/estimates/:id/items', repAuth, async (req, res) => {
     // Vendor cost: orders/quotes send `cost`, estimates historically send `vendor_cost`.
     // Accept either so no client path silently drops the margin basis (estimate_items.cost has no SKU fallback on read).
     const effVendorCost = vendor_cost !== undefined ? vendor_cost : req.body.cost;
+    // Custom-line sell-by basis + box/piece area (per-sqft coverage, per-piece stone
+    // dual price). Stored only for custom lines; SKU lines derive from pricing/packaging.
+    const customPriceBasis = (!sku_id && req.body.price_basis) ? String(req.body.price_basis).trim() : null;
+    const customSqftPerBox = (!sku_id && req.body.sqft_per_box != null && !isNaN(parseFloat(req.body.sqft_per_box)) && parseFloat(req.body.sqft_per_box) > 0)
+      ? parseFloat(req.body.sqft_per_box) : null;
 
     const guard = await getEditableEstimate(client, id);
     if (guard.errorStatus) return res.status(guard.errorStatus).json({ error: guard.errorMessage });
@@ -28231,8 +28288,9 @@ app.post('/api/rep/estimates/:id/items', repAuth, async (req, res) => {
     const itemResult = await client.query(`
       INSERT INTO estimate_items (estimate_id, item_type, product_id, sku_id, product_name, collection, description,
         sqft_needed, num_boxes, sell_by, labor_category, rate_type, rate_sqft, labor_sqft,
-        unit_price, quantity, subtotal, sort_order, area_id, cost, is_custom_rug, custom_width_ft, custom_length_ft)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+        unit_price, quantity, subtotal, sort_order, area_id, cost, is_custom_rug, custom_width_ft, custom_length_ft,
+        price_basis, sqft_per_box)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
       RETURNING *
     `, [id, rug ? 'material' : (item_type || 'material'), rug ? rug.product_id : (product_id || null), rug ? rug.sku_id : (sku_id || null),
         rug ? rug.product_name : (product_name || null), rug ? rug.collection : (collection || null), rug ? rug.description : (description || null),
@@ -28241,7 +28299,8 @@ app.post('/api/rep/estimates/:id/items', repAuth, async (req, res) => {
         parseFloat((rug ? rug.unit_price : unit_price) || 0).toFixed(2), rug ? rug.num_boxes : (quantity || 1),
         parseFloat((rug ? rug.subtotal : subtotal) || 0).toFixed(2), sort_order || 0, area_id || null,
         rug ? (rug.cost != null ? parseFloat(rug.cost).toFixed(2) : null) : ((effVendorCost == null || effVendorCost === '') ? null : parseFloat(effVendorCost).toFixed(2)),
-        rug ? true : false, rug ? rug.custom_width_ft : null, rug ? rug.custom_length_ft : null]);
+        rug ? true : false, rug ? rug.custom_width_ft : null, rug ? rug.custom_length_ft : null,
+        rug ? null : customPriceBasis, rug ? null : customSqftPerBox]);
 
     await recalculateEstimateTotals(id, client);
     await client.query('COMMIT');
@@ -28956,12 +29015,13 @@ async function convertEstimateToOrderTx(client, e, materialItems, laborItems, op
     await client.query(`
       INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description,
         sqft_needed, num_boxes, unit_price, subtotal, sell_by, item_type, source_estimate_area,
-        cost, is_custom_rug, custom_width_ft, custom_length_ft)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'material', $12, $13, $14, $15, $16)
+        cost, is_custom_rug, custom_width_ft, custom_length_ft, price_basis, sqft_per_box)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'material', $12, $13, $14, $15, $16, $17, $18)
     `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection,
         item.description, item.sqft_needed, item.num_boxes || item.quantity || 1,
         item.unit_price, item.subtotal, item.sell_by, item.area_name || null,
-        item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
+        item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null,
+        item.sku_id ? null : (item.price_basis || null), item.sku_id ? null : (item.sqft_per_box || null)]);
   }
 
   // Copy labor items as labor lines. num_boxes is NOT NULL and generic
@@ -29065,12 +29125,13 @@ async function convertQuoteToOrderTx(client, q, items, opts) {
   }
   for (const item of items) {
     await client.query(`
-      INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, parent_collection, parent_color, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, vendor_sku, cost, is_custom_rug, custom_width_ft, custom_length_ft)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+      INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, parent_collection, parent_color, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, vendor_sku, cost, is_custom_rug, custom_width_ft, custom_length_ft, price_basis, sqft_per_box)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
     `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection, item.parent_collection || null, item.parent_color || null, item.description,
         item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample,
         item.vendor_id || null, item.custom_vendor || null, item.vendor_sku || null,
-        item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
+        item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null,
+        item.sku_id ? null : (item.price_basis || null), item.sku_id ? null : (item.sqft_per_box || null)]);
   }
   // Carry the quote's internal notes onto the order (multi-entry, author+time
   // preserved; legacy single-note fallback for pre-widget quotes).
@@ -29263,8 +29324,8 @@ app.post('/api/rep/estimates/:id/convert-to-order', repAuth, async (req, res) =>
       SELECT oi.*, s.variant_name, s.accessory_label, s.variant_type, s.vendor_sku, s.internal_sku,
         sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
         COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
-        (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1) AS sqft_per_box
+        COALESCE(oi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(oi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1)) AS sqft_per_box
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
@@ -29547,8 +29608,8 @@ app.post('/api/estimate-view/:token/approve', async (req, res) => {
       SELECT oi.*, s.variant_name, s.accessory_label, s.variant_type, s.vendor_sku, s.internal_sku,
         sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
         COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
-        (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1) AS price_basis,
-        (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1) AS sqft_per_box
+        COALESCE(oi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(oi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1)) AS sqft_per_box
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)

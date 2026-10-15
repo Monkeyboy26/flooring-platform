@@ -198,6 +198,7 @@
   function skuPriceSuffix(row) {
     row = row || {};
     const basis = row.price_basis;
+    if (row.sell_by === "lnft") return "/lf";
     const soldPerUnit = row.sell_by ? row.sell_by === "unit" || row.sell_by === "piece" : basis === "per_unit";
     if (soldPerUnit) {
       if ((basis === "sqft" || basis === "per_sqft") && !(parseFloat(row.sqft_per_box) > 0) && !(parseFloat(row.slab_sqft) > 0)) return "/sqft";
@@ -6030,16 +6031,27 @@
   function RofCatCustomForm({ showCost, vendors, onAdd }) {
     const TH = { ink: "#1c1917", paper: "#ece5d8", accent: "#a87935", muted: "#8a7e68", warm: "#d8cdb6" };
     const fmtMoney = (n) => "$" + parseFloat(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const blank = { product_name: "", vendor_id: "", custom_vendor: "", custom_vendor_email: "", sell_by: "unit", num_boxes: 1, unit_price: "", cost: "", description: "" };
+    const blank = { product_name: "", vendor_id: "", custom_vendor: "", custom_vendor_email: "", mode: "each", sqft_per_box: "", num_boxes: 1, unit_price: "", cost: "", description: "" };
     const [f, setF] = useState(blank);
     const set = (k, v) => setF((prev) => ({ ...prev, [k]: v }));
+    const mode = f.mode || "each";
+    const needsArea = mode === "sqft" || mode === "piece";
+    const sellBy = mode === "sqft" ? "box" : mode === "carpet" ? "roll" : mode === "lnft" ? "lnft" : "unit";
+    const priceBasis = needsArea ? "per_sqft" : mode === "carpet" ? "per_sqyd" : null;
     const price = parseFloat(f.unit_price) || 0;
     const cost = parseFloat(f.cost) || 0;
     const qty = parseInt(f.num_boxes) || 0;
-    const ext = price * qty;
+    const spb = parseFloat(f.sqft_per_box) || 0;
+    const sqftNeeded = needsArea && spb > 0 ? parseFloat((qty * spb).toFixed(2)) : mode === "carpet" ? qty : null;
+    const ext = mode === "sqft" ? price * qty * spb : mode === "carpet" ? price * qty / 9 : price * qty;
     const margin = price > 0 && cost > 0 ? (price - cost) / price * 100 : null;
     const oneOffName = f.custom_vendor.trim();
-    const valid = f.product_name.trim() && (f.vendor_id || oneOffName && isValidVendorEmail(f.custom_vendor_email)) && price > 0 && qty > 0;
+    const valid = f.product_name.trim() && (f.vendor_id || oneOffName && isValidVendorEmail(f.custom_vendor_email)) && price > 0 && qty > 0 && (!needsArea || spb > 0);
+    const qtyLabel = mode === "sqft" ? "Boxes *" : mode === "piece" ? "Pieces *" : mode === "carpet" ? "Square feet *" : mode === "lnft" ? "Linear feet *" : "Quantity *";
+    const priceLabel = mode === "sqft" ? "Price / sq ft *" : mode === "piece" ? "Price / piece *" : mode === "carpet" ? "Price / sq yd *" : mode === "lnft" ? "Price / lin ft *" : "Unit price *";
+    const areaLabel = mode === "sqft" ? "Sq ft per box *" : "Sq ft per piece *";
+    const fmtPv = (n) => "$" + parseFloat(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const lineDesc = mode === "sqft" ? (qty || 0) + " bx \xD7 " + (price ? fmtPv(price) : "$0.00") + "/sf" + (sqftNeeded ? " \xB7 " + sqftNeeded + " sf" : "") : mode === "piece" ? (qty || 0) + " pc \xD7 " + (price ? fmtPv(price) : "$0.00") + "/pc" + (spb > 0 && price ? " \xB7 " + fmtPv(price / spb) + "/sf" : "") : mode === "carpet" ? (qty || 0) + " sf \xD7 " + (price ? fmtPv(price) : "$0.00") + "/sqyd \xB7 " + (qty / 9).toFixed(1) + " sq yd" : mode === "lnft" ? (qty || 0) + " lf \xD7 " + (price ? fmtPv(price) : "$0.00") + "/lf" : (qty || 0) + " \xD7 " + (price ? fmtPv(price) : "$0.00");
     const submit = () => {
       if (!valid) return;
       const vendor = vendors.find((v) => String(v.id) === String(f.vendor_id));
@@ -6050,7 +6062,10 @@
         custom_vendor: f.vendor_id ? null : oneOffName,
         custom_vendor_email: f.vendor_id ? null : f.custom_vendor_email.trim(),
         vendor_name: vendor ? vendor.name : oneOffName,
-        sell_by: f.sell_by,
+        sell_by: sellBy,
+        price_basis: priceBasis,
+        sqft_per_box: needsArea ? spb : null,
+        sqft_needed: sqftNeeded,
         num_boxes: qty,
         unit_price: price,
         cost,
@@ -6081,10 +6096,20 @@
         selectStyle: { ...field, cursor: "pointer" },
         inputStyle: field
       }
-    )), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: showCost ? "1fr 1fr 1fr" : "1fr 1fr", gap: 14, marginBottom: 18 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: lbl }, "Quantity *"), /* @__PURE__ */ React.createElement("input", { type: "number", min: "1", value: f.num_boxes, onChange: (e) => set("num_boxes", e.target.value), style: field })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: lbl }, "Unit price *"), /* @__PURE__ */ React.createElement("input", { type: "number", min: "0", step: "0.01", value: f.unit_price, onChange: (e) => set("unit_price", e.target.value), placeholder: "0.00", style: field })), showCost && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: lbl }, "Your cost"), /* @__PURE__ */ React.createElement("input", { type: "number", min: "0", step: "0.01", value: f.cost, onChange: (e) => set("cost", e.target.value), placeholder: "0.00", style: field }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "stretch", border: "0.5px solid rgba(28,25,23,0.13)", marginBottom: 18 } }, [
+    )), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 16 } }, /* @__PURE__ */ React.createElement("label", { style: lbl }, "Sell by"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", border: "0.5px solid rgba(28,25,23,0.2)" } }, [["each", "Each / unit"], ["sqft", "Per sq ft"], ["piece", "Per-piece stone"], ["lnft", "Linear ft"], ["carpet", "Carpet / sq yd"]].map(([m, label], i) => /* @__PURE__ */ React.createElement("button", { key: m, type: "button", onClick: () => set("mode", m), style: {
+      flex: "1 0 33%",
+      padding: "10px 8px",
+      cursor: "pointer",
+      borderLeft: i ? "0.5px solid rgba(28,25,23,0.2)" : "none",
+      borderTop: i >= 3 ? "0.5px solid rgba(28,25,23,0.2)" : "none",
+      background: mode === m ? TH.ink : "transparent",
+      color: mode === m ? TH.paper : TH.ink,
+      font: "500 11px/1.2 var(--roma-sans)",
+      letterSpacing: "0.02em"
+    } }, label))), /* @__PURE__ */ React.createElement("div", { style: { font: "400 11px/1.4 var(--roma-sans)", color: TH.muted, marginTop: 6 } }, mode === "sqft" ? "Priced by the square foot \u2014 enter boxes and sq ft per box; coverage is computed." : mode === "piece" ? "Natural-stone pieces \u2014 priced per piece, shown with a companion $/sf rate." : mode === "lnft" ? "Priced by the linear foot \u2014 trim, molding, baseboard, stair nosing, transitions, bullnose." : mode === "carpet" ? "Carpet by the roll \u2014 enter total square feet; priced per sq yd (9 sf = 1 sq yd)." : "A flat per-unit charge \u2014 freight, labor, a one-off cut, or any single item.")), needsArea && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 18, maxWidth: 220 } }, /* @__PURE__ */ React.createElement("label", { style: lbl }, areaLabel), /* @__PURE__ */ React.createElement("input", { type: "number", min: "0", step: "0.0001", value: f.sqft_per_box, onChange: (e) => set("sqft_per_box", e.target.value), placeholder: "0.00", style: field })), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: showCost ? "1fr 1fr 1fr" : "1fr 1fr", gap: 14, marginBottom: 18 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: lbl }, qtyLabel), /* @__PURE__ */ React.createElement("input", { type: "number", min: "1", value: f.num_boxes, onChange: (e) => set("num_boxes", e.target.value), style: field })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: lbl }, priceLabel), /* @__PURE__ */ React.createElement("input", { type: "number", min: "0", step: "0.01", value: f.unit_price, onChange: (e) => set("unit_price", e.target.value), placeholder: "0.00", style: field })), showCost && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: lbl }, mode === "sqft" ? "Cost / sq ft" : mode === "piece" ? "Cost / piece" : "Your cost"), /* @__PURE__ */ React.createElement("input", { type: "number", min: "0", step: "0.01", value: f.cost, onChange: (e) => set("cost", e.target.value), placeholder: "0.00", style: field }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "stretch", border: "0.5px solid rgba(28,25,23,0.13)", marginBottom: 18 } }, [
       ["Ext. price", ext > 0 ? fmtMoney(ext) : "\u2014", TH.ink],
       ...showCost ? [["Margin", margin != null ? margin.toFixed(0) + "%" : "\u2014 add cost", margin != null ? margin >= 30 ? "#3a7a4e" : margin >= 15 ? "#a87935" : "#c54731" : TH.muted]] : [],
-      ["Line", (qty || 0) + " \xD7 " + (price ? fmtMoney(price) : "$0.00"), TH.muted]
+      ["Line", lineDesc, TH.muted]
     ].map(([l, v, c], i) => /* @__PURE__ */ React.createElement("div", { key: l, style: { flex: 1, padding: "13px 16px", borderLeft: i ? "0.5px solid rgba(28,25,23,0.1)" : "none" } }, /* @__PURE__ */ React.createElement("div", { style: { font: "500 9px/1.4 ui-monospace, monospace", letterSpacing: "0.14em", textTransform: "uppercase", color: TH.muted } }, l), /* @__PURE__ */ React.createElement("div", { style: { font: "400 18px/1.1 var(--roma-serif)", color: c, marginTop: 6, letterSpacing: "-0.01em" } }, v)))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement("button", { onClick: submit, disabled: !valid, style: {
       padding: "13px 24px",
       cursor: valid ? "pointer" : "not-allowed",
@@ -6153,7 +6178,7 @@
     const [editValue, setEditValue] = useState("");
     const [catalogOpen, setCatalogOpen] = useState(false);
     const items = data.items || [];
-    const qtyLabel = (sellBy) => sellBy === "unit" ? "units" : sellBy === "piece" ? "pcs" : sellBy === "roll" ? "sq yd" : "boxes";
+    const qtyLabel = (sellBy) => sellBy === "unit" ? "units" : sellBy === "piece" ? "pcs" : sellBy === "roll" ? "sq yd" : sellBy === "lnft" ? "lin ft" : "boxes";
     const slabNeedsSize = (r) => (r.price_basis === "per_sqft" || r.price_basis === "sqft") && (r.sell_by === "unit" || r.sell_by === "piece") && !(parseFloat(r.sqft_per_box) > 0);
     const parseSlabSqft = (raw) => {
       const s = String(raw == null ? "" : raw).trim();
@@ -6358,6 +6383,9 @@
             subtotal: c.subtotal,
             description: c.description || null,
             sell_by: c.sell_by,
+            price_basis: c.price_basis || null,
+            sqft_per_box: c.sqft_per_box || null,
+            sqft_needed: c.sqft_needed || null,
             is_custom: true,
             cost: c.cost || 0
           });
@@ -6387,8 +6415,10 @@
             if (isNaN(price) || price < 0) return item;
             const isUnit = item.sell_by === "unit" || item.sell_by === "piece";
             const isCarpet = item.price_basis === "per_sqyd" || item.sell_by === "roll";
+            const isCustomCarpet = isCarpet && item.is_custom;
             let sub;
             if (isUnit) sub = price * item.num_boxes;
+            else if (isCustomCarpet) sub = price * (item.num_boxes / 9);
             else if (isCarpet) sub = price * item.num_boxes;
             else if (item.sqft_needed) sub = price * parseFloat(item.sqft_needed);
             else sub = price * item.num_boxes;
@@ -6417,9 +6447,11 @@
             const qty = Math.max(1, Math.round(parseFloat(rawValue) || 1));
             const isUnit = item.sell_by === "unit" || item.sell_by === "piece";
             const isCarpet = item.price_basis === "per_sqyd" || item.sell_by === "roll";
-            const sqft = isCarpet ? qty * 9 : item.sqft_per_box ? item.sqft_per_box * qty : 0;
+            const isCustomCarpet = isCarpet && item.is_custom;
+            const sqft = isCustomCarpet ? qty : isCarpet ? qty * 9 : item.sqft_per_box ? item.sqft_per_box * qty : 0;
             let sub;
             if (isUnit) sub = item.unit_price * qty;
+            else if (isCustomCarpet) sub = item.unit_price * (qty / 9);
             else if (isCarpet) sub = item.unit_price * qty;
             else if (sqft) sub = item.unit_price * sqft;
             else sub = item.unit_price * qty;
@@ -6903,7 +6935,7 @@
     const orderItems = (data.items || []).map((i) => {
       if (i.is_custom_rug && i.sku_id) return { sku_id: i.sku_id, num_boxes: i.num_boxes, is_custom_rug: true, custom_width_ft: i.custom_width_ft, custom_length_ft: i.custom_length_ft };
       if (i.sku_id) return { sku_id: i.sku_id, num_boxes: i.num_boxes, sqft_needed: i.sqft_needed, unit_price: i.unit_price, cost: i.cost != null ? i.cost : void 0, sell_by: i.sell_by, slab_sqft: i.slab_sqft || void 0 };
-      return { product_name: i.product_name, unit_price: i.unit_price, vendor_id: i.vendor_id || null, custom_vendor: i.custom_vendor || void 0, custom_vendor_email: i.custom_vendor_email || void 0, cost: i.cost || void 0, num_boxes: i.num_boxes, description: i.description, sell_by: i.sell_by };
+      return { product_name: i.product_name, unit_price: i.unit_price, vendor_id: i.vendor_id || null, custom_vendor: i.custom_vendor || void 0, custom_vendor_email: i.custom_vendor_email || void 0, cost: i.cost || void 0, num_boxes: i.num_boxes, description: i.description, sell_by: i.sell_by, price_basis: i.price_basis || void 0, sqft_per_box: i.sqft_per_box || void 0, sqft_needed: i.sqft_needed || void 0 };
     });
     const body = {
       customer_name: customerName,
@@ -10717,7 +10749,9 @@
             cost: c.cost || void 0,
             description: c.description || null,
             sell_by: c.sell_by,
-            num_boxes: c.num_boxes
+            num_boxes: c.num_boxes,
+            price_basis: c.price_basis || void 0,
+            sqft_per_box: c.sqft_per_box || void 0
           });
         }
         if (last) {
@@ -11158,7 +11192,7 @@
     };
     if (loading) return /* @__PURE__ */ React.createElement("div", { className: "loading" }, "Loading order...");
     if (!order) return /* @__PURE__ */ React.createElement("div", { className: "loading" }, "Order not found");
-    const qtyLabel = (sellBy) => sellBy === "unit" ? "units" : sellBy === "piece" ? "pcs" : sellBy === "roll" ? "sqft" : "boxes";
+    const qtyLabel = (sellBy) => sellBy === "unit" ? "units" : sellBy === "piece" ? "pcs" : sellBy === "roll" ? "sqft" : sellBy === "lnft" ? "lin ft" : "boxes";
     const isPickup = order.delivery_method === "pickup";
     const isWillCall = order.delivery_method === "will_call";
     const noFreight = isPickup || isWillCall;
@@ -11622,7 +11656,7 @@
           alert("Failed to load PO");
         }
       };
-      const qtyUnit = (it) => it.sell_by === "unit" || it.sell_by === "piece" ? "ea" : it.sell_by === "roll" ? "rl" : "bx";
+      const qtyUnit = (it) => it.sell_by === "unit" || it.sell_by === "piece" ? "ea" : it.sell_by === "roll" ? "rl" : it.sell_by === "lnft" ? "lf" : "bx";
       return /* @__PURE__ */ React.createElement("div", { key: po.id, style: { border: "0.5px solid rgba(28,25,23,0.15)", background: "#f4efe5", marginBottom: "0.875rem" } }, /* @__PURE__ */ React.createElement("div", { style: {
         padding: "0.875rem 1.125rem",
         display: "grid",
@@ -13268,6 +13302,8 @@
       }
       for (const c of customs) {
         const sellBy = c.sell_by || "box";
+        const cspb = parseFloat(c.sqft_per_box) || 0;
+        const perSqft = (c.price_basis === "per_sqft" || c.price_basis === "sqft") && cspb > 0 && sellBy !== "unit" && sellBy !== "piece";
         staged.push({
           key: genKey(),
           type: "add",
@@ -13282,8 +13318,10 @@
           description: c.description || null,
           sellBy,
           isCarpet: sellBy === "roll",
-          spb: 0,
-          mult: sellBy === "roll" ? 1 / 9 : 1,
+          spb: cspb,
+          mult: sellBy === "roll" ? 1 / 9 : perSqft ? cspb : 1,
+          price_basis: c.price_basis || null,
+          sqft_per_box: cspb || null,
           qty: parseInt(c.num_boxes, 10) || 1,
           unitPrice: parseFloat(c.unit_price) || 0,
           cost: c.cost != null ? parseFloat(c.cost) : null
@@ -13311,7 +13349,9 @@
           cost: cost != null ? cost : void 0,
           description: d.description || null,
           sell_by: d.sellBy,
-          num_boxes: qty
+          num_boxes: qty,
+          price_basis: d.price_basis || void 0,
+          sqft_per_box: d.sqft_per_box || void 0
         };
       }
       const base = { sku_id: d.skuId, num_boxes: qty, unit_price: price };
@@ -14299,6 +14339,8 @@
             unit_price: i.unit_price,
             subtotal: i.subtotal,
             sell_by: i.sell_by,
+            price_basis: i.price_basis || null,
+            sqft_per_box: i.sqft_per_box || null,
             is_sample: i.is_sample,
             is_custom_rug: i.is_custom_rug || false,
             custom_width_ft: i.custom_width_ft || null,
@@ -14491,6 +14533,8 @@
           unit_price: i.unit_price,
           subtotal: i.subtotal,
           sell_by: i.sell_by,
+          price_basis: i.price_basis || null,
+          sqft_per_box: i.sqft_per_box || null,
           is_sample: i.is_sample,
           is_custom_rug: i.is_custom_rug || false,
           custom_width_ft: i.custom_width_ft || null,
@@ -14602,18 +14646,20 @@
             product_name: c.product_name,
             collection: "",
             description: c.description || "",
-            sqft_needed: null,
+            sqft_needed: c.sqft_needed || null,
             num_boxes: c.num_boxes,
             unit_price: parseFloat(c.unit_price || 0).toFixed(2),
             subtotal: parseFloat(c.subtotal || 0).toFixed(2),
             is_sample: false,
             sell_by: c.sell_by || "box",
+            price_basis: c.price_basis || null,
+            sqft_per_box: c.sqft_per_box || null,
             vendor_id: c.vendor_id || null,
             custom_vendor: c.custom_vendor || null,
             custom_vendor_email: c.custom_vendor_email || null,
             cost: c.cost || null
           },
-          extra: { _is_custom: true, vendor_name: c.vendor_name || null, vendor_cost: c.cost || null }
+          extra: { _is_custom: true, vendor_name: c.vendor_name || null, vendor_cost: c.cost || null, price_basis: c.price_basis || null, sqft_per_box: c.sqft_per_box || null }
         });
       }
       try {
@@ -14639,8 +14685,8 @@
     const repInfo = JSON.parse(sessionStorage.getItem("rep_info") || "{}");
     const isReadonly = quote && !["draft", "sent"].includes(quote.status);
     const calcSubtotal = quoteItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
-    const qtyLabel = (sellBy) => sellBy === "unit" ? "units" : sellBy === "piece" ? "pcs" : sellBy === "roll" ? "sqft" : "boxes";
-    const unitSuffix = (sellBy) => sellBy === "unit" ? "/ea" : sellBy === "roll" ? "/sqyd" : "/sqft";
+    const qtyLabel = (sellBy) => sellBy === "unit" ? "units" : sellBy === "piece" ? "pcs" : sellBy === "roll" ? "sqft" : sellBy === "lnft" ? "lin ft" : "boxes";
+    const unitSuffix = (sellBy) => sellBy === "unit" ? "/ea" : sellBy === "roll" ? "/sqyd" : sellBy === "lnft" ? "/lf" : "/sqft";
     const fmtD = (d) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
     const STATUS_META = {
       draft: { label: "Draft", tone: "#a87935" },
@@ -16304,15 +16350,17 @@
             product_name: c.product_name,
             collection: "",
             description: c.description || "",
-            sqft_needed: null,
+            sqft_needed: c.sqft_needed || null,
             num_boxes: c.num_boxes,
             unit_price: parseFloat(c.unit_price || 0).toFixed(2),
             subtotal: parseFloat(c.subtotal || 0).toFixed(2),
             sell_by: c.sell_by || "box",
+            price_basis: c.price_basis || null,
+            sqft_per_box: c.sqft_per_box || null,
             area_id: targetAreaId,
             vendor_cost: c.cost || null
           },
-          extra: { vendor_cost: c.cost || null }
+          extra: { vendor_cost: c.cost || null, price_basis: c.price_basis || null, sqft_per_box: c.sqft_per_box || null }
         });
       }
       try {

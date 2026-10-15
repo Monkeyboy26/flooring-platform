@@ -304,6 +304,12 @@ CREATE TABLE order_items (
     vendor_id UUID REFERENCES vendors(id),
     custom_vendor TEXT,
     cost DECIMAL(10,2),
+    -- Custom (off-catalog) lines only: SKU lines derive these from pricing/packaging
+    -- via subquery, but custom lines have no sku_id, so the chosen "sell by" basis
+    -- and piece/box area are stored on the line itself (per_sqft coverage, per-piece
+    -- stone dual price). NULL for plain per-unit custom lines. See [[custom-sell-by]].
+    price_basis VARCHAR(20),
+    sqft_per_box DECIMAL(10,4),
     -- Pickup readiness: set when this line's goods are at the store (i.e. fully
     -- received). When every non-sample line is ready, a pickup order
     -- auto-advances to ready_for_pickup.
@@ -650,6 +656,9 @@ CREATE TABLE quote_items (
     vendor_id UUID REFERENCES vendors(id),
     custom_vendor TEXT,
     cost DECIMAL(10,2),
+    -- Custom-line sell-by basis + piece/box area (see order_items / [[custom-sell-by]])
+    price_basis VARCHAR(20),
+    sqft_per_box DECIMAL(10,4),
     -- Custom bound area rug — see [[custom-rug-calculator]]
     is_custom_rug BOOLEAN DEFAULT false,
     custom_width_ft DECIMAL(7,2),
@@ -2118,6 +2127,9 @@ CREATE TABLE IF NOT EXISTS estimate_items (
     quantity DECIMAL(10,2) DEFAULT 1,
     subtotal DECIMAL(10,2) NOT NULL,
     cost DECIMAL(10,2),
+    -- Custom-line sell-by basis + piece/box area (see order_items / [[custom-sell-by]])
+    price_basis VARCHAR(20),
+    sqft_per_box DECIMAL(10,4),
     sort_order INTEGER DEFAULT 0,
     area_id UUID REFERENCES estimate_areas(id) ON DELETE SET NULL,
     -- Custom bound area rug — see [[custom-rug-calculator]]
