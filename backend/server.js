@@ -301,6 +301,23 @@ const IMG_ORIG_MAX_BYTES = 12 * 1024 * 1024; // don't hoard giant originals on d
 const imgInflight = new Map(); // cacheKey → Promise<Buffer> — dedup concurrent requests
 const imgOrigInflight = new Map(); // url hash → Promise<Buffer|null> — dedup origin downloads across widths
 
+// Read a local image file, retrying transient filesystem hiccups. The Docker-
+// for-Mac bind mount (virtiofs/gRPC-FUSE) occasionally returns EAGAIN on a read
+// — surfaced as "Unknown system error -35" because the host's macOS errno 35
+// has no Linux libuv mapping (err.code is then undefined, err.errno === -35).
+// These clear on an immediate retry; without one a single blip 500s the image.
+async function readLocalImageFile(localPath, attempts = 3) {
+  for (let i = 0; ; i++) {
+    try {
+      return await fs.promises.readFile(localPath);
+    } catch (err) {
+      const transient = err.code === 'EAGAIN' || err.code === 'EBUSY' || err.errno === -35;
+      if (!transient || i >= attempts - 1) throw err;
+      await new Promise((r) => setTimeout(r, 20 * (i + 1)));
+    }
+  }
+}
+
 // Known bad/error image MD5 hashes — reject these at the proxy level
 const BAD_IMAGE_HASHES = new Set([
   'd0a7127af62d07881dbc4e8a1d29bf26', // Armstrong "IT team" meme (577KB)
@@ -455,12 +472,12 @@ app.get('/api/img', imgLimiter, async (req, res) => {
           // Reject anything that escapes the intended uploads/ or assets/ subtree (../ traversal)
           if (localPath !== allowed && !localPath.startsWith(allowed + path.sep)) return null;
           if (!fs.existsSync(localPath)) return null;
-          inputBuffer = await fs.promises.readFile(localPath);
+          inputBuffer = await readLocalImageFile(localPath);
         } else {
           const origKey = crypto.createHash('sha256').update(url).digest('hex');
           const origPath = path.join(IMG_ORIG_CACHE_DIR, origKey);
           if (fs.existsSync(origPath)) {
-            inputBuffer = await fs.promises.readFile(origPath);
+            inputBuffer = await readLocalImageFile(origPath);
           } else {
             if (!imgOrigInflight.has(origKey)) {
               const dl = (async () => {

@@ -19,3 +19,14 @@ export const pool = new pg.Pool({
   statement_timeout: 120000,   // server-side, per statement
   query_timeout: 130000        // client-side backstop, slightly above so the server errors first
 });
+
+// An idle pooled client whose backend connection the server drops — a deploy/
+// restart ("terminating connection due to administrator command", SQLSTATE
+// 57P01), a failover, or a network blip (ECONNRESET) — emits 'error' on the
+// pool. With no listener, Node re-throws it as an uncaughtException: a routine
+// DB restart would otherwise ride the process-level crash handler and spam
+// Sentry. pg already evicts the dead client and dials a fresh one on the next
+// query, so we just log and swallow — no action needed to recover.
+pool.on('error', (err) => {
+  console.warn('[db] idle client error (pool self-heals on next query):', err.code || '', err.message);
+});
