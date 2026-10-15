@@ -215,6 +215,38 @@ export async function run(pool, job, source) {
     // Close browser during Phase 2 (DB-only) to free memory for later detail scraping
     if (browser) { await browser.close(); browser = null; }
 
+    // ── Inventory-only mode (daily "Bedrosians Inventory" source: config.inventoryOnly) ──
+    // Far lighter than the full catalog scrape: the listing pages already carry OnHand
+    // per SKU, so we just match each listing row to an existing SKU by vendor_sku
+    // (ProductCode) and refresh its stock snapshot. No product/SKU/pricing/image writes,
+    // no detail-page crawl, no reconcile — safe to run daily. New SKUs not yet in the DB
+    // are skipped here; the biweekly full scrape onboards them.
+    if (config.inventoryOnly) {
+      let invUpdated = 0, invMissing = 0;
+      for (const [productCode, raw] of allProducts) {
+        try {
+          const mapped = mapListingProduct(raw);
+          const skuRow = (await pool.query(
+            `SELECT s.id FROM skus s JOIN products p ON p.id = s.product_id
+              WHERE p.vendor_id = $1 AND s.vendor_sku = $2 LIMIT 1`, [vendor_id, productCode])).rows[0];
+          if (!skuRow) { invMissing++; continue; }
+          const qtyOnHand = mapped.inventory.onHand || (mapped.inventory.isInStock ? 1 : 0);
+          await upsertInventorySnapshot(pool, skuRow.id, 'default', {
+            qty_on_hand_sqft: qtyOnHand,
+            qty_in_transit_sqft: 0,
+          });
+          invUpdated++;
+        } catch (err) {
+          stats.errors++;
+          await addJobError(pool, job.id, `Inventory ${productCode}: ${err.message}`);
+        }
+      }
+      await appendLog(pool, job.id,
+        `Inventory-only refresh: ${invUpdated} SKUs updated, ${invMissing} not matched, of ${stats.found} listed`,
+        { products_found: stats.found });
+      return;
+    }
+
     // ── Phase 2: Upsert products, SKUs, pricing, inventory, images ──
     const skuMap = new Map(); // ProductCode -> { skuId, productId }
     let idx = 0;
