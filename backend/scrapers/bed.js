@@ -299,16 +299,21 @@ export async function run(pool, job, source) {
         }
 
         // ── Pricing ──
-        // Retail = Bedrosians website price (charm-rounded by upsertPricing). cost is
-        // left 0 here and DERIVED at a fixed 40% margin (cost = 60% of retail) in the
-        // reconcile pass step (h), which runs after charm pricing + slab conversions so
-        // the margin keys off the final retail. See reconcileBedProducts.
+        // Retail = Bedrosians website price, charm-rounded (…x9) by upsertPricing. Cost
+        // is a fixed 40% margin on the TRUE website price — NOT the charm-rounded retail,
+        // which would understate cost by a few cents (owner, 2026-10-15). We set cost
+        // directly AFTER the upsert (which runs with cost:0 so its charm/margin-floor
+        // logic — which only guards retail — never lifts retail off the site price), so
+        // the margin keys off mapped.pricing.retailPrice (the raw site price, already
+        // per-piece for converted slabs). Reconcile step (h) is a fallback only.
         if (mapped.pricing.retailPrice) {
           await upsertPricing(pool, sku.id, {
             cost: 0,
             retail_price: mapped.pricing.retailPrice,
             price_basis: mapped.pricing.priceBasis || 'per_sqft',
           });
+          await pool.query('UPDATE pricing SET cost = ROUND($2::numeric * 0.60, 2) WHERE sku_id = $1',
+            [sku.id, mapped.pricing.retailPrice]);
           stats.pricingSet++;
         }
 
@@ -1875,24 +1880,22 @@ export async function reconcileBedProducts(pool, vendor_id) {
   // ── g. Cross-product accessory attachment (collection + color) ──
   stats.accessoryLinks = await attachBedAccessories(pool, vendor_id);
 
-  // ── h. Derive cost from retail at a fixed 40% margin (owner, 2026-10-15) ──
-  // Bedrosians is priced off the website price, which we store verbatim as retail
-  // (modulo the platform's 9-ending charm rounding applied at upsert). The owner's
-  // rule: every Bedrosians item carries a 40% gross margin, i.e. cost = 60% of the
-  // retail we show. This REPLACES the old dealer price-list PDF ingestion
-  // (bed-pricing.js), which left ~1000 SKUs at cost 0. Runs last so it keys off the
-  // FINAL retail (after charm pricing + slab/ledger per-piece conversion above),
-  // making the margin exactly 40% of the stored retail. Idempotent; only rewrites
-  // rows whose cost drifts from the 60% target, and never touches $0/unpriced rows.
+  // ── h. Fallback cost derivation at a fixed 40% margin (owner, 2026-10-15) ──
+  // Every Bedrosians item carries a 40% gross margin: cost = 60% of the Bedrosians
+  // website price. Freshly-scraped SKUs already got that in Phase 2, keyed off the TRUE
+  // site price (before charm rounding). This pass only fills SKUs that carry a retail
+  // but weren't priced this run (discontinued/stale rows the listing no longer returns)
+  // — for those the raw price is gone, so we approximate from the stored (charm-rounded)
+  // retail. It NEVER touches a row that already has a cost, so it can't override the
+  // site-price-based cost from Phase 2. Replaces the old dealer price-list PDF.
   const costRes = await pool.query(
     `UPDATE pricing pr
         SET cost = ROUND(pr.retail_price * 0.60, 2)
        FROM skus s JOIN products p ON p.id = s.product_id
       WHERE pr.sku_id = s.id
         AND p.vendor_id = $1
-        AND pr.retail_price IS NOT NULL
         AND pr.retail_price > 0
-        AND pr.cost IS DISTINCT FROM ROUND(pr.retail_price * 0.60, 2)`,
+        AND (pr.cost IS NULL OR pr.cost = 0)`,
     [vendor_id]);
   stats.costDerived = costRes.rowCount;
 
