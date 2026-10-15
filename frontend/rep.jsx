@@ -4701,7 +4701,7 @@
                       <div style={mono(TH.muted)}>{[product.category_name, product.brand_name || product.vendor_name, product.collection].filter(Boolean).join(' · ')}</div>
                       <div style={{ font: '400 26px/1.05 var(--roma-serif)', letterSpacing: '-0.012em', color: TH.ink, marginTop: 8 }}>{activeSku.display_name || product.name}</div>
                       {!activeSku.display_name && <div style={{ font: '400 13px/1.4 var(--roma-sans)', color: TH.ink + '99', marginTop: 4 }}>{[activeSku.variant_name, activeSku.size_display].filter(Boolean).join(' · ')}</div>}
-                      {product.description_short && <div style={{ font: '400 12px/1.5 var(--roma-sans)', color: TH.muted, marginTop: 6 }}>{product.description_short}</div>}
+                      {(activeSku.vendor_sku || activeSku.internal_sku) && <div style={{ ...mono(TH.muted), marginTop: 6 }}>SKU {activeSku.vendor_sku || activeSku.internal_sku}</div>}
                     </div>
 
                     {/* Structured variant selectors: color swatches + size/attribute pills */}
