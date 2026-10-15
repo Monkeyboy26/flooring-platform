@@ -60,7 +60,9 @@ function priceUnitSuffix(i) {
  *                                boxes — the stored quantity is num_boxes, NOT raw
  *                                sqft, even when the storefront sells it "by sqft";
  *                                its per-box cost is cost/sqft × sqft_per_box)
- *   unit / piece     → "unit(s)"
+ *   unit / piece     → "pc(s)"  for per-piece stone (per-sqft basis × a known
+ *                                piece area, or a captured sqft_needed); "unit(s)"
+ *                                for genuine per-each goods (hardware/accessories)
  *
  * Carpet stores its coverage in sqft_needed while num_boxes is a placeholder 1
  * (storefront) — so when the raw quantity is the placeholder we recover the real
@@ -84,7 +86,12 @@ export function lineQtyUnit(i = {}, rawQty) {
     return { value, label: 'sqyd', text: fmt(value) };
   }
   if (sb === 'lf') return { value: q, label: 'LF', text: fmt(q) };
-  if (sb === 'unit' || sb === 'piece') return { value: q, label: q === 1 ? 'unit' : 'units', text: fmt(q) };
+  if (sb === 'unit' || sb === 'piece') {
+    // Per-piece stone is physically counted as whole TILES → "pc(s)" (see
+    // isPerPieceLine); genuine per-each goods (hardware/accessories) keep "unit(s)".
+    if (isPerPieceLine(i)) return { value: q, label: q === 1 ? 'pc' : 'pcs', text: fmt(q) };
+    return { value: q, label: q === 1 ? 'unit' : 'units', text: fmt(q) };
+  }
   if (sb === 'each') return { value: q, label: 'each', text: fmt(q) };
   // Tile: box-packaged, ordered by whole boxes. The stored quantity is always the
   // box count (num_boxes / poi.qty), so a 'sqft'-sold tile is labelled in boxes too
@@ -92,6 +99,55 @@ export function lineQtyUnit(i = {}, rawQty) {
   if (!sb || sb === 'box' || sb === 'sqft') return { value: q, label: q === 1 ? 'box' : 'boxes', text: fmt(q) };
   // Unknown UOM — generic pluralization (mirrors the legacy PO logic).
   return { value: q, label: q === 1 ? sb : (/(x|s|ch|sh)$/.test(sb) ? sb + 'es' : sb + 's'), text: fmt(q) };
+}
+
+/**
+ * True for a per-piece stone line: natural-stone tile sold/counted as whole TILES
+ * ("pc(s)") yet priced from a per-sqft rate × a known piece area. The generic
+ * "units" label confused a customer on RD-10083, so these read as "pcs" and also
+ * surface their per-sf rate (perPieceSfRate). Only unit/piece lines qualify; any one
+ * signal marks it (the set mirrors isPerPieceSku() in server.js and is chosen so
+ * every document has at least one of these fields available):
+ *   • sell_by 'piece' (explicit)
+ *   • per-sqft basis + a known piece area (PO / quote carry sqft_per_box)
+ *   • a captured coverage, sqft_needed, on the order / quote / release line
+ */
+export function isPerPieceLine(i = {}) {
+  const sb = String(i.sell_by || '').toLowerCase();
+  if (sb !== 'unit' && sb !== 'piece') return false;
+  const perSqftBasis = i.price_basis === 'per_sqft' || i.price_basis === 'sqft';
+  return sb === 'piece'
+    || (perSqftBasis && parseFloat(i.sqft_per_box) > 0)
+    || parseFloat(i.sqft_needed) > 0;
+}
+
+/**
+ * The per-sqft RATE behind a per-piece line's each-price, when derivable: the line's
+ * per-piece price (unit_price / cost) ÷ the piece area. Piece area is sqft_per_box
+ * when present, else the captured coverage ÷ pieces (sqft_needed / qty). Returns null
+ * for non-per-piece lines or when the rate can't be computed — callers show it as a
+ * "/sf" sub-figure beside the "/ea" tile price only "if available". Pass the same
+ * money field the cell prints (unit_price on sell docs, cost on the vendor PO).
+ */
+export function perPieceSfRate(i = {}, priceField = 'unit_price', qty) {
+  if (!isPerPieceLine(i)) return null;
+  const price = parseFloat(i[priceField]);
+  if (!(price > 0)) return null;
+  let area = parseFloat(i.sqft_per_box);
+  if (!(area > 0)) {
+    const cov = parseFloat(i.sqft_needed);
+    const q = parseFloat(qty != null ? qty : (i.num_boxes ?? i.quantity ?? i.qty));
+    if (cov > 0 && q > 0) area = cov / q;
+  }
+  if (!(area > 0)) return null;
+  return price / area;
+}
+
+/** The "/sf" price sub-figure shown beneath a per-piece line's "/ea" price, or ''
+ *  when no rate is available. Pass the rate from perPieceSfRate() and the caller's
+ *  local money() formatter. */
+function perPieceSfSub(rate, money) {
+  return rate ? `<div class="numsub">${money(rate)}/sf</div>` : '';
 }
 
 /** True when a line is broadloom carpet, which is sold by the square yard and has
@@ -801,12 +857,13 @@ export async function generatePOHtml(pool, poId) {
   const items = await pool.query(`
     SELECT poi.*, ma.url as primary_image, sk.internal_sku,
            sk.variant_name, sk.accessory_label, sk.variant_type,
-           pr.collection AS collection, pk.sqft_per_box,
+           pr.collection AS collection, pk.sqft_per_box, prc.price_basis,
            sac.value AS color, sac_sz.value AS size
     FROM purchase_order_items poi
     LEFT JOIN skus sk ON sk.id = poi.sku_id
     LEFT JOIN products pr ON pr.id = sk.product_id
     LEFT JOIN packaging pk ON pk.sku_id = poi.sku_id
+    LEFT JOIN pricing prc ON prc.sku_id = poi.sku_id
     LEFT JOIN sku_attributes sac ON sac.sku_id = poi.sku_id
       AND sac.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
     LEFT JOIN sku_attributes sac_sz ON sac_sz.sku_id = poi.sku_id
@@ -1037,7 +1094,7 @@ ${lineNote ? `<div style="font:400 9.5px/1.45 var(--sans);color:#1c1917cc;font-s
 </div>
 <div style="font:500 10px/1.2 ui-monospace,monospace;color:var(--ink);letter-spacing:0.04em;padding-top:1px;">${vsku}</div>
 <div class="num">${qtyText}<div class="numsub">${uomLabel}</div>${coverSf ? `<div class="numsub">${coverSf.toFixed(1)} sf</div>` : ''}</div>
-<div class="num">$${cost}</div>
+<div class="num">$${cost}${perPieceSfSub(perPieceSfRate(it, 'cost', it.qty), (n) => '$' + parseFloat(n).toFixed(2))}</div>
 <div class="line-total">$${sub}</div>
 </div>`;
 }).join('')}
@@ -1155,7 +1212,7 @@ export function generateQuoteHtml(q, items) {
       </div>
       <div class="num">${isUnit || !sqft ? '—' : sqft.toFixed(1) + ' sf'}${perBox ? `<div class="numsub">${perBox.toFixed(1)} sf / box</div>` : ''}</div>
       <div class="num">${_qu.text}<div class="numsub">${_qu.label}</div></div>
-      <div class="num">${isFree ? 'Free' : money(i.unit_price) + priceUnitSuffix(i)}</div>
+      <div class="num">${isFree ? 'Free' : money(i.unit_price) + priceUnitSuffix(i) + perPieceSfSub(perPieceSfRate(i, 'unit_price', qty), money)}</div>
       <div class="line-total">${isFree ? 'Free' : money(i.subtotal)}</div>
     </div>`;
   }).join('');
@@ -1394,7 +1451,7 @@ export function generateEstimateHtml(e, materials = [], labor = [], milestones =
       </div>
       <div class="num">${isUnit || !sqft ? '—' : sqft.toFixed(1) + ' sf'}${perBox ? `<div class="numsub">${perBox.toFixed(1)} sf / box</div>` : ''}</div>
       <div class="num">${_qu.text}<div class="numsub">${_qu.label}</div></div>
-      <div class="num">${money(i.unit_price)}${priceUnitSuffix(i)}</div>
+      <div class="num">${money(i.unit_price)}${priceUnitSuffix(i)}${perPieceSfSub(perPieceSfRate(i, 'unit_price', qty), money)}</div>
       <div class="line-total">${money(i.subtotal)}</div>
     </div>`;
   }).join('');
@@ -1719,7 +1776,7 @@ export function generateOrderInvoiceDoc(o, items, payment, milestones = []) {
       </div>
       <div class="num">${isUnit || !sqft ? '—' : sqft.toFixed(1) + ' sf'}${perBox ? `<div class="numsub">${perBox.toFixed(1)} sf / box</div>` : ''}</div>
       <div class="num">${_qu.text}<div class="numsub">${_qu.label}</div></div>
-      <div class="num">${isFree ? 'Free' : money(i.unit_price) + priceUnitSuffix(i)}</div>
+      <div class="num">${isFree ? 'Free' : money(i.unit_price) + priceUnitSuffix(i) + perPieceSfSub(perPieceSfRate(i, 'unit_price', qty), money)}</div>
       <div class="line-total">${isFree ? 'Free' : money(i.subtotal)}</div>
     </div>`;
   };
@@ -1985,6 +2042,10 @@ export function generateCreditMemoDoc(memo, items, opts = {}) {
 
   const rowsHtml = items.map((i, idx) => {
     const qty = parseFloat(i.qty || 0) || 1;
+    // cmi.qty is in the same unit as the ordered num_boxes (box count for tile,
+    // piece count for per-piece stone, unit count for accessories) — so the shared
+    // helper labels it correctly instead of the old hardcoded "units".
+    const _qu = lineQtyUnit(i, qty);
     const _ci = composeItemName(i);
     const _manual = _ci.title === 'Product' && !_ci.descriptors.length && i.description;
     const name = escDoc(_manual ? i.description : (_ci.title || '—'));
@@ -2018,8 +2079,8 @@ export function generateCreditMemoDoc(memo, items, opts = {}) {
         ${skuLine ? `<div style="font:400 9px/1.5 var(--sans);color:#1c191799;margin-top:3px;">${skuLine}</div>` : ''}
         ${reasonLine ? `<div style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.1em;color:var(--muted);margin-top:4px;text-transform:uppercase;">${reasonLine}</div>` : ''}
       </div>
-      <div class="num">${qty}<div class="numsub">${qty === 1 ? 'unit' : 'units'}</div></div>
-      <div class="num">${money(unitPrice)}<div class="numsub">${money(gross)} gross</div></div>
+      <div class="num">${qty}<div class="numsub">${_qu.label}</div></div>
+      <div class="num">${money(unitPrice)}${perPieceSfSub(perPieceSfRate(i, 'unit_price'), money)}<div class="numsub">${money(gross)} gross</div></div>
       <div class="num" style="color:${restockFeeLine > 0.005 ? 'var(--ink)' : 'var(--muted)'};">${restockCell}</div>
       <div class="line-total">${money(refundLine)}</div>
     </div>`;
@@ -2189,7 +2250,7 @@ export function generateReleaseFormDoc(release, items, opts = {}) {
     const ordered = parseFloat(i.ordered_qty || 0);
     // Released quantity is already the material amount (carpet in sqyd, LF for rug
     // cuts) — label it per material, don't derive from full-order coverage.
-    const _qu = lineQtyUnit({ sell_by: i.sell_by, price_basis: i.price_basis }, qty);
+    const _qu = lineQtyUnit({ sell_by: i.sell_by, price_basis: i.price_basis, sqft_needed: i.sqft_needed }, qty);
     const _ci = composeItemName(i);
     const name = escDoc(_ci.title || '—');
     const suffix = escDoc(_ci.descriptors.join(' · '));

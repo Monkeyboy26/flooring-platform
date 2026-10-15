@@ -16869,11 +16869,12 @@ async function generateCreditMemoHtml(returnId, { repId = null } = {}) {
 
   const items = await pool.query(`
     SELECT cmi.*, sk.variant_name, sk.vendor_sku, sa_c.value AS color, sa_sz.value AS size, COALESCE(br.name, v.name) AS vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code,
-      ri.reason, ri.condition,
+      ri.reason, ri.condition, oi.sell_by, oi.sqft_needed, pk.sqft_per_box,
       (SELECT url FROM media_assets WHERE product_id = COALESCE(sk.product_id, oi.product_id) AND asset_type = 'primary' ORDER BY CASE WHEN sku_id = oi.sku_id THEN 0 WHEN sku_id IS NULL THEN 1 ELSE 2 END, sort_order LIMIT 1) AS primary_image
     FROM credit_memo_items cmi
     LEFT JOIN order_items oi ON oi.id = cmi.order_item_id
     LEFT JOIN skus sk ON sk.id = cmi.sku_id
+    LEFT JOIN packaging pk ON pk.sku_id = cmi.sku_id
     LEFT JOIN products pr ON pr.id = COALESCE(sk.product_id, oi.product_id)
     LEFT JOIN vendors v ON v.id = pr.vendor_id
     LEFT JOIN brands br ON br.id = pr.brand_id
@@ -16939,7 +16940,7 @@ async function generateReleaseFormHtml(releaseId, opts = {}) {
   if (!rel.rows.length) return null;
   const release = rel.rows[0];
   const items = await pool.query(`
-    SELECT ri.*, oi.collection, oi.sell_by, oi.num_boxes AS ordered_qty,
+    SELECT ri.*, oi.collection, oi.sell_by, oi.sqft_needed, oi.num_boxes AS ordered_qty,
       sk.variant_name, sk.vendor_sku, sa_c.value AS color, sa_sz.value AS size, COALESCE(br.name, v.name) AS vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code,
       (SELECT url FROM media_assets WHERE product_id = COALESCE(sk.product_id, oi.product_id) AND asset_type = 'primary' ORDER BY CASE WHEN sku_id = oi.sku_id THEN 0 WHEN sku_id IS NULL THEN 1 ELSE 2 END, sort_order LIMIT 1) AS primary_image
     FROM release_items ri
