@@ -263,6 +263,10 @@ export async function run(pool, job, source) {
         }
 
         // ── Pricing ──
+        // Retail = Bedrosians website price (charm-rounded by upsertPricing). cost is
+        // left 0 here and DERIVED at a fixed 40% margin (cost = 60% of retail) in the
+        // reconcile pass step (h), which runs after charm pricing + slab conversions so
+        // the margin keys off the final retail. See reconcileBedProducts.
         if (mapped.pricing.retailPrice) {
           await upsertPricing(pool, sku.id, {
             cost: 0,
@@ -463,7 +467,8 @@ export async function run(pool, job, source) {
           `${rec.displayNameFixed} display names, ${rec.sellByFixed} sell_by/price, ` +
           `${rec.slabPriceConverted} slab prices converted to per-piece, ` +
           `${rec.accessorySkus} accessory SKUs, ${rec.pruned} orphans pruned, ` +
-          `${rec.accessoryLinks} accessory links${rec.nullPrice ? `, ${rec.nullPrice} with NO price` : ''}`);
+          `${rec.accessoryLinks} accessory links, ${rec.costDerived} costs set to 60% of retail` +
+          `${rec.nullPrice ? `, ${rec.nullPrice} with NO price` : ''}`);
       } catch (err) {
         await appendLog(pool, job.id, `Reconcile skipped: ${err.message}`);
       }
@@ -1544,7 +1549,8 @@ function stripVariantTail(text) {
  */
 export async function reconcileBedProducts(pool, vendor_id) {
   const stats = { categoryFixed: 0, colorFixed: 0, displayNameFixed: 0, sellByFixed: 0,
-    slabPriceConverted: 0, ledgerPriceConverted: 0, accessorySkus: 0, pruned: 0, accessoryLinks: 0, nullPrice: 0 };
+    slabPriceConverted: 0, ledgerPriceConverted: 0, accessorySkus: 0, pruned: 0, accessoryLinks: 0, nullPrice: 0,
+    costDerived: 0 };
 
   const slugToId = new Map();
   for (const r of (await pool.query('SELECT id, slug FROM categories WHERE is_active = true')).rows) {
@@ -1807,6 +1813,27 @@ export async function reconcileBedProducts(pool, vendor_id) {
 
   // ── g. Cross-product accessory attachment (collection + color) ──
   stats.accessoryLinks = await attachBedAccessories(pool, vendor_id);
+
+  // ── h. Derive cost from retail at a fixed 40% margin (owner, 2026-10-15) ──
+  // Bedrosians is priced off the website price, which we store verbatim as retail
+  // (modulo the platform's 9-ending charm rounding applied at upsert). The owner's
+  // rule: every Bedrosians item carries a 40% gross margin, i.e. cost = 60% of the
+  // retail we show. This REPLACES the old dealer price-list PDF ingestion
+  // (bed-pricing.js), which left ~1000 SKUs at cost 0. Runs last so it keys off the
+  // FINAL retail (after charm pricing + slab/ledger per-piece conversion above),
+  // making the margin exactly 40% of the stored retail. Idempotent; only rewrites
+  // rows whose cost drifts from the 60% target, and never touches $0/unpriced rows.
+  const costRes = await pool.query(
+    `UPDATE pricing pr
+        SET cost = ROUND(pr.retail_price * 0.60, 2)
+       FROM skus s JOIN products p ON p.id = s.product_id
+      WHERE pr.sku_id = s.id
+        AND p.vendor_id = $1
+        AND pr.retail_price IS NOT NULL
+        AND pr.retail_price > 0
+        AND pr.cost IS DISTINCT FROM ROUND(pr.retail_price * 0.60, 2)`,
+    [vendor_id]);
+  stats.costDerived = costRes.rowCount;
 
   return stats;
 }
