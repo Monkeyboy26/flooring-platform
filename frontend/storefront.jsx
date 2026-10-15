@@ -4256,13 +4256,24 @@
           const prodSlug = (segs[1] || '').split('?')[0];
           setView('detail');
           setSelectedSkuId(null); // show the resolving loader, not a stale product
+          const showUnavailable = () => {
+            // Dead product URL (discontinued / stale organic link). Don't dump the visitor
+            // on the browse grid with no explanation — show the unavailable view and keep it
+            // out of the index, mirroring the crawler-facing 410/404 in seoRenderer.
+            setView('notfound');
+            updateSEO({ title: 'Product No Longer Available | Roma Flooring Designs',
+              description: 'This product has been discontinued or is no longer available.',
+              url: SITE_URL + path, image: '' });
+            const robots = document.querySelector('meta[name="robots"]:not([data-paginated])');
+            if (robots) robots.setAttribute('content', 'noindex, follow');
+          };
           fetch(API + '/api/storefront/products/' + encodeURIComponent(catSlug) + '/' + encodeURIComponent(prodSlug))
             .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
             .then(d => {
               if (d && d.resolve_sku_id) setSelectedSkuId(d.resolve_sku_id);
-              else { setView('browse'); fetchSkus({ activeFilters: {}, tags: [], page: 1 }); }
+              else showUnavailable();
             })
-            .catch(() => { setView('browse'); fetchSkus({ activeFilters: {}, tags: [], page: 1 }); });
+            .catch(() => showUnavailable());
         } else if (/^\/shop\/[^/]+(\?.*)?$/.test(path) && !path.startsWith('/shop/sku/')) {
           // Single-segment /shop/{slug}: programmatic facet landing page (Phase 2).
           // Two-segment product URLs are handled above; here we resolve the landing
@@ -4843,6 +4854,39 @@
                 This page is coming soon. We're working on something beautiful.
               </p>
               <button className="btn" onClick={goHome}>Back to Home</button>
+            </div>
+          )}
+
+          {/* A product URL that no longer resolves to a live PDP — discontinued item, or a
+              stale organic/shared link (the server returns 410/404 for crawlers; see
+              seoRenderer product case). Rather than silently dropping the visitor on the
+              browse grid, explain what happened and route them to similar options. */}
+          {view === 'notfound' && (
+            <div className="not-found-page">
+              <div className="not-found-hero">
+                <h1 style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, fontSize: '2.5rem', marginBottom: '0.75rem' }}>This product is no longer available</h1>
+                <p style={{ color: 'var(--stone-500)', fontSize: '1.125rem', lineHeight: 1.6, marginBottom: '1.75rem' }}>
+                  It may have been discontinued or replaced. Search or browse our current collection — we likely carry something similar.
+                </p>
+                <form className="not-found-search" onSubmit={(e) => {
+                  e.preventDefault();
+                  const q = (e.target.elements.q.value || '').trim();
+                  navigate(q ? ('/shop?q=' + encodeURIComponent(q)) : '/shop');
+                }}>
+                  <input name="q" type="text" placeholder="Search tile, wood, stone…" aria-label="Search products" />
+                  <button className="btn" type="submit">Search</button>
+                </form>
+              </div>
+              {Array.isArray(categories) && categories.length > 0 && (
+                <div className="not-found-cats">
+                  {categories.filter(c => c && c.slug).slice(0, 8).map(c => (
+                    <a key={c.slug} className="not-found-cat-link" href={'/shop?category=' + c.slug}
+                      onClick={(e) => { e.preventDefault(); handleCategorySelect(c.slug); setView('browse'); window.scrollTo(0, 0); }}>
+                      {c.name}
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

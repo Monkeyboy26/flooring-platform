@@ -2231,7 +2231,13 @@ export default function createSeoRouter(pool) {
           // deliberately has no PDP (trims sell attached to planks), but old sitemaps
           // exposed these URLs and Googlebot still re-crawls them. 410, not 404.
           // The exclusion list mirrors fetchProductBySlug's JOIN exactly.
-          let accessoryOnly = false;
+          // Distinguish three cases for an unrenderable product URL:
+          //  • accessory-only  → 410, "sold with its matching flooring" (active product, trims only)
+          //  • discontinued    → 410, "no longer available" (product slug exists but has no live PDP —
+          //                       e.g. the Emser Q1-2026 drop set product+SKUs to inactive). These URLs
+          //                       were once indexed; 410 lets Google drop them far faster than a 404.
+          //  • truly unknown   → 404 (no product row with this slug — typo / never existed)
+          let disposition = 'notfound';
           try {
             const acc = await pool.query(`
               SELECT 1 FROM products p
@@ -2243,10 +2249,21 @@ export default function createSeoRouter(pool) {
                 )
               LIMIT 1
             `, [parsed.productSlug]);
-            accessoryOnly = acc.rows.length > 0;
+            if (acc.rows.length > 0) {
+              disposition = 'accessory';
+            } else {
+              // Any product row with this slug that we got here means it exists but renders no
+              // PDP (inactive product, or active with all SKUs inactive) — it was dropped, not absent.
+              const existed = await pool.query(
+                `SELECT 1 FROM products p WHERE p.slug = $1 LIMIT 1`, [parsed.productSlug]);
+              if (existed.rows.length > 0) disposition = 'discontinued';
+            }
           } catch { /* table/col drift — fall through to 404 */ }
-          if (accessoryOnly) {
+          if (disposition === 'accessory') {
             pageData = render410Page('This item is a trim or accessory sold with its matching flooring — find it on the main product’s page.');
+            statusCode = 410;
+          } else if (disposition === 'discontinued') {
+            pageData = render410Page('This product has been discontinued and is no longer available.');
             statusCode = 410;
           } else {
             pageData = render404Page('Product not found.');

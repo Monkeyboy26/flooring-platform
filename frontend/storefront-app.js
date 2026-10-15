@@ -3826,19 +3826,24 @@
           const prodSlug = (segs[1] || "").split("?")[0];
           setView("detail");
           setSelectedSkuId(null);
+          const showUnavailable = () => {
+            setView("notfound");
+            updateSEO({
+              title: "Product No Longer Available | Roma Flooring Designs",
+              description: "This product has been discontinued or is no longer available.",
+              url: SITE_URL + path,
+              image: ""
+            });
+            const robots = document.querySelector('meta[name="robots"]:not([data-paginated])');
+            if (robots) robots.setAttribute("content", "noindex, follow");
+          };
           fetch(API + "/api/storefront/products/" + encodeURIComponent(catSlug) + "/" + encodeURIComponent(prodSlug)).then((r) => {
             if (!r.ok) throw new Error("HTTP " + r.status);
             return r.json();
           }).then((d) => {
             if (d && d.resolve_sku_id) setSelectedSkuId(d.resolve_sku_id);
-            else {
-              setView("browse");
-              fetchSkus({ activeFilters: {}, tags: [], page: 1 });
-            }
-          }).catch(() => {
-            setView("browse");
-            fetchSkus({ activeFilters: {}, tags: [], page: 1 });
-          });
+            else showUnavailable();
+          }).catch(() => showUnavailable());
         } else if (/^\/shop\/[^/]+(\?.*)?$/.test(path) && !path.startsWith("/shop/sku/")) {
           const landingSlug = path.replace(/^\/shop\//, "").split(/[/?]/)[0];
           setView("browse");
@@ -4303,7 +4308,25 @@
     } }), view === "inspiration" && /* @__PURE__ */ React.createElement(InspirationPage, { navigate, goBrowse }), view === "sale" && /* @__PURE__ */ React.createElement(SalePage, { onSkuClick: goSkuDetail, wishlist, toggleWishlist: toggleWishlist2, setQuickViewSku, navigate }), view === "cabinets" && /* @__PURE__ */ React.createElement(CabinetsPage, { onRequestQuote: () => {
       setInstallModalProduct(null);
       setShowInstallModal(true);
-    } }), view === "about" && /* @__PURE__ */ React.createElement(AboutPage, { navigate }), view === "coming-soon" && /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "6rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, fontSize: "2.5rem", marginBottom: "1rem" } }, comingSoonTitle), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-500)", fontSize: "1.125rem", lineHeight: 1.6, marginBottom: "2rem" } }, "This page is coming soon. We're working on something beautiful."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: goHome }, "Back to Home")), view === "terms" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "terms", goHome, navigate }), view === "privacy" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "privacy", goHome, navigate }), view === "accessibility" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "accessibility", goHome, navigate }), view === "returns" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "returns", goHome, navigate }), /* @__PURE__ */ React.createElement(CookieConsent, { navigate }), /* @__PURE__ */ React.createElement(
+    } }), view === "about" && /* @__PURE__ */ React.createElement(AboutPage, { navigate }), view === "coming-soon" && /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "6rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, fontSize: "2.5rem", marginBottom: "1rem" } }, comingSoonTitle), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-500)", fontSize: "1.125rem", lineHeight: 1.6, marginBottom: "2rem" } }, "This page is coming soon. We're working on something beautiful."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: goHome }, "Back to Home")), view === "notfound" && /* @__PURE__ */ React.createElement("div", { className: "not-found-page" }, /* @__PURE__ */ React.createElement("div", { className: "not-found-hero" }, /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, fontSize: "2.5rem", marginBottom: "0.75rem" } }, "This product is no longer available"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-500)", fontSize: "1.125rem", lineHeight: 1.6, marginBottom: "1.75rem" } }, "It may have been discontinued or replaced. Search or browse our current collection \u2014 we likely carry something similar."), /* @__PURE__ */ React.createElement("form", { className: "not-found-search", onSubmit: (e) => {
+      e.preventDefault();
+      const q = (e.target.elements.q.value || "").trim();
+      navigate(q ? "/shop?q=" + encodeURIComponent(q) : "/shop");
+    } }, /* @__PURE__ */ React.createElement("input", { name: "q", type: "text", placeholder: "Search tile, wood, stone\u2026", "aria-label": "Search products" }), /* @__PURE__ */ React.createElement("button", { className: "btn", type: "submit" }, "Search"))), Array.isArray(categories) && categories.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "not-found-cats" }, categories.filter((c) => c && c.slug).slice(0, 8).map((c) => /* @__PURE__ */ React.createElement(
+      "a",
+      {
+        key: c.slug,
+        className: "not-found-cat-link",
+        href: "/shop?category=" + c.slug,
+        onClick: (e) => {
+          e.preventDefault();
+          handleCategorySelect(c.slug);
+          setView("browse");
+          window.scrollTo(0, 0);
+        }
+      },
+      c.name
+    )))), view === "terms" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "terms", goHome, navigate }), view === "privacy" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "privacy", goHome, navigate }), view === "accessibility" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "accessibility", goHome, navigate }), view === "returns" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "returns", goHome, navigate }), /* @__PURE__ */ React.createElement(CookieConsent, { navigate }), /* @__PURE__ */ React.createElement(
       CartDrawer,
       {
         cart,
