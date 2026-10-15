@@ -14302,7 +14302,10 @@
             is_sample: i.is_sample,
             is_custom_rug: i.is_custom_rug || false,
             custom_width_ft: i.custom_width_ft || null,
-            custom_length_ft: i.custom_length_ft || null
+            custom_length_ft: i.custom_length_ft || null,
+            // Catalog SKU lines hold the rep-entered cost in vendor_cost; rug/custom
+            // lines use cost. Send whichever is set so it persists on the new quote.
+            cost: i.cost != null && i.cost !== "" ? i.cost : i.vendor_cost != null && i.vendor_cost !== "" ? i.vendor_cost : void 0
           }));
           const data = await repFetch("/api/rep/quotes", {
             method: "POST",
@@ -14491,7 +14494,8 @@
           is_sample: i.is_sample,
           is_custom_rug: i.is_custom_rug || false,
           custom_width_ft: i.custom_width_ft || null,
-          custom_length_ft: i.custom_length_ft || null
+          custom_length_ft: i.custom_length_ft || null,
+          cost: i.cost != null && i.cost !== "" ? i.cost : i.vendor_cost != null && i.vendor_cost !== "" ? i.vendor_cost : void 0
         }));
         const data = await repFetch("/api/rep/quotes", {
           method: "POST",
