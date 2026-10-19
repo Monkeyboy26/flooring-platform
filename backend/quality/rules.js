@@ -343,9 +343,12 @@ export const RULES = [
     async run(pool, { vendorId }) {
       // Loose stone veneer (MSI Ledgestone/Fieldstone crates, STX "Veneers" and
       // 4"/6"xRandom strips, engineered-stone flats) legitimately sells by the
-      // sqft — it is not mesh-mounted sheet goods. Completely unpriced SKUs are
-      // call-for-price, not a basis error — the rule only judges priced rows.
-      const VENEER_NAME_RE = '(veneer|fieldstone|ledgestone|\\mashlar\\M|sq rec|engineered stone|\\mrandom\\M)';
+      // sqft — it is not mesh-mounted sheet goods. Ledger PANELS (BED "Jumbo
+      // Ledgers"/"Tumbled Ledgers": 8x20/8x22 panels, 3–4/box, real sqft_per_box)
+      // are the same story — they cover a wall area and price per sqft by the box.
+      // Completely unpriced SKUs are call-for-price, not a basis error — the rule
+      // only judges priced rows.
+      const VENEER_NAME_RE = '(veneer|fieldstone|ledgestone|\\mledgers?\\M|\\mashlar\\M|sq rec|engineered stone|\\mrandom\\M)';
       const { rows } = await pool.query(`
         SELECT s.id AS sku_id, p.id AS product_id, v.id AS vendor_id, v.code AS vendor_code,
                p.name, s.variant_name, s.sell_by, pr.price_basis, c.slug AS category
