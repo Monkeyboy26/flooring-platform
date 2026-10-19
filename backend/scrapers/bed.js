@@ -1258,6 +1258,14 @@ function mapListingProduct(raw) {
   const isMosaic = classifyShapeSuffix(parsed.shape || raw.Shape) === 'Mosaic';
   const sellBy = (isSlab || isMosaic) ? 'unit' : mapUomToSellBy(raw.SellingUom);
 
+  // Slabs come in multiple calibers (e.g. 2 cm vs 3 cm) at the same color+finish+size;
+  // without the thickness the two SKUs render identically ("indistinguishable-variants").
+  // Carry it as a variant qualifier so each caliber is its own browsable option.
+  if (isSlab && raw.Thickness && variantName
+      && !new RegExp(String(raw.Thickness).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(variantName)) {
+    variantName = `${variantName}, ${raw.Thickness}`;
+  }
+
   // ── Pricing from PriceToDisplay ──
   const pricing = { retailPrice: null, priceBasis: 'per_sqft' };
   const ptd = raw.PriceToDisplay;
