@@ -6240,7 +6240,10 @@ async function insertSampleRequestItems(client, sampleRequestId, sampleItems) {
       const sRes = await client.query(`
         SELECT s.variant_name, s.product_id,
           COALESCE(p.display_name, p.name) as product_name, p.collection,
-          (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+          COALESCE(
+            (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1),
+            (SELECT url FROM media_assets WHERE product_id = p.id AND sku_id IS NULL AND asset_type = 'primary' ORDER BY sort_order LIMIT 1)
+          ) as primary_image
         FROM skus s
         JOIN products p ON p.id = s.product_id
         WHERE s.id = $1
@@ -18073,7 +18076,7 @@ app.post('/api/rep/visits', repAuth, async (req, res) => {
       if (item.product_id) {
         const pRes = await client.query(`
           SELECT p.name, p.collection,
-            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+            (SELECT url FROM media_assets WHERE product_id = p.id AND sku_id IS NULL AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
           FROM products p WHERE p.id = $1
         `, [item.product_id]);
         if (pRes.rows.length) {
@@ -18088,7 +18091,10 @@ app.post('/api/rep/visits', repAuth, async (req, res) => {
           SELECT s.variant_name, s.product_id,
             pr.retail_price, pr.price_basis,
             COALESCE(p.display_name, p.name) as product_name, p.collection,
-            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+            COALESCE(
+              (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1),
+              (SELECT url FROM media_assets WHERE product_id = p.id AND sku_id IS NULL AND asset_type = 'primary' ORDER BY sort_order LIMIT 1)
+            ) as primary_image
           FROM skus s
           JOIN products p ON p.id = s.product_id
           LEFT JOIN pricing pr ON pr.sku_id = s.id
@@ -18238,7 +18244,10 @@ app.put('/api/rep/visits/:id', repAuth, async (req, res) => {
             SELECT s.variant_name, s.product_id,
               pr.retail_price, pr.price_basis,
               COALESCE(p.display_name, p.name) as product_name, p.collection,
-              (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+              COALESCE(
+                (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1),
+                (SELECT url FROM media_assets WHERE product_id = p.id AND sku_id IS NULL AND asset_type = 'primary' ORDER BY sort_order LIMIT 1)
+              ) as primary_image
             FROM skus s
             JOIN products p ON p.id = s.product_id
             LEFT JOIN pricing pr ON pr.sku_id = s.id
@@ -18257,7 +18266,7 @@ app.put('/api/rep/visits/:id', repAuth, async (req, res) => {
         } else if (item.product_id) {
           const pRes = await client.query(`
             SELECT p.name, p.collection,
-              (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+              (SELECT url FROM media_assets WHERE product_id = p.id AND sku_id IS NULL AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
             FROM products p WHERE p.id = $1
           `, [item.product_id]);
           if (pRes.rows.length) {
@@ -18620,7 +18629,10 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
         const sRes = await client.query(`
           SELECT s.variant_name, s.product_id,
             COALESCE(p.display_name, p.name) as product_name, p.collection,
-            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+            COALESCE(
+              (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1),
+              (SELECT url FROM media_assets WHERE product_id = p.id AND sku_id IS NULL AND asset_type = 'primary' ORDER BY sort_order LIMIT 1)
+            ) as primary_image
           FROM skus s
           JOIN products p ON p.id = s.product_id
           WHERE s.id = $1
@@ -18636,7 +18648,7 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
       } else if (item.product_id) {
         const pRes = await client.query(`
           SELECT p.name, p.collection,
-            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+            (SELECT url FROM media_assets WHERE product_id = p.id AND sku_id IS NULL AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
           FROM products p WHERE p.id = $1
         `, [item.product_id]);
         if (pRes.rows.length) {
@@ -19031,7 +19043,10 @@ app.post('/api/rep/sample-requests/:id/add-items', repAuth, async (req, res) => 
         const sRes = await client.query(`
           SELECT s.variant_name, s.product_id,
             COALESCE(p.display_name, p.name) as product_name, p.collection,
-            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+            COALESCE(
+              (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1),
+              (SELECT url FROM media_assets WHERE product_id = p.id AND sku_id IS NULL AND asset_type = 'primary' ORDER BY sort_order LIMIT 1)
+            ) as primary_image
           FROM skus s
           JOIN products p ON p.id = s.product_id
           WHERE s.id = $1
@@ -19047,7 +19062,7 @@ app.post('/api/rep/sample-requests/:id/add-items', repAuth, async (req, res) => 
       } else if (item.product_id) {
         const pRes = await client.query(`
           SELECT p.name, p.collection,
-            (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+            (SELECT url FROM media_assets WHERE product_id = p.id AND sku_id IS NULL AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
           FROM products p WHERE p.id = $1
         `, [item.product_id]);
         if (pRes.rows.length) {
@@ -20592,7 +20607,10 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
         COALESCE((SELECT SUM(ri.release_qty) FROM release_items ri
           JOIN material_releases mr ON mr.id = ri.release_id
           WHERE ri.order_item_id = oi.id AND mr.status != 'void'), 0) as already_released,
-        (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+        COALESCE(
+          (SELECT url FROM media_assets WHERE sku_id = oi.sku_id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1),
+          (SELECT url FROM media_assets WHERE product_id = p.id AND sku_id IS NULL AND asset_type = 'primary' ORDER BY sort_order LIMIT 1)
+        ) as primary_image
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
@@ -21888,7 +21906,10 @@ app.put('/api/rep/orders/:id/items/:itemId/cost', repAuth, async (req, res) => {
         COALESCE(oi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1)) AS price_basis,
         COALESCE(oi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1)) AS sqft_per_box,
         cat.name as category_name,
-        (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+        COALESCE(
+          (SELECT url FROM media_assets WHERE sku_id = oi.sku_id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1),
+          (SELECT url FROM media_assets WHERE product_id = p.id AND sku_id IS NULL AND asset_type = 'primary' ORDER BY sort_order LIMIT 1)
+        ) as primary_image
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
@@ -25165,7 +25186,10 @@ app.put('/api/staff/orders/:id/items/:itemId/cost', staffAuth, requireRole('admi
         COALESCE(oi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = oi.sku_id LIMIT 1)) AS price_basis,
         COALESCE(oi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = oi.sku_id LIMIT 1)) AS sqft_per_box,
         cat.name as category_name,
-        (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+        COALESCE(
+          (SELECT url FROM media_assets WHERE sku_id = oi.sku_id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1),
+          (SELECT url FROM media_assets WHERE product_id = p.id AND sku_id IS NULL AND asset_type = 'primary' ORDER BY sort_order LIMIT 1)
+        ) as primary_image
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
@@ -34897,7 +34921,10 @@ async function checkAndSendStockAlerts(skuId, newQtyOnHand) {
     const alerts = await pool.query(`
       SELECT sa.id, sa.email,
         COALESCE(p.display_name, p.name) as product_name, s.variant_name, s.internal_sku as sku_code, s.id as sku_id,
-        (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image,
+        COALESCE(
+          (SELECT url FROM media_assets WHERE sku_id = s.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1),
+          (SELECT url FROM media_assets WHERE product_id = p.id AND sku_id IS NULL AND asset_type = 'primary' ORDER BY sort_order LIMIT 1)
+        ) as primary_image,
         rep.email AS rep_email, rep.first_name AS rep_first_name, rep.last_name AS rep_last_name
       FROM stock_alerts sa
       JOIN skus s ON s.id = sa.sku_id
