@@ -5244,7 +5244,8 @@ app.post('/api/checkout/create-payment-intent', optionalCustomerAuth, async (req
     const productItems = items.filter(i => !i.is_sample);
     const sampleItems = items.filter(i => i.is_sample);
     const productSubtotal = productItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
-    const sampleShipping = sampleItems.length > 0 ? 12 : 0;
+    // Pickup has nothing to ship — waive the flat $12 sample shipping fee (product freight is zeroed for pickup too).
+    const sampleShipping = (sampleItems.length > 0 && delivery_method !== 'pickup') ? 12 : 0;
 
     // Check stock status for all SKUs
     const skuIds = items.filter(i => i.sku_id).map(i => i.sku_id);
@@ -5469,7 +5470,8 @@ app.post('/api/checkout/create-bank-transfer-intent', async (req, res) => {
     const productItems = items.filter(i => !i.is_sample);
     const sampleItems = items.filter(i => i.is_sample);
     const productSubtotal = productItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
-    const sampleShipping = sampleItems.length > 0 ? 12 : 0;
+    // Pickup has nothing to ship — waive the flat $12 sample shipping fee (product freight is zeroed for pickup too).
+    const sampleShipping = (sampleItems.length > 0 && delivery_method !== 'pickup') ? 12 : 0;
 
     // Enforce $500 minimum for bank transfer
     if (productSubtotal < 500) {
@@ -6542,7 +6544,8 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     }
 
     const productSubtotal = productItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
-    const sampleShipping = sampleItems.length > 0 ? 12 : 0;
+    // Pickup has nothing to ship — waive the flat $12 sample shipping fee (product freight is zeroed for pickup too).
+    const sampleShipping = (sampleItems.length > 0 && !isPickup) ? 12 : 0;
 
     // Product freight is NOT charged at checkout — a rep quotes it after the order
     // and bills it via a payment request. Shipping orders carry shipping=0 + method
