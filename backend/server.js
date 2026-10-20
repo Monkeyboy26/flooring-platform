@@ -19131,7 +19131,7 @@ app.post('/api/rep/sample-requests/:id/send-to-vendor', repAuth, async (req, res
       FROM sample_request_items sri
       LEFT JOIN products p ON p.id = sri.product_id
       LEFT JOIN skus s ON s.id = sri.sku_id
-      WHERE sri.sample_request_id = $1 AND p.vendor_id = $2
+      WHERE sri.sample_request_id = $1 AND p.vendor_id = $2 AND sri.status != 'cancelled'
       ORDER BY sri.sort_order
     `, [req.params.id, vendor_id]);
 
