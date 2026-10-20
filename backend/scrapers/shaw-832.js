@@ -979,6 +979,10 @@ function makeInternalSku(vendorSku, productName) {
 }
 
 
+// Exposed for read-only tooling (e.g. coverage-backfill feed cache) that needs
+// to fetch + parse the live feed without running the importer's upsert path.
+export const __test__ = { parse832, findRemote832Files, getSftpConfig };
+
 // ---------------------------------------------------------------------------
 // Main run() — called by the scraper framework
 // ---------------------------------------------------------------------------
