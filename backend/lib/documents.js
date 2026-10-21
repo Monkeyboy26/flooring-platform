@@ -1248,8 +1248,8 @@ export function generateQuoteHtml(q, items) {
       ? `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Discount${q.promo_code ? ' · ' + q.promo_code : ''}</span><span style="color:var(--accent);">−${money(q.discount_amount)}</span></div>` : '',
     parseFloat(q.shipping || 0) > 0
       ? `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Shipping</span><span>${money(q.shipping)}</span></div>` : '',
-    parseFloat(q.tax || 0) > 0
-      ? `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Sales tax</span><span>${money(q.tax)}</span></div>` : '',
+    parseFloat(q.tax_amount || 0) > 0
+      ? `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Sales tax${parseFloat(q.tax_rate || 0) > 0 ? ' · ' + (parseFloat(q.tax_rate) * 100).toFixed(3).replace(/\.?0+$/, '') + '%' : ''}</span><span>${money(q.tax_amount)}</span></div>` : '',
   ].filter(Boolean).join('');
 
   return `<!DOCTYPE html>
