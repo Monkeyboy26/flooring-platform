@@ -11951,7 +11951,7 @@ async function searchSkus(pool, rawQuery) {
   const isSkuLike = looksLikeSkuQuery(sanitized);
 
   const baseCols = `
-    s.id as sku_id, s.product_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
+    s.id as sku_id, s.product_id, s.internal_sku, s.vendor_sku, s.variant_name, s.variant_type, s.accessory_label, s.is_sample, s.sell_by,
     COALESCE(p.display_name, p.name) as product_name, p.collection, p.vendor_id,
     v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code,
     pr.retail_price, pr.retail_locked, pr.cost as vendor_cost, pr.price_basis, pr.cut_price, pr.roll_price,
@@ -24014,7 +24014,7 @@ app.get('/api/rep/skus/search', repAuth, async (req, res) => {
     if (req.query.sku_id) {
       const result = await pool.query(`
         SELECT
-          s.id as sku_id, s.product_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
+          s.id as sku_id, s.product_id, s.internal_sku, s.vendor_sku, s.variant_name, s.variant_type, s.accessory_label, s.is_sample, s.sell_by,
           COALESCE(p.display_name, p.name) as product_name, p.collection, p.vendor_id,
           v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code,
           pr.retail_price, pr.retail_locked, pr.cost as vendor_cost, pr.price_basis, pr.cut_price, pr.roll_price,
