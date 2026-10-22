@@ -4715,9 +4715,8 @@
     .rof-item-name {
       font: 500 0.8125rem/1.3 'Inter', sans-serif;
       color: #1c1917;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
     .rof-item-meta {
       font: 400 0.625rem/1.3 ui-monospace, 'SF Mono', monospace;
@@ -6639,6 +6638,6 @@
       if (el && el.tagName === 'INPUT' && el.type === 'number' && el.contains(e.target)) el.blur();
     }, { passive: true });
   </script>
-  <script src="/rep-app.js?v=39"></script>
+  <script src="/rep-app.js?v=40"></script>
 </body>
 </html>

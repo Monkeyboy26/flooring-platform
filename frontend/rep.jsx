@@ -9795,6 +9795,13 @@
                   {item.is_custom
                     ? <div className="rof-item-meta">Custom</div>
                     : (formatLineItem(item).sku && <div className="rof-item-meta">{formatLineItem(item).sku}</div>)}
+                  {(item.variant_type || '').toLowerCase() === 'accessory' && (
+                    <div className="rof-item-meta"
+                      title="Accessory — an add-on that completes the install (trim, molding, transition, grout, underlayment, adhesive). Priced per unit, not by the square foot, and tied to the floor it matches."
+                      style={{ color: '#a87935', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                      Accessory
+                    </div>
+                  )}
                   {item._perSqftRetail != null && (
                     editingKey === item._key && editField === 'slabsize' ? (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
