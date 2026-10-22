@@ -2730,7 +2730,11 @@
             device_type: window.innerWidth < 768 ? "mobile" : isTouch && window.innerWidth < 1024 ? "tablet" : "desktop",
             utm_source: sp.get("utm_source"),
             utm_medium: sp.get("utm_medium"),
-            utm_campaign: sp.get("utm_campaign")
+            utm_campaign: sp.get("utm_campaign"),
+            // Stamp identity when known so the session row links to the customer
+            // (server COALESCE-retains it). Null while anonymous.
+            customer_id: customer?.id || null,
+            trade_customer_id: tradeCustomer?.id || null
           })
         }).catch(() => {
         });
@@ -2740,6 +2744,9 @@
     useEffect(() => {
       pingSession();
     }, []);
+    useEffect(() => {
+      if (customer?.id || tradeCustomer?.id) pingSession();
+    }, [customer?.id, tradeCustomer?.id]);
     useEffect(() => {
       track("page_view", { view });
     }, [view]);

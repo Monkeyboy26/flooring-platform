@@ -3080,6 +3080,9 @@
               user_agent: navigator.userAgent, referrer: document.referrer || null,
               device_type: window.innerWidth < 768 ? 'mobile' : (isTouch && window.innerWidth < 1024 ? 'tablet' : 'desktop'),
               utm_source: sp.get('utm_source'), utm_medium: sp.get('utm_medium'), utm_campaign: sp.get('utm_campaign'),
+              // Stamp identity when known so the session row links to the customer
+              // (server COALESCE-retains it). Null while anonymous.
+              customer_id: customer?.id || null, trade_customer_id: tradeCustomer?.id || null,
             })
           }).catch(() => {});
         } catch (e) {}
@@ -3087,6 +3090,10 @@
 
       // Session ping on load; page_view whenever the view changes.
       useEffect(() => { pingSession(); }, []);
+      // Re-ping once the visitor is identified (login or session restore) so the
+      // session row gets stamped with customer_id — this is what closes
+      // session→customer→order attribution. Guarded so anonymous renders don't ping.
+      useEffect(() => { if (customer?.id || tradeCustomer?.id) pingSession(); }, [customer?.id, tradeCustomer?.id]);
       useEffect(() => { track('page_view', { view }); }, [view]);
       // product_view whenever a SKU detail is shown — covers both in-app
       // navigation AND direct/deep-link landings on /shop/sku/:id (which never
