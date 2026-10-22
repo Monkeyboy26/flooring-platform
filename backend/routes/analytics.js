@@ -49,10 +49,14 @@ export default function createAnalyticsRoutes(ctx) {
            VALUES ${values.join(', ')}`,
           params
         );
-        // Mark any session that completed an order as converted so conversion-rate
-        // and cart-abandonment metrics reflect reality (the flag was never set before).
+        // Mark a session converted when it produces a real funnel outcome. This is
+        // an offline-closed business — a web order is rare, so sample requests and
+        // trade signups ARE the conversion signal; counting only order_completed
+        // undercounted conversions ~4x. Channel/referrer lives on the session row,
+        // so this is what makes "which channel converts" answerable.
+        const CONVERSION_EVENTS = new Set(['order_completed', 'sample_request', 'trade_signup_complete']);
         const convertedSessions = [...new Set(events
-          .filter(e => e.event_type === 'order_completed' && e.session_id)
+          .filter(e => CONVERSION_EVENTS.has(e.event_type) && e.session_id)
           .map(e => e.session_id))];
         if (convertedSessions.length > 0) {
           await pool.query(
@@ -69,16 +73,24 @@ export default function createAnalyticsRoutes(ctx) {
     if (isBotRequest(req)) return;
     setImmediate(async () => {
       try {
-        const { session_id, visitor_id, user_agent, referrer, device_type, utm_source, utm_medium, utm_campaign } = req.body;
+        const { session_id, visitor_id, user_agent, referrer, device_type, utm_source, utm_medium, utm_campaign, customer_id, trade_customer_id } = req.body;
         if (!session_id) return;
+        // Identity columns are UUID — only accept well-formed values so a stray
+        // client payload can't break the insert. Stamped once the visitor is known
+        // (logged in) and RETAINED via COALESCE so a later anonymous ping on the
+        // same session can't null it back out.
+        const uuid = v => (typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) ? v : null;
         await pool.query(`
-          INSERT INTO analytics_sessions (session_id, visitor_id, user_agent, referrer, device_type, utm_source, utm_medium, utm_campaign)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          INSERT INTO analytics_sessions (session_id, visitor_id, user_agent, referrer, device_type, utm_source, utm_medium, utm_campaign, customer_id, trade_customer_id)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           ON CONFLICT (session_id) DO UPDATE SET
             last_seen_at = CURRENT_TIMESTAMP,
-            page_count = analytics_sessions.page_count + 1
+            page_count = analytics_sessions.page_count + 1,
+            customer_id = COALESCE(EXCLUDED.customer_id, analytics_sessions.customer_id),
+            trade_customer_id = COALESCE(EXCLUDED.trade_customer_id, analytics_sessions.trade_customer_id)
         `, [session_id, visitor_id || null, user_agent || null, referrer || null,
-            device_type || null, utm_source || null, utm_medium || null, utm_campaign || null]);
+            device_type || null, utm_source || null, utm_medium || null, utm_campaign || null,
+            uuid(customer_id), uuid(trade_customer_id)]);
       } catch (err) { console.error('[Analytics] Session upsert error:', err.message); }
     });
   });
