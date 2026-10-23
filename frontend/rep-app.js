@@ -568,144 +568,6 @@
     };
     return { addressInputRef, previousAddresses, showPrevAddresses, setShowPrevAddresses, selectPreviousAddress };
   }
-  function TapToPayModal({ amount, onSuccess, onCancel }) {
-    const [tapStatus, setTapStatus] = useState("initializing");
-    const [tapError, setTapError] = useState("");
-    const cancelledRef = useRef(false);
-    const runCharge = async () => {
-      setTapError("");
-      try {
-        setTapStatus("ready");
-        const txn = await valorTerminalCharge({ amount });
-        if (cancelledRef.current) return;
-        setTapStatus("success");
-        setTimeout(() => {
-          if (!cancelledRef.current) onSuccess({ card_txn: txn });
-        }, 800);
-      } catch (err) {
-        if (!cancelledRef.current) {
-          setTapStatus("error");
-          setTapError(err.message || "Payment failed");
-        }
-      }
-    };
-    useEffect(() => {
-      cancelledRef.current = false;
-      runCharge();
-      return () => {
-        cancelledRef.current = true;
-      };
-    }, []);
-    const handleCancel = () => {
-      cancelledRef.current = true;
-      onCancel();
-    };
-    const handleRetry = () => {
-      cancelledRef.current = false;
-      runCharge();
-    };
-    const statusMessages = {
-      initializing: "Connecting to terminal...",
-      ready: "Charge sent \u2014 tap/dip card on the terminal",
-      processing: "Processing...",
-      success: "Payment successful!",
-      error: tapError || "Payment failed"
-    };
-    const iconClass = tapStatus === "ready" ? "ready" : tapStatus === "processing" ? "processing" : tapStatus === "success" ? "success" : tapStatus === "error" ? "error" : "processing";
-    return /* @__PURE__ */ React.createElement("div", { className: "tap-modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "tap-modal" }, /* @__PURE__ */ React.createElement("h3", null, "Valor Terminal"), /* @__PURE__ */ React.createElement("div", { className: "tap-modal-amount" }, "$", parseFloat(amount).toFixed(2)), /* @__PURE__ */ React.createElement("div", { className: "tap-modal-icon " + iconClass }, tapStatus === "success" ? /* @__PURE__ */ React.createElement("svg", { width: "40", height: "40", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("polyline", { points: "20 6 9 17 4 12" })) : tapStatus === "error" ? /* @__PURE__ */ React.createElement("svg", { width: "40", height: "40", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("line", { x1: "18", y1: "6", x2: "6", y2: "18" }), /* @__PURE__ */ React.createElement("line", { x1: "6", y1: "6", x2: "18", y2: "18" })) : /* @__PURE__ */ React.createElement("svg", { width: "40", height: "40", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("path", { d: "M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" }), /* @__PURE__ */ React.createElement("path", { d: "M2 8.5c1.5-1 3.5-1.5 5-1 1 .3 1.8 1 2.5 1.8", opacity: "0.6" }), /* @__PURE__ */ React.createElement("path", { d: "M2 5.5c2.5-1.5 5.5-2 8-1 1.5.6 2.8 1.7 3.8 3", opacity: "0.4" }))), /* @__PURE__ */ React.createElement("div", { className: "tap-modal-status", style: { color: tapStatus === "error" ? "var(--red)" : tapStatus === "success" ? "var(--green)" : void 0 } }, statusMessages[tapStatus]), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "0.75rem", justifyContent: "center", marginTop: "1rem" } }, tapStatus === "error" && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary btn-sm", onClick: handleRetry }, "Retry"), tapStatus !== "success" && /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: handleCancel }, "Cancel"))));
-  }
-  function ManualCardEntryModal({ amount, onSuccess, onCancel }) {
-    const [cardStatus, setCardStatus] = useState("idle");
-    const [cardError, setCardError] = useState("");
-    const [cardComplete, setCardComplete] = useState(false);
-    const [focused, setFocused] = useState(false);
-    const [invalid, setInvalid] = useState(false);
-    const cardElRef = useRef(null);
-    const elementsRef = useRef(null);
-    const mountRef = useRef(null);
-    useEffect(() => {
-      if (!stripeInstance || !mountRef.current) return;
-      const elements = stripeInstance.elements();
-      const card = elements.create("card", {
-        disableLink: true,
-        style: {
-          base: {
-            fontSize: "15px",
-            fontFamily: "'Inter', sans-serif",
-            color: "#292524",
-            "::placeholder": { color: "#a8a29e" }
-          },
-          invalid: { color: "#dc2626" }
-        },
-        hidePostalCode: false
-      });
-      card.mount(mountRef.current);
-      card.on("change", (event) => {
-        setCardComplete(event.complete);
-        setInvalid(!!event.error);
-        setCardError(event.error ? event.error.message : "");
-      });
-      card.on("focus", () => setFocused(true));
-      card.on("blur", () => setFocused(false));
-      cardElRef.current = card;
-      elementsRef.current = elements;
-      return () => {
-        card.destroy();
-      };
-    }, []);
-    const handleSubmit = async () => {
-      if (!cardComplete || !stripeInstance || !cardElRef.current) return;
-      setCardStatus("processing");
-      setCardError("");
-      try {
-        const piData = await repFetch("/api/rep/card/create-payment-intent", {
-          method: "POST",
-          body: JSON.stringify({ amount, order_description: "In-store manual card entry" })
-        });
-        if (!piData.client_secret) {
-          setCardStatus("error");
-          setCardError(piData.error || "Failed to create payment");
-          return;
-        }
-        const result = await stripeInstance.confirmCardPayment(piData.client_secret, {
-          payment_method: { card: cardElRef.current }
-        });
-        if (result.error) {
-          setCardStatus("error");
-          setCardError(result.error.message);
-          return;
-        }
-        setCardStatus("success");
-        setTimeout(() => onSuccess(piData.payment_intent_id), 600);
-      } catch (err) {
-        setCardStatus("error");
-        setCardError(err.message || "Payment failed");
-      }
-    };
-    const wrapperClass = "stripe-element-wrapper" + (focused ? " focused" : "") + (invalid ? " invalid" : "");
-    return /* @__PURE__ */ React.createElement("div", { className: "card-entry-overlay", onClick: cardStatus !== "processing" ? onCancel : void 0 }, /* @__PURE__ */ React.createElement("div", { className: "card-entry-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("h3", null, "Enter Card Details"), /* @__PURE__ */ React.createElement("div", { className: "amount" }, "$", parseFloat(amount).toFixed(2)), cardStatus === "success" ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "2rem 0" } }, /* @__PURE__ */ React.createElement("div", { style: { width: 64, height: 64, borderRadius: "50%", background: "#dcfce7", color: "var(--green)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem" } }, /* @__PURE__ */ React.createElement("svg", { width: "32", height: "32", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("polyline", { points: "20 6 9 17 4 12" }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "1rem", fontWeight: 600, color: "var(--green)" } }, "Payment successful!")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: wrapperClass }, /* @__PURE__ */ React.createElement("div", { ref: mountRef })), /* @__PURE__ */ React.createElement("div", { className: "card-entry-error" }, cardError), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "0.75rem" } }, /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "btn btn-secondary",
-        style: { flex: 1 },
-        onClick: onCancel,
-        disabled: cardStatus === "processing"
-      },
-      "Cancel"
-    ), /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "btn btn-primary",
-        style: { flex: 1 },
-        onClick: handleSubmit,
-        disabled: !cardComplete || cardStatus === "processing"
-      },
-      cardStatus === "processing" ? "Processing..." : "Pay $" + parseFloat(amount).toFixed(2)
-    )))));
-  }
-  function CardMethodChoiceModal({ amount, terminalConnected, onTap, onManual, onCancel }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "card-choice-overlay", onClick: onCancel }, /* @__PURE__ */ React.createElement("div", { className: "card-choice-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("h3", null, "Card Payment"), /* @__PURE__ */ React.createElement("div", { className: "amount" }, "$", parseFloat(amount).toFixed(2)), /* @__PURE__ */ React.createElement("button", { className: "card-choice-btn", onClick: onTap, disabled: !terminalConnected }, /* @__PURE__ */ React.createElement("div", { className: "choice-icon tap", style: !terminalConnected ? { opacity: 0.4 } : {} }, /* @__PURE__ */ React.createElement("svg", { width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("path", { d: "M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" }), /* @__PURE__ */ React.createElement("path", { d: "M2 8.5c1.5-1 3.5-1.5 5-1 1 .3 1.8 1 2.5 1.8", opacity: "0.6" }), /* @__PURE__ */ React.createElement("path", { d: "M2 5.5c2.5-1.5 5.5-2 8-1 1.5.6 2.8 1.7 3.8 3", opacity: "0.4" }))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "choice-label" }, "Valor Terminal"), /* @__PURE__ */ React.createElement("div", { className: "choice-desc" }, terminalConnected ? "Tap, insert, or swipe on the terminal" : "No terminal set up"))), /* @__PURE__ */ React.createElement("button", { className: "card-choice-btn", onClick: onManual }, /* @__PURE__ */ React.createElement("div", { className: "choice-icon key" }, /* @__PURE__ */ React.createElement("svg", { width: "24", height: "24", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("rect", { x: "1", y: "4", width: "22", height: "16", rx: "2", ry: "2" }), /* @__PURE__ */ React.createElement("line", { x1: "1", y1: "10", x2: "23", y2: "10" }))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "choice-label" }, "Enter Card Details"), /* @__PURE__ */ React.createElement("div", { className: "choice-desc" }, "Type in card number manually"))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", style: { width: "100%", marginTop: "0.25rem" }, onClick: onCancel }, "Cancel")));
-  }
   function AchPaymentModal({ amount, customerName, customerEmail, onSuccess, onCancel }) {
     const [step, setStep] = useState(1);
     const [achStatus, setAchStatus] = useState("idle");
@@ -13906,9 +13768,7 @@
     const [convertMethod, setConvertMethod] = useState("card");
     const [convertCheckNumber, setConvertCheckNumber] = useState("");
     const [convertCashDrawerOpen, setConvertCashDrawerOpen] = useState(null);
-    const [showConvertTapModal, setShowConvertTapModal] = useState(false);
-    const [showConvertCardChoice, setShowConvertCardChoice] = useState(false);
-    const [showConvertManualCard, setShowConvertManualCard] = useState(false);
+    const [showConvertPayCard, setShowConvertPayCard] = useState(false);
     const [showConvertAchModal, setShowConvertAchModal] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
     const [previewHtml, setPreviewHtml] = useState("");
@@ -14456,7 +14316,7 @@
       }
       if (convertMethod === "card") {
         setShowConvertModal(false);
-        setShowConvertCardChoice(true);
+        setShowConvertPayCard(true);
         return;
       }
       convertQuoteWithPI(null);
@@ -15409,45 +15269,23 @@
         disabled: saving || convertMethod === "cash" && !convertCashDrawerOpen || convertMethod === "check" && !(convertCheckNumber || "").trim()
       },
       saving ? "Converting..." : convertMethod === "card" ? "Pay with Card" : "Convert to Order"
-    )))), showConvertTapModal && /* @__PURE__ */ React.createElement(
-      TapToPayModal,
+    )))), showConvertPayCard && quote && /* @__PURE__ */ React.createElement(
+      RofPayCardModal,
       {
         amount: parseFloat(quote.total || 0),
+        customerName: quote.customer_name,
+        customerEmail: quote.customer_email,
+        orderNumber: quote.quote_number,
+        tenderIdx: 1,
+        tenderCount: 1,
         onSuccess: (res) => {
-          setShowConvertTapModal(false);
+          setShowConvertPayCard(false);
           convertQuoteWithPI(res);
         },
-        onCancel: () => setShowConvertTapModal(false)
-      }
-    ), showConvertCardChoice && /* @__PURE__ */ React.createElement(
-      CardMethodChoiceModal,
-      {
-        amount: parseFloat(quote.total || 0),
-        terminalConnected: terminalStatus === "connected",
-        onTap: () => {
-          setShowConvertCardChoice(false);
-          if (terminalStatus !== "connected") {
-            const confirmed = window.confirm("No Valor terminal set up. Set it up now?");
-            if (confirmed) connectReader();
-            return;
-          }
-          setShowConvertTapModal(true);
-        },
-        onManual: () => {
-          setShowConvertCardChoice(false);
-          setShowConvertManualCard(true);
-        },
-        onCancel: () => setShowConvertCardChoice(false)
-      }
-    ), showConvertManualCard && /* @__PURE__ */ React.createElement(
-      ManualCardEntryModal,
-      {
-        amount: parseFloat(quote.total || 0),
-        onSuccess: (piId) => {
-          setShowConvertManualCard(false);
-          convertQuoteWithPI({ payment_intent_id: piId });
-        },
-        onCancel: () => setShowConvertManualCard(false)
+        onCancel: () => setShowConvertPayCard(false),
+        terminalRef,
+        terminalStatus,
+        connectReader
       }
     ), showConvertAchModal && /* @__PURE__ */ React.createElement(
       AchPaymentModal,
