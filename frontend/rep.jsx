@@ -20913,9 +20913,7 @@
       const [convertMethod, setConvertMethod] = useState('card');
       const [convertCheckNumber, setConvertCheckNumber] = useState('');
       const [convertCashDrawerOpen, setConvertCashDrawerOpen] = useState(null);
-      const [showConvertTapModal, setShowConvertTapModal] = useState(false);
-      const [showConvertCardChoice, setShowConvertCardChoice] = useState(false);
-      const [showConvertManualCard, setShowConvertManualCard] = useState(false);
+      const [showConvertPayCard, setShowConvertPayCard] = useState(false);
       const [showConvertAchModal, setShowConvertAchModal] = useState(false);
 
       // Email preview modal
@@ -21481,7 +21479,7 @@
         if (convertMethod === 'cash' && !convertCashDrawerOpen) { alert('No cash drawer open'); return; }
         if (convertMethod === 'card') {
           setShowConvertModal(false);
-          setShowConvertCardChoice(true);
+          setShowConvertPayCard(true);
           return;
         }
         convertQuoteWithPI(null);
@@ -22906,37 +22904,19 @@
             </div>
           )}
 
-          {showConvertTapModal && (
-            <TapToPayModal
+          {showConvertPayCard && quote && (
+            <RofPayCardModal
               amount={parseFloat(quote.total || 0)}
-              onSuccess={(res) => { setShowConvertTapModal(false); convertQuoteWithPI(res); }}
-              onCancel={() => setShowConvertTapModal(false)}
-            />
-          )}
-
-          {showConvertCardChoice && (
-            <CardMethodChoiceModal
-              amount={parseFloat(quote.total || 0)}
-              terminalConnected={terminalStatus === 'connected'}
-              onTap={() => {
-                setShowConvertCardChoice(false);
-                if (terminalStatus !== 'connected') {
-                  const confirmed = window.confirm('No Valor terminal set up. Set it up now?');
-                  if (confirmed) connectReader();
-                  return;
-                }
-                setShowConvertTapModal(true);
-              }}
-              onManual={() => { setShowConvertCardChoice(false); setShowConvertManualCard(true); }}
-              onCancel={() => setShowConvertCardChoice(false)}
-            />
-          )}
-
-          {showConvertManualCard && (
-            <ManualCardEntryModal
-              amount={parseFloat(quote.total || 0)}
-              onSuccess={(piId) => { setShowConvertManualCard(false); convertQuoteWithPI({ payment_intent_id: piId }); }}
-              onCancel={() => setShowConvertManualCard(false)}
+              customerName={quote.customer_name}
+              customerEmail={quote.customer_email}
+              orderNumber={quote.quote_number}
+              tenderIdx={1}
+              tenderCount={1}
+              onSuccess={(res) => { setShowConvertPayCard(false); convertQuoteWithPI(res); }}
+              onCancel={() => setShowConvertPayCard(false)}
+              terminalRef={terminalRef}
+              terminalStatus={terminalStatus}
+              connectReader={connectReader}
             />
           )}
 
