@@ -773,10 +773,14 @@ async function prewarmDocImages(html) {
 }
 
 export async function generatePDF(html, filename, req, res, options = {}) {
-  // Preview mode: return HTML directly for iframe rendering
+  // Preview mode: return HTML directly for iframe rendering. Swatch srcs are
+  // baked as absolute http://localhost:PORT/api/img URLs so server-side Puppeteer
+  // can reach them, but a browser iframe can't (internal API port, and mixed
+  // content under HTTPS) — rewrite them to same-origin relative /api/img URLs the
+  // browser resolves against the current page (nginx proxies to the API).
   if (req.query.preview === 'true') {
     res.set('Content-Type', 'text/html');
-    return res.send(html);
+    return res.send(html.replace(/http:\/\/localhost:\d+(\/api\/img\?)/g, '$1'));
   }
   const defaultMargin = { top: '0.6in', bottom: '0.6in', left: '0.65in', right: '0.65in' };
   const margin = options.margin || defaultMargin;
