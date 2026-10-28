@@ -35,6 +35,13 @@ const DEFAULT_CONFIG = {
     '/en/product/list/slabs/',                           // 248
     // Trim & Installation
     '/en/product/list/by-use/trims-&-finishing-pieces/', // 237
+    // Use-based wall-tile listing: Bedrosians taxonomizes some current field-tile
+    // collections (Hikari, Casablanca deco, Lunaris, etc.) ONLY here — they never appear
+    // in the material PLPs (/porcelain/ etc.) this scraper otherwise relies on. ~1389 items,
+    // but ProductCode dedup (Phase 1) means the ~1328 overlapping rows are harmless and only
+    // the ~61 wall-only products are net-new. Not in SECTION_CATEGORY_MAP, so these fall
+    // through to CATEGORY_MAP by MaterialType (Porcelain→porcelain-tile, etc.). Added 2026-10-28.
+    '/en/product/list/by-use/wall-tile/',                // 1389 (≈61 net-new field tiles)
     // Engineered Wood
     '/en/product/list/engineered-wood/',                 // 36
     '/en/product/list/engineered-hdf-wood/',             // 20
