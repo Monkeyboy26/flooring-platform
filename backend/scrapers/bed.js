@@ -1920,6 +1920,15 @@ export async function reconcileBedProducts(pool, vendor_id) {
   // ── g. Cross-product accessory attachment (collection + color) ──
   stats.accessoryLinks = await attachBedAccessories(pool, vendor_id);
 
+  // ── g2. Within-product sibling accessory attachment ──
+  // Many BED accessories (pencil liners, bullnose, quarter-rounds) are SKUs that live
+  // INSIDE a field-tile product (e.g. "Cloe Green" = 5x5 + 2.5x8 field SKUs + a 0.5x8
+  // pencil-liner accessory SKU), not separate trim products. attachBedAccessories keys
+  // off ACCESSORY_CATEGORY_SLUGS so it never sees these, and the generic
+  // build-sku-accessories.cjs is a manual script this scrape doesn't run — so each scrape
+  // left them orphaned. Link each accessory SKU to its same-product main SKUs.
+  stats.siblingAccessoryLinks = await attachBedSiblingAccessories(pool, vendor_id);
+
   // ── h. Fallback cost derivation at a fixed 40% margin (owner, 2026-10-15) ──
   // Every Bedrosians item carries a 40% gross margin: cost = 60% of the Bedrosians
   // website price. Freshly-scraped SKUs already got that in Phase 2, keyed off the TRUE
@@ -1986,6 +1995,50 @@ async function attachBedAccessories(pool, vendor_id) {
     }
     let sort = 0;
     for (const m of matched) if (m.id !== a.id) links.push([m.id, a.id, sort++]);
+  }
+
+  let written = 0;
+  const BATCH = 500;
+  for (let i = 0; i < links.length; i += BATCH) {
+    const batch = links.slice(i, i + BATCH);
+    const values = [], params = [];
+    batch.forEach((b, j) => { const o = j * 3; values.push(`($${o+1},$${o+2},$${o+3})`); params.push(b[0], b[1], b[2]); });
+    const res = await pool.query(
+      `INSERT INTO sku_accessories (parent_sku_id, accessory_sku_id, sort_order)
+       VALUES ${values.join(',')} ON CONFLICT (parent_sku_id, accessory_sku_id) DO NOTHING`, params);
+    written += res.rowCount;
+  }
+  return written;
+}
+
+/**
+ * Link accessory SKUs to the main (non-accessory) SKUs that share their own product.
+ * BED stores per-color products ("Cloe Green") that carry both field-tile SKUs and a
+ * trim/pencil SKU (variant_type='accessory'); within one product every SKU is the same
+ * color, so each accessory links to all mains in that product. Idempotent (re-affirms
+ * existing links via ON CONFLICT DO NOTHING). Returns links written.
+ */
+async function attachBedSiblingAccessories(pool, vendor_id) {
+  const rows = (await pool.query(
+    `SELECT s.id, s.product_id, s.variant_type
+       FROM skus s JOIN products p ON p.id=s.product_id
+      WHERE p.vendor_id=$1 AND s.status IN ('active','draft') AND s.is_sample=false`,
+    [vendor_id])).rows;
+
+  const byProduct = new Map();
+  for (const r of rows) {
+    if (!byProduct.has(r.product_id)) byProduct.set(r.product_id, { mains: [], accs: [] });
+    (r.variant_type === 'accessory' ? byProduct.get(r.product_id).accs
+                                    : byProduct.get(r.product_id).mains).push(r.id);
+  }
+
+  const links = [];
+  for (const { mains, accs } of byProduct.values()) {
+    if (!accs.length || !mains.length) continue;
+    for (const a of accs) {
+      let sort = 0;
+      for (const m of mains) if (m !== a) links.push([m, a, sort++]);
+    }
   }
 
   let written = 0;
