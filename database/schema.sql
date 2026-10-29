@@ -2511,7 +2511,13 @@ ALTER TABLE pricing ADD CONSTRAINT pricing_retail_positive CHECK (retail_price >
 
 ALTER TABLE media_assets DROP CONSTRAINT IF EXISTS media_assets_type_check;
 ALTER TABLE media_assets ADD CONSTRAINT media_assets_type_check
-  CHECK (asset_type IN ('primary', 'alternate', 'lifestyle', 'spec_pdf', 'swatch'));
+  CHECK (asset_type IN ('primary', 'alternate', 'lifestyle', 'spec_pdf', 'swatch', 'lifestyle_hidden'));
+-- 'lifestyle_hidden': a lifestyle/room-scene image soft-demoted because a vision
+-- check found it shows a different COLOR than the variant (Daltile publishes one
+-- collection-level room scene and the scraper attaches it to every color, so it
+-- mismatches most variants). All customer-facing media queries use explicit
+-- asset_type allow-lists that exclude this type, so the row stays for audit but
+-- never renders. Reversible: flip asset_type back to 'lifestyle'.
 
 -- 2. Attribute governance: required attributes per category
 CREATE TABLE IF NOT EXISTS category_required_attributes (

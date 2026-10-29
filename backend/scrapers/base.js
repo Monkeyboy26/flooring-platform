@@ -983,6 +983,28 @@ export async function upsertMediaAsset(pool, { product_id, sku_id, asset_type, u
   const so = sort_order || 0;
   const ou = original_url || null;
 
+  // Don't resurrect a soft-demoted room scene. A vision pass can relabel a
+  // mismatched 'lifestyle' image to 'lifestyle_hidden' (e.g. Daltile publishes
+  // one collection-level room scene per series and the feed attaches it to every
+  // color, so it shows the wrong color for most variants — see
+  // fix-daltile-lifestyle-demote.mjs). Re-scrapes re-offer that same room scene;
+  // if it's already hidden for this target, leave it hidden instead of adding a
+  // fresh visible 'lifestyle' row.
+  if (at === 'lifestyle') {
+    const scope = sku_id
+      ? { sql: 'sku_id = $1', params: [sku_id] }
+      : { sql: 'product_id = $1 AND sku_id IS NULL', params: [product_id] };
+    const { rows: hidden } = await pool.query(
+      `SELECT id FROM media_assets
+         WHERE ${scope.sql} AND asset_type = 'lifestyle_hidden'
+           AND (url = $${scope.params.length + 1} OR original_url = $${scope.params.length + 1}
+                OR url = $${scope.params.length + 2} OR original_url = $${scope.params.length + 2})
+         LIMIT 1`,
+      [...scope.params, url, ou]
+    );
+    if (hidden.length) return { id: hidden[0].id, is_new: false, hidden: true };
+  }
+
   let result;
   if (sku_id) {
     // SKU-level image: conflict on (product_id, sku_id, asset_type, sort_order) WHERE sku_id IS NOT NULL

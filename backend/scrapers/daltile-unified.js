@@ -1126,6 +1126,9 @@ async function processProduct(pool, ctx) {
     }
     if (sku.roomSceneUrl) {
       const rsUrl = cleanImageUrl(sku.roomSceneUrl);
+      // upsertMediaAsset skips this if the same room scene was previously
+      // soft-demoted to 'lifestyle_hidden' by the vision color-match pass
+      // (fix-daltile-lifestyle-demote.mjs), so cleanups survive re-scrapes.
       await upsertMediaAsset(pool, {
         product_id: productId, sku_id: skuId,
         asset_type: 'lifestyle', url: rsUrl,
