@@ -15845,6 +15845,7 @@
     const [previewLoading, setPreviewLoading] = useState(false);
     const [sendFeedback, setSendFeedback] = useState(null);
     const [sending, setSending] = useState(false);
+    const [sendTo, setSendTo] = useState("");
     const [pdfViewer, setPdfViewer] = useState(null);
     const [showConvertQuoteModal, setShowConvertQuoteModal] = useState(false);
     const [showConvertOrderModal, setShowConvertOrderModal] = useState(false);
@@ -16626,12 +16627,20 @@
     };
     const sendEstimate = async () => {
       if (!estimate || sending) return;
+      const recipients = sendTo.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+      if (!recipients.length) {
+        setSendFeedback("Add at least one recipient email.");
+        return;
+      }
       setSending(true);
       setSendFeedback(null);
       try {
-        const result = await repFetch("/api/rep/estimates/" + estimate.id + "/send", { method: "POST" });
+        const result = await repFetch("/api/rep/estimates/" + estimate.id + "/send", {
+          method: "POST",
+          body: JSON.stringify({ to: recipients })
+        });
         setEstimate((prev) => ({ ...prev, status: "sent" }));
-        setSendFeedback(result.emailed ? "Estimate emailed to " + estimate.customer_email : "Estimate marked as sent");
+        setSendFeedback(result.emailed ? "Estimate emailed to " + recipients.join(", ") : "Estimate marked as sent");
         setShowPreview(false);
       } catch (err) {
         setSendFeedback(err.message || "Failed to send estimate");
@@ -16702,6 +16711,7 @@
         const data = await repFetch("/api/rep/estimates/" + estimate.id + "/preview");
         setPreviewHtml(data.html);
         setPreviewMeta(data);
+        setSendTo(data && data.to || form.customer_email || "");
         setShowPreview(true);
       } catch (e) {
       }
@@ -17578,7 +17588,16 @@
         onClose: () => setRugModalItem(null),
         onAdd: addRugToEstimate
       }
-    ), showPreview && /* @__PURE__ */ React.createElement("div", { className: "modal-backdrop", onClick: () => setShowPreview(false) }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", onClick: (e) => e.stopPropagation(), style: { maxWidth: 700 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h2", null, "Email Preview"), /* @__PURE__ */ React.createElement("button", { className: "modal-close", onClick: () => setShowPreview(false) }, "x")), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, previewMeta && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "1rem", fontSize: "0.8125rem", color: "var(--stone-500)" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, "To:"), " ", previewMeta.to), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, "Subject:"), " ", previewMeta.subject), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, "Reply-To:"), " ", previewMeta.reply_to)), /* @__PURE__ */ React.createElement("div", { style: { border: "1px solid var(--stone-200)", borderRadius: "var(--radius-sm)", maxHeight: 400, overflowY: "auto" } }, /* @__PURE__ */ React.createElement("iframe", { srcDoc: previewHtml, sandbox: "", style: { width: "100%", height: 400, border: "none" } }))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", onClick: () => setShowPreview(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: sendEstimate, disabled: sending }, sending ? "Sending\u2026" : "Send to Customer")))), showConvertQuoteModal && /* @__PURE__ */ React.createElement("div", { className: "modal-backdrop", onClick: () => setShowConvertQuoteModal(false) }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", onClick: (e) => e.stopPropagation(), style: { maxWidth: 500 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h2", null, "Convert to Quote"), /* @__PURE__ */ React.createElement("button", { className: "modal-close", onClick: () => setShowConvertQuoteModal(false) }, "x")), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("p", { style: { marginBottom: "1rem", fontSize: "0.875rem", color: "var(--stone-600)" } }, "This will create a new quote with ", /* @__PURE__ */ React.createElement("strong", null, materialItems.length, " material item", materialItems.length !== 1 ? "s" : ""), " totaling ", /* @__PURE__ */ React.createElement("strong", null, "$", parseFloat(estimate.materials_subtotal || 0).toFixed(2)), "."), laborItems.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { padding: "0.75rem", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "var(--radius-sm)", fontSize: "0.8125rem", marginBottom: "1rem" } }, /* @__PURE__ */ React.createElement("strong", null, laborItems.length, " labor item", laborItems.length !== 1 ? "s" : ""), " totaling ", /* @__PURE__ */ React.createElement("strong", null, "$", parseFloat(estimate.labor_subtotal || 0).toFixed(2)), " will be excluded from the quote but summarized in the quote notes.", /* @__PURE__ */ React.createElement("div", { style: { marginTop: "0.5rem", color: "#8a7e68" } }, "Tip: convert to an ", /* @__PURE__ */ React.createElement("strong", null, "order"), " instead to bill labor alongside materials."))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", onClick: () => setShowConvertQuoteModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: () => convertToQuote(), disabled: converting }, converting ? "Converting..." : "Convert to Quote")))), showConvertOrderModal && (() => {
+    ), showPreview && /* @__PURE__ */ React.createElement("div", { className: "modal-backdrop", onClick: () => setShowPreview(false) }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", onClick: (e) => e.stopPropagation(), style: { maxWidth: 700 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h2", null, "Email Preview"), /* @__PURE__ */ React.createElement("button", { className: "modal-close", onClick: () => setShowPreview(false) }, "x")), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, previewMeta && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "1rem", fontSize: "0.8125rem", color: "var(--stone-500)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 4 } }, /* @__PURE__ */ React.createElement("strong", { style: { flexShrink: 0 } }, "To:"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "text",
+        value: sendTo,
+        onChange: (e) => setSendTo(e.target.value),
+        placeholder: "customer@example.com, ap@example.com",
+        style: { flex: 1, padding: "0.35rem 0.5rem", border: "1px solid var(--stone-200)", fontSize: "0.8125rem", color: "var(--stone-800)" }
+      }
+    )), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.6875rem", color: "var(--stone-400)", marginBottom: 6 } }, "Separate multiple recipients with commas \xB7 doesn't change the saved customer"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, "Subject:"), " ", previewMeta.subject), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, "Reply-To:"), " ", previewMeta.reply_to)), /* @__PURE__ */ React.createElement("div", { style: { border: "1px solid var(--stone-200)", borderRadius: "var(--radius-sm)", maxHeight: 400, overflowY: "auto" } }, /* @__PURE__ */ React.createElement("iframe", { srcDoc: previewHtml, sandbox: "", style: { width: "100%", height: 400, border: "none" } }))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", onClick: () => setShowPreview(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: sendEstimate, disabled: sending }, sending ? "Sending\u2026" : "Send to Customer")))), showConvertQuoteModal && /* @__PURE__ */ React.createElement("div", { className: "modal-backdrop", onClick: () => setShowConvertQuoteModal(false) }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", onClick: (e) => e.stopPropagation(), style: { maxWidth: 500 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h2", null, "Convert to Quote"), /* @__PURE__ */ React.createElement("button", { className: "modal-close", onClick: () => setShowConvertQuoteModal(false) }, "x")), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("p", { style: { marginBottom: "1rem", fontSize: "0.875rem", color: "var(--stone-600)" } }, "This will create a new quote with ", /* @__PURE__ */ React.createElement("strong", null, materialItems.length, " material item", materialItems.length !== 1 ? "s" : ""), " totaling ", /* @__PURE__ */ React.createElement("strong", null, "$", parseFloat(estimate.materials_subtotal || 0).toFixed(2)), "."), laborItems.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { padding: "0.75rem", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "var(--radius-sm)", fontSize: "0.8125rem", marginBottom: "1rem" } }, /* @__PURE__ */ React.createElement("strong", null, laborItems.length, " labor item", laborItems.length !== 1 ? "s" : ""), " totaling ", /* @__PURE__ */ React.createElement("strong", null, "$", parseFloat(estimate.labor_subtotal || 0).toFixed(2)), " will be excluded from the quote but summarized in the quote notes.", /* @__PURE__ */ React.createElement("div", { style: { marginTop: "0.5rem", color: "#8a7e68" } }, "Tip: convert to an ", /* @__PURE__ */ React.createElement("strong", null, "order"), " instead to bill labor alongside materials."))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", onClick: () => setShowConvertQuoteModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: () => convertToQuote(), disabled: converting }, converting ? "Converting..." : "Convert to Quote")))), showConvertOrderModal && (() => {
       const total = parseFloat(estimate.total || 0);
       const depositNum = Math.max(0, Math.min(parseFloat(convertDeposit) || 0, total));
       const balance = Math.max(0, parseFloat((total - depositNum).toFixed(2)));

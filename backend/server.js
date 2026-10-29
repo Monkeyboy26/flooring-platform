@@ -28833,10 +28833,11 @@ app.get('/api/rep/estimates/:id/pdf', repAuth, async (req, res) => {
 // across all new estimates.
 const ESTIMATE_DEFAULT_DEPOSIT_PERCENT = 50;
 
-function estimateEmailData(bundle, rep) {
+function estimateEmailData(bundle, rep, recipient) {
   const e = bundle.estimate; // includes scope_of_work
   return {
     ...e,
+    customer_email: recipient || e.customer_email,   // honor preview "To" override
     materialItems: bundle.items.filter(i => i.item_type === 'material'),
     laborItems: bundle.items.filter(i => i.item_type === 'labor'),
     milestones: bundle.milestones,
@@ -28871,13 +28872,24 @@ app.get('/api/rep/estimates/:id/preview', repAuth, async (req, res) => {
 // endpoints. Returns { emailed, resend } or throws { statusCode, error } for
 // caller-mappable validation failures (bad status / missing email).
 // Re-sending is also the revival path for an expired estimate.
-async function deliverEstimate(bundle, rep) {
+async function deliverEstimate(bundle, rep, opts = {}) {
   const e = bundle.estimate;
   if (e.status !== 'draft' && e.status !== 'sent') {
     throw { statusCode: 400, error: 'Estimate cannot be sent in current status' };
   }
-  // Customer is optional while building, but required to send.
-  if (!e.customer_email || !isValidEmailAddr(e.customer_email)) {
+  // Optional recipient override from the preview modal (retarget / add
+  // recipients) — mirrors the quote send. Falls back to the customer email.
+  let recipientList = null;
+  if (opts.to != null) {
+    const list = (Array.isArray(opts.to) ? opts.to : String(opts.to).split(/[\s,;]+/))
+      .map(s => String(s).trim()).filter(Boolean);
+    const bad = list.find(a => !isValidEmailAddr(a));
+    if (bad) throw { statusCode: 400, error: 'Invalid recipient email: ' + bad };
+    if (list.length) recipientList = [...new Set(list)].join(', ');
+  }
+  const recipient = recipientList || e.customer_email;
+  // Customer is optional while building, but a valid recipient is required to send.
+  if (!recipient || (!recipientList && !isValidEmailAddr(e.customer_email))) {
     throw { statusCode: 400, error: 'Add a customer with a valid email before sending this estimate.' };
   }
 
@@ -28933,15 +28945,15 @@ async function deliverEstimate(bundle, rep) {
     console.error('[Email] Estimate PDF attachment failed — sending without it:', pdfErr.message);
   }
 
-  const emailResult = await sendEstimateSent(estimateEmailData(bundle, rep), { attachments });
+  const emailResult = await sendEstimateSent(estimateEmailData(bundle, rep, recipient), { attachments });
   const emailed = emailResult && emailResult.sent;
 
   const verb = isResend ? 're-sent' : 'emailed';
   await logEstimateEvent(pool, e.id, 'sent', {
     body: emailed
-      ? `Estimate ${verb} to ${e.customer_email}${isResend ? ' — validity window restarted' : ''}`
+      ? `Estimate ${verb} to ${recipient}${isResend ? ' — validity window restarted' : ''}`
       : `Estimate marked as ${isResend ? 're-sent' : 'sent'} (email not configured)`,
-    meta: { to: e.customer_email, emailed: !!emailed, resend: isResend, ...(isResend ? { previous_expires_at: previousExpiry } : {}) },
+    meta: { to: recipient, emailed: !!emailed, resend: isResend, ...(isResend ? { previous_expires_at: previousExpiry } : {}) },
     actor: 'rep',
     actorName: rep.first_name + ' ' + rep.last_name
   });
@@ -28979,8 +28991,10 @@ app.post('/api/rep/estimates/:id/send', repAuth, async (req, res) => {
     const bundle = await getEstimateBundle(pool, { id });
     if (!bundle) return res.status(404).json({ error: 'Estimate not found' });
 
-    const { emailed } = await deliverEstimate(bundle, req.rep);
-    const to = bundle.estimate.customer_email;
+    const { emailed } = await deliverEstimate(bundle, req.rep, { to: (req.body && req.body.to) || null });
+    const to = (req.body && req.body.to)
+      ? (Array.isArray(req.body.to) ? req.body.to.join(', ') : String(req.body.to))
+      : bundle.estimate.customer_email;
     res.json({
       success: true,
       emailed,

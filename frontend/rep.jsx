@@ -23591,6 +23591,9 @@
       const [previewLoading, setPreviewLoading] = useState(false);
       const [sendFeedback, setSendFeedback] = useState(null);
       const [sending, setSending] = useState(false);
+      // Editable recipient list in the preview modal (comma/space separated);
+      // defaults to the customer email, lets the rep retarget / add recipients.
+      const [sendTo, setSendTo] = useState('');
       const [pdfViewer, setPdfViewer] = useState(null);
 
       // Conversion modals
@@ -24311,12 +24314,16 @@
       // Send estimate
       const sendEstimate = async () => {
         if (!estimate || sending) return;   // re-entry guard: one send per click
+        const recipients = sendTo.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+        if (!recipients.length) { setSendFeedback('Add at least one recipient email.'); return; }
         setSending(true);
         setSendFeedback(null);
         try {
-          const result = await repFetch('/api/rep/estimates/' + estimate.id + '/send', { method: 'POST' });
+          const result = await repFetch('/api/rep/estimates/' + estimate.id + '/send', {
+            method: 'POST', body: JSON.stringify({ to: recipients })
+          });
           setEstimate(prev => ({ ...prev, status: 'sent' }));
-          setSendFeedback(result.emailed ? 'Estimate emailed to ' + estimate.customer_email : 'Estimate marked as sent');
+          setSendFeedback(result.emailed ? 'Estimate emailed to ' + recipients.join(', ') : 'Estimate marked as sent');
           setShowPreview(false);
         } catch (err) {
           setSendFeedback(err.message || 'Failed to send estimate');
@@ -24376,6 +24383,7 @@
           const data = await repFetch('/api/rep/estimates/' + estimate.id + '/preview');
           setPreviewHtml(data.html);
           setPreviewMeta(data);
+          setSendTo((data && data.to) || form.customer_email || '');
           setShowPreview(true);
         } catch (e) {}
         setPreviewLoading(false);
@@ -25947,7 +25955,13 @@
                 <div className="modal-body">
                   {previewMeta && (
                     <div style={{ marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--stone-500)' }}>
-                      <div><strong>To:</strong> {previewMeta.to}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <strong style={{ flexShrink: 0 }}>To:</strong>
+                        <input type="text" value={sendTo} onChange={e => setSendTo(e.target.value)}
+                          placeholder="customer@example.com, ap@example.com"
+                          style={{ flex: 1, padding: '0.35rem 0.5rem', border: '1px solid var(--stone-200)', fontSize: '0.8125rem', color: 'var(--stone-800)' }} />
+                      </div>
+                      <div style={{ fontSize: '0.6875rem', color: 'var(--stone-400)', marginBottom: 6 }}>Separate multiple recipients with commas · doesn't change the saved customer</div>
                       <div><strong>Subject:</strong> {previewMeta.subject}</div>
                       <div><strong>Reply-To:</strong> {previewMeta.reply_to}</div>
                     </div>
