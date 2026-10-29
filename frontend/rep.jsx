@@ -24450,6 +24450,38 @@
         navigate('estimates');
       };
 
+      // Clone this estimate (items + areas + labor + milestones) into a fresh draft.
+      const duplicateEstimate = async () => {
+        if (!estimate || saving) return;
+        setSaving(true);
+        try {
+          const data = await repFetch('/api/rep/estimates/' + estimate.id + '/duplicate', { method: 'POST' });
+          if (data.estimate) { navigate('estimate-edit', data.estimate.id); return; }
+        } catch (err) { alert(err.message || 'Failed to duplicate estimate'); }
+        setSaving(false);
+      };
+
+      // Rep marks the outcome: accepted (customer confirmed) or lost (declined,
+      // with optional reason). Mirrors the quote status action; moves the linked
+      // CRM deal to 'lost' on decline.
+      const markEstimateStatus = async (status) => {
+        if (!estimate) return;
+        let reason;
+        if (status === 'declined') {
+          reason = prompt('Mark this estimate lost — reason (optional):', '');
+          if (reason === null) return;
+        } else if (!confirm('Mark this estimate accepted?')) {
+          return;
+        }
+        try {
+          await repFetch('/api/rep/estimates/' + estimate.id + '/status', {
+            method: 'POST', body: JSON.stringify({ status, reason: reason || undefined })
+          });
+          await reloadEstimate();
+          loadEvents();
+        } catch (err) { alert(err.message || 'Failed to update status'); }
+      };
+
       const materialItems = items.filter(i => i.item_type === 'material');
       const laborItems = items.filter(i => i.item_type === 'labor');
 
@@ -25022,10 +25054,19 @@
                   } catch(e) { alert('Failed to load PDF'); }
                 }}>Preview PDF</button>
               )}
+              {estimate && (
+                <button className="ol-header-btn" onClick={duplicateEstimate} disabled={saving}>Duplicate</button>
+              )}
               {estimate && !isReadonly && (
                 <button className="ol-header-btn" onClick={loadPreview} disabled={previewLoading}>
                   {previewLoading ? 'Loading…' : effStatus === 'expired' ? 'Re-send (renew 14 days)' : estimate.status === 'sent' ? 'Resend estimate' : 'Preview & send'}
                 </button>
+              )}
+              {estimate && ['draft', 'sent'].includes(estimate.status) && (
+                <React.Fragment>
+                  <button className="ol-header-btn" onClick={() => markEstimateStatus('accepted')}>Mark accepted</button>
+                  <button className="ol-header-btn" onClick={() => markEstimateStatus('declined')}>Mark lost</button>
+                </React.Fragment>
               )}
               {savedFlash && !saving && (
                 <span style={{ alignSelf: 'center', font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#3f7d5a' }}>{'✓'} Saved</span>

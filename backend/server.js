@@ -28953,6 +28953,22 @@ async function deliverEstimate(bundle, rep) {
       linked_estimate_id: e.id
     }).catch(err => console.error('[AutoTask] estimate_sent error:', err.message)));
 
+  // CRM: open a deal in the pipeline on first send (mirrors the quote flow) so
+  // estimates surface in the deals pipeline. Guarded by existence — resends and
+  // bulk-resends won't duplicate it.
+  try {
+    const existingDeal = await pool.query('SELECT id FROM deals WHERE linked_estimate_id = $1', [e.id]);
+    if (!existingDeal.rows.length) {
+      await pool.query(`
+        INSERT INTO deals (rep_id, title, estimated_value, stage, customer_name, customer_email, linked_estimate_id)
+        VALUES ($1, $2, $3, 'quoted', $4, $5, $6)
+      `, [rep.id, 'Estimate ' + e.estimate_number + ' — ' + e.customer_name,
+          parseFloat(e.total || 0), e.customer_name, e.customer_email, e.id]);
+    }
+  } catch (dealErr) {
+    console.error('[Estimate] deal create failed (non-fatal):', dealErr.message);
+  }
+
   return { emailed: !!emailed, resend: isResend };
 }
 
@@ -28998,6 +29014,125 @@ app.post('/api/rep/estimates/:id/extend', repAuth, async (req, res) => {
     });
     res.json({ estimate: upd.rows[0] });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// POST /api/rep/estimates/:id/status — rep marks an estimate accepted or lost
+// (declined). Mirrors the quote /status flow: logs an event and, on decline,
+// moves the linked CRM deal to 'lost'. Terminal 'converted' can't be reopened.
+app.post('/api/rep/estimates/:id/status', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, reason } = req.body || {};
+    if (!['accepted', 'declined'].includes(status)) {
+      return res.status(400).json({ error: 'status must be accepted or declined' });
+    }
+    const r = await pool.query('SELECT * FROM estimates WHERE id = $1', [id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Estimate not found' });
+    const e = r.rows[0];
+    if (e.status === 'converted') return res.status(400).json({ error: 'Estimate already converted' });
+    if (status === 'accepted' && !['draft', 'sent'].includes(e.status)) {
+      return res.status(400).json({ error: 'Only draft or sent estimates can be marked accepted' });
+    }
+
+    const upd = await pool.query(
+      'UPDATE estimates SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+      [status, id]
+    );
+
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    await logEstimateEvent(pool, id, status === 'accepted' ? 'accepted' : 'marked_lost', {
+      body: status === 'accepted'
+        ? 'Marked accepted — customer confirmed'
+        : 'Marked lost' + (reason ? ' — ' + reason : ''),
+      meta: reason ? { reason } : {},
+      actor: 'rep',
+      actorName: repName
+    });
+
+    // Keep the linked CRM deal in step.
+    if (status === 'declined') {
+      try {
+        await pool.query(`
+          UPDATE deals SET stage = 'lost', lost_reason = COALESCE($1, lost_reason),
+            stage_entered_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+          WHERE linked_estimate_id = $2 AND stage NOT IN ('won', 'lost')
+        `, [reason || 'Estimate marked lost', id]);
+      } catch (dealErr) {
+        console.error('Deal stage update failed (non-fatal):', dealErr.message);
+      }
+    }
+
+    res.json({ estimate: upd.rows[0] });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// POST /api/rep/estimates/:id/duplicate — clone an estimate (header + areas +
+// items/labor + milestones) into a fresh draft owned by the current rep. Mirrors
+// the quote Duplicate action; areas are re-created with new ids and item.area_id
+// is remapped so sections survive the copy.
+app.post('/api/rep/estimates/:id/duplicate', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const src = await client.query('SELECT * FROM estimates WHERE id = $1', [id]);
+    if (!src.rows.length) { client.release(); return res.status(404).json({ error: 'Estimate not found' }); }
+    const e = src.rows[0];
+
+    await client.query('BEGIN');
+    const estimate_number = await allocRdFamilyNumber(client, 'RDE-');
+    const ins = await client.query(`
+      INSERT INTO estimates (estimate_number, sales_rep_id, customer_id, customer_name, customer_email, phone,
+        project_name, project_address_line1, project_address_line2, project_city, project_state, project_zip,
+        notes, internal_notes, scope_of_work, tax_rate, deposit_type, deposit_value, sidemark, status)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,'draft')
+      RETURNING *`,
+      [estimate_number, req.rep.id, e.customer_id, e.customer_name, e.customer_email, e.phone,
+       e.project_name, e.project_address_line1, e.project_address_line2, e.project_city, e.project_state, e.project_zip,
+       e.notes, e.internal_notes, e.scope_of_work, e.tax_rate, e.deposit_type, e.deposit_value, e.sidemark]);
+    const newId = ins.rows[0].id;
+
+    // Areas: re-create with new ids, keep an old→new map for item remapping.
+    const areas = await client.query('SELECT * FROM estimate_areas WHERE estimate_id = $1 ORDER BY sort_order', [id]);
+    const areaMap = {};
+    for (const a of areas.rows) {
+      const na = await client.query(
+        'INSERT INTO estimate_areas (estimate_id, name, scope_notes, area_sqft, sort_order) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+        [newId, a.name, a.scope_notes, a.area_sqft, a.sort_order]);
+      areaMap[a.id] = na.rows[0].id;
+    }
+
+    // Items (material + labor + custom rug), remapping area_id to the clone.
+    const items = await client.query('SELECT * FROM estimate_items WHERE estimate_id = $1 ORDER BY sort_order, created_at', [id]);
+    for (const it of items.rows) {
+      await client.query(`
+        INSERT INTO estimate_items (estimate_id, item_type, product_id, sku_id, product_name, collection, description,
+          sqft_needed, num_boxes, sell_by, labor_category, rate_type, rate_sqft, labor_sqft,
+          unit_price, quantity, subtotal, sort_order, area_id, cost, is_custom_rug, custom_width_ft, custom_length_ft,
+          price_basis, sqft_per_box)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)`,
+        [newId, it.item_type, it.product_id, it.sku_id, it.product_name, it.collection, it.description,
+         it.sqft_needed, it.num_boxes, it.sell_by, it.labor_category, it.rate_type, it.rate_sqft, it.labor_sqft,
+         it.unit_price, it.quantity, it.subtotal, it.sort_order, it.area_id ? (areaMap[it.area_id] || null) : null,
+         it.cost, it.is_custom_rug, it.custom_width_ft, it.custom_length_ft, it.price_basis, it.sqft_per_box]);
+    }
+
+    // Draw schedule / milestones.
+    await client.query(`
+      INSERT INTO payment_milestones (estimate_id, sort_order, label, percent, amount, due_label)
+      SELECT $1, sort_order, label, percent, amount, due_label FROM payment_milestones WHERE estimate_id = $2`,
+      [newId, id]);
+
+    await recalculateEstimateTotals(newId, client);
+    await client.query('COMMIT');
+
+    const out = await pool.query('SELECT * FROM estimates WHERE id = $1', [newId]);
+    res.json({ estimate: out.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
 });
 
 // POST /api/rep/estimates/bulk-resend — Re-send several estimates in one pass
@@ -29126,6 +29261,18 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
       "UPDATE estimates SET status = 'converted', converted_quote_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
       [quote.id, id]
     );
+
+    // CRM: hand the estimate's deal off to the new quote so the single pipeline
+    // deal flows estimate → quote → order (the quote send/convert path adopts it
+    // via linked_quote_id instead of opening a duplicate).
+    try {
+      await client.query(
+        "UPDATE deals SET linked_quote_id = $1, updated_at = CURRENT_TIMESTAMP WHERE linked_estimate_id = $2 AND stage NOT IN ('won', 'lost')",
+        [quote.id, id]
+      );
+    } catch (dealErr) {
+      console.error('[Estimate] deal handoff to quote failed (non-fatal):', dealErr.message);
+    }
     await logEstimateEvent(client, id, 'converted', {
       body: `Converted to Quote ${quoteNumber}` + (laborItems.length ? ' (labor excluded)' : ''),
       meta: { quote_id: quote.id, quote_number: quoteNumber, labor_excluded: laborItems.length > 0 },
@@ -29284,6 +29431,19 @@ async function convertEstimateToOrderTx(client, e, materialItems, laborItems, op
     "UPDATE estimates SET status = 'converted', converted_order_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
     [order.id, e.id]
   );
+
+  // CRM: move the linked deal to "won" and attach the order (mirrors quote convert).
+  try {
+    const dealRes = await client.query("SELECT id FROM deals WHERE linked_estimate_id = $1 AND stage NOT IN ('won', 'lost')", [e.id]);
+    if (dealRes.rows.length) {
+      await client.query(`
+        UPDATE deals SET stage = 'won', stage_entered_at = CURRENT_TIMESTAMP,
+          linked_order_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2
+      `, [order.id, dealRes.rows[0].id]);
+    }
+  } catch (dealErr) {
+    console.error('[Estimate] deal win update failed (non-fatal):', dealErr.message);
+  }
 
   // Carry the draw/payment schedule onto the order (percent-based; amounts
   // recompute from the order total). The deposit collected above naturally

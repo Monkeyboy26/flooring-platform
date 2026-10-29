@@ -16765,6 +16765,40 @@
       await repFetch("/api/rep/estimates/" + estimate.id, { method: "DELETE" });
       navigate("estimates");
     };
+    const duplicateEstimate = async () => {
+      if (!estimate || saving) return;
+      setSaving(true);
+      try {
+        const data = await repFetch("/api/rep/estimates/" + estimate.id + "/duplicate", { method: "POST" });
+        if (data.estimate) {
+          navigate("estimate-edit", data.estimate.id);
+          return;
+        }
+      } catch (err) {
+        alert(err.message || "Failed to duplicate estimate");
+      }
+      setSaving(false);
+    };
+    const markEstimateStatus = async (status) => {
+      if (!estimate) return;
+      let reason;
+      if (status === "declined") {
+        reason = prompt("Mark this estimate lost \u2014 reason (optional):", "");
+        if (reason === null) return;
+      } else if (!confirm("Mark this estimate accepted?")) {
+        return;
+      }
+      try {
+        await repFetch("/api/rep/estimates/" + estimate.id + "/status", {
+          method: "POST",
+          body: JSON.stringify({ status, reason: reason || void 0 })
+        });
+        await reloadEstimate();
+        loadEvents();
+      } catch (err) {
+        alert(err.message || "Failed to update status");
+      }
+    };
     const materialItems = items.filter((i) => i.item_type === "material");
     const laborItems = items.filter((i) => i.item_type === "labor");
     const itemsForArea = (areaId) => items.filter((i) => (i.area_id || null) === areaId);
@@ -17127,7 +17161,7 @@
       } catch (e) {
         alert("Failed to load PDF");
       }
-    } }, "Preview PDF"), estimate && !isReadonly && /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn", onClick: loadPreview, disabled: previewLoading }, previewLoading ? "Loading\u2026" : effStatus === "expired" ? "Re-send (renew 14 days)" : estimate.status === "sent" ? "Resend estimate" : "Preview & send"), savedFlash && !saving && /* @__PURE__ */ React.createElement("span", { style: { alignSelf: "center", font: "500 9px/1 ui-monospace, monospace", letterSpacing: "0.12em", textTransform: "uppercase", color: "#3f7d5a" } }, "\u2713", " Saved"), !isReadonly && /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn primary", onClick: saveEstimate, disabled: saving }, saving ? "Saving\u2026" : estimate ? "Save details" : "Save draft"), estimate && estimate.status === "draft" && /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn", onClick: deleteEstimate }, "Delete draft"))), /* @__PURE__ */ React.createElement("div", { className: "qw-stepper cols-5" }, estSteps.map((s, i) => {
+    } }, "Preview PDF"), estimate && /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn", onClick: duplicateEstimate, disabled: saving }, "Duplicate"), estimate && !isReadonly && /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn", onClick: loadPreview, disabled: previewLoading }, previewLoading ? "Loading\u2026" : effStatus === "expired" ? "Re-send (renew 14 days)" : estimate.status === "sent" ? "Resend estimate" : "Preview & send"), estimate && ["draft", "sent"].includes(estimate.status) && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn", onClick: () => markEstimateStatus("accepted") }, "Mark accepted"), /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn", onClick: () => markEstimateStatus("declined") }, "Mark lost")), savedFlash && !saving && /* @__PURE__ */ React.createElement("span", { style: { alignSelf: "center", font: "500 9px/1 ui-monospace, monospace", letterSpacing: "0.12em", textTransform: "uppercase", color: "#3f7d5a" } }, "\u2713", " Saved"), !isReadonly && /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn primary", onClick: saveEstimate, disabled: saving }, saving ? "Saving\u2026" : estimate ? "Save details" : "Save draft"), estimate && estimate.status === "draft" && /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn", onClick: deleteEstimate }, "Delete draft"))), /* @__PURE__ */ React.createElement("div", { className: "qw-stepper cols-5" }, estSteps.map((s, i) => {
       const state = estStepState(i);
       return /* @__PURE__ */ React.createElement("div", { key: s.label, className: "qw-step " + state }, /* @__PURE__ */ React.createElement("div", { className: "qw-step-label" }, /* @__PURE__ */ React.createElement("span", { className: "qw-step-mark" }, state === "done" ? "\u2713" : state === "dead" ? "\u2715" : state === "now" ? "\u25CF" : "\u25CB"), /* @__PURE__ */ React.createElement("span", null, s.label)), /* @__PURE__ */ React.createElement("div", { className: "qw-step-meta" }, s.meta));
     })), isTerminalNeg && /* @__PURE__ */ React.createElement("div", { style: {
