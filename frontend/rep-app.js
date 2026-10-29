@@ -15701,6 +15701,7 @@
       quantity: "1",
       area_id: null
     });
+    const [editingLaborId, setEditingLaborId] = useState(null);
     const [addPanelTab, setAddPanelTab] = useState("material");
     const openAddPanel = (areaId, tab) => {
       const key = "add-" + (areaId || "general");
@@ -16310,6 +16311,22 @@
         setActionError(err.message || "Failed to remove item");
       }
     };
+    const startEditLabor = (item) => {
+      const numStr = (v) => v == null || v === "" ? "" : String(parseFloat(v));
+      setLaborItem({
+        labor_category: item.labor_category || "installation",
+        custom_name: item.labor_category === "other" ? item.product_name || "" : "",
+        description: item.description || "",
+        rate_type: item.rate_type || "per_sqft",
+        rate_sqft: numStr(item.rate_sqft),
+        labor_sqft: numStr(item.labor_sqft),
+        unit_price: numStr(item.unit_price),
+        quantity: item.quantity != null ? String(parseFloat(item.quantity)) : "1",
+        area_id: item.area_id || null
+      });
+      setEditingLaborId(item.id);
+      setActiveAddArea("labor");
+    };
     const addLaborItem = async () => {
       const li = laborItem;
       let unitPrice, qty, sub;
@@ -16336,6 +16353,25 @@
         subtotal: sub.toFixed(2),
         area_id: li.area_id || null
       };
+      if (editingLaborId) {
+        try {
+          const result = await repFetch("/api/rep/estimates/" + estimate.id + "/items/" + editingLaborId, {
+            method: "PUT",
+            body: JSON.stringify(newItem)
+          });
+          if (result.item) {
+            setItems((prev) => prev.map((it) => it.id === editingLaborId ? result.item : it));
+            if (result.estimate) setEstimate(result.estimate);
+          }
+        } catch (err) {
+          setActionError(err.message || "Failed to update labor");
+          return;
+        }
+        setEditingLaborId(null);
+        setLaborItem({ labor_category: "installation", custom_name: "", description: "", rate_type: "per_sqft", rate_sqft: "", labor_sqft: "", unit_price: "", quantity: "1", area_id: null });
+        setActiveAddArea(null);
+        return;
+      }
       const existed = !!estimate;
       let est;
       try {
@@ -16802,7 +16838,16 @@
       background: "rgba(28,25,23,0.08)",
       color: "#8a7e68",
       verticalAlign: "middle"
-    } }, "Labor")), /* @__PURE__ */ React.createElement("div", { className: "rof-item-meta", style: { marginTop: 4 } }, moveSelect(item))), /* @__PURE__ */ React.createElement("div", { style: { font: "400 0.75rem/1.5 Inter, sans-serif", color: "rgba(28,25,23,0.7)" } }, item.description ? item.description.split("\n").map((line, i) => /* @__PURE__ */ React.createElement("div", { key: i }, i > 0 ? "\u2014 " : "", line)) : "\u2014"), /* @__PURE__ */ React.createElement("div", { className: "rof-item-meta", style: { marginTop: 0, textAlign: "right", whiteSpace: "nowrap" } }, item.rate_type === "per_sqft" ? "$" + parseFloat(item.rate_sqft || 0).toFixed(2) + "/" + laborUnitShort(item.labor_category) + " \xD7 " + parseFloat(item.labor_sqft || 0).toFixed(0) : parseFloat(item.quantity || 1) > 1 ? "$" + parseFloat(item.unit_price || 0).toFixed(2) + " \xD7 " + parseFloat(item.quantity).toFixed(0) : "Flat rate"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "0.375rem", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement("span", { className: "rof-item-price" }, "$", parseFloat(item.subtotal || 0).toFixed(2)), !isReadonly && /* @__PURE__ */ React.createElement("button", { className: "rof-remove-btn", onClick: () => deleteItem(item.id), title: "Remove" }, "\u2715")));
+    } }, "Labor")), /* @__PURE__ */ React.createElement("div", { className: "rof-item-meta", style: { marginTop: 4 } }, moveSelect(item))), /* @__PURE__ */ React.createElement("div", { style: { font: "400 0.75rem/1.5 Inter, sans-serif", color: "rgba(28,25,23,0.7)" } }, item.description ? item.description.split("\n").map((line, i) => /* @__PURE__ */ React.createElement("div", { key: i }, i > 0 ? "\u2014 " : "", line)) : "\u2014"), /* @__PURE__ */ React.createElement("div", { className: "rof-item-meta", style: { marginTop: 0, textAlign: "right", whiteSpace: "nowrap" } }, item.rate_type === "per_sqft" ? "$" + parseFloat(item.rate_sqft || 0).toFixed(2) + "/" + laborUnitShort(item.labor_category) + " \xD7 " + parseFloat(item.labor_sqft || 0).toFixed(0) : parseFloat(item.quantity || 1) > 1 ? "$" + parseFloat(item.unit_price || 0).toFixed(2) + " \xD7 " + parseFloat(item.quantity).toFixed(0) : "Flat rate"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "0.375rem", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement("span", { className: "rof-item-price" }, "$", parseFloat(item.subtotal || 0).toFixed(2)), !isReadonly && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "rof-edit-btn",
+        onClick: () => startEditLabor(item),
+        title: "Edit",
+        style: { background: "none", border: "none", padding: "2px 4px", cursor: "pointer", color: "#8a7e68", font: "400 13px/1 Inter, sans-serif" }
+      },
+      "\u270E"
+    ), !isReadonly && /* @__PURE__ */ React.createElement("button", { className: "rof-remove-btn", onClick: () => deleteItem(item.id), title: "Remove" }, "\u2715")));
     const renderMaterialAdd = () => {
       if (isReadonly) return null;
       return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { className: "rof-cat-launch", onClick: () => {
@@ -16838,7 +16883,8 @@
     const renderLaborAdd = () => {
       if (isReadonly) return null;
       if (activeAddArea !== "labor") return /* @__PURE__ */ React.createElement("div", { style: { marginTop: "0.75rem" } }, /* @__PURE__ */ React.createElement("button", { className: "rof-card-action", onClick: () => {
-        setLaborItem((l) => ({ ...l, area_id: null }));
+        setEditingLaborId(null);
+        setLaborItem({ labor_category: "installation", custom_name: "", description: "", rate_type: "per_sqft", rate_sqft: "", labor_sqft: "", unit_price: "", quantity: "1", area_id: null });
         setActiveAddArea("labor");
       } }, "+ Add labor"));
       const isSqft = laborItem.rate_type === "per_sqft";
@@ -16864,7 +16910,7 @@
           style: { width: "100%", padding: "0.5rem 0.625rem", border: "0.5px solid rgba(28,25,23,0.2)", background: "#f5f0e8", font: "400 0.875rem/1 Inter, sans-serif", boxSizing: "border-box" }
         }
       );
-      return /* @__PURE__ */ React.createElement("div", { style: { marginTop: "0.75rem", border: "0.5px solid rgba(28,25,23,0.16)", borderLeft: "2px solid #a87935", background: "rgba(28,25,23,0.025)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", padding: "0.75rem 1rem", borderBottom: "0.5px solid rgba(28,25,23,0.1)", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", { style: { font: "500 0.5625rem/1 ui-monospace, monospace", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8a7e68" } }, "New labor line"), /* @__PURE__ */ React.createElement("div", { style: { display: "inline-flex", border: "0.5px solid rgba(28,25,23,0.2)" } }, [["per_sqft", isLinear ? "Per lin ft" : "Per sq ft"], ["flat", "Flat rate"]].map(([rt, lbl]) => /* @__PURE__ */ React.createElement(
+      return /* @__PURE__ */ React.createElement("div", { style: { marginTop: "0.75rem", border: "0.5px solid rgba(28,25,23,0.16)", borderLeft: "2px solid #a87935", background: "rgba(28,25,23,0.025)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", padding: "0.75rem 1rem", borderBottom: "0.5px solid rgba(28,25,23,0.1)", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", { style: { font: "500 0.5625rem/1 ui-monospace, monospace", letterSpacing: "0.14em", textTransform: "uppercase", color: "#8a7e68" } }, editingLaborId ? "Edit labor line" : "New labor line"), /* @__PURE__ */ React.createElement("div", { style: { display: "inline-flex", border: "0.5px solid rgba(28,25,23,0.2)" } }, [["per_sqft", isLinear ? "Per lin ft" : "Per sq ft"], ["flat", "Flat rate"]].map(([rt, lbl]) => /* @__PURE__ */ React.createElement(
         "button",
         {
           key: rt,
@@ -16915,7 +16961,10 @@
         },
         "Use ",
         matSqft
-      )), numInput(laborItem.labor_sqft, (v) => setLaborItem((l) => ({ ...l, labor_sqft: v }))))) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { width: 118 } }, /* @__PURE__ */ React.createElement("label", { style: fieldLabel }, "Price"), numInput(laborItem.unit_price, (v) => setLaborItem((l) => ({ ...l, unit_price: v })))), /* @__PURE__ */ React.createElement("span", { style: { font: '300 1.125rem/1 "Cormorant Garamond", serif', color: "#8a7e68", paddingBottom: "0.45rem" } }, "\xD7"), /* @__PURE__ */ React.createElement("div", { style: { width: 90 } }, /* @__PURE__ */ React.createElement("label", { style: fieldLabel }, "Qty"), numInput(laborItem.quantity, (v) => setLaborItem((l) => ({ ...l, quantity: v }))))), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 90, textAlign: "right" } }, /* @__PURE__ */ React.createElement("div", { style: { ...fieldLabel, marginBottom: 3 } }, "Line total"), /* @__PURE__ */ React.createElement("div", { style: { font: '300 1.5rem/1 "Cormorant Garamond", serif', color: canAdd ? "#1c1917" : "#b8ad97", letterSpacing: "-0.01em" } }, "$", lineTotal.toFixed(2)))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "1rem" } }, /* @__PURE__ */ React.createElement("button", { className: "rof-btn-light", style: { padding: "0.5rem 0.85rem" }, onClick: () => setActiveAddArea(null) }, "Cancel"), /* @__PURE__ */ React.createElement(
+      )), numInput(laborItem.labor_sqft, (v) => setLaborItem((l) => ({ ...l, labor_sqft: v }))))) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { width: 118 } }, /* @__PURE__ */ React.createElement("label", { style: fieldLabel }, "Price"), numInput(laborItem.unit_price, (v) => setLaborItem((l) => ({ ...l, unit_price: v })))), /* @__PURE__ */ React.createElement("span", { style: { font: '300 1.125rem/1 "Cormorant Garamond", serif', color: "#8a7e68", paddingBottom: "0.45rem" } }, "\xD7"), /* @__PURE__ */ React.createElement("div", { style: { width: 90 } }, /* @__PURE__ */ React.createElement("label", { style: fieldLabel }, "Qty"), numInput(laborItem.quantity, (v) => setLaborItem((l) => ({ ...l, quantity: v }))))), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 90, textAlign: "right" } }, /* @__PURE__ */ React.createElement("div", { style: { ...fieldLabel, marginBottom: 3 } }, "Line total"), /* @__PURE__ */ React.createElement("div", { style: { font: '300 1.5rem/1 "Cormorant Garamond", serif', color: canAdd ? "#1c1917" : "#b8ad97", letterSpacing: "-0.01em" } }, "$", lineTotal.toFixed(2)))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "1rem" } }, /* @__PURE__ */ React.createElement("button", { className: "rof-btn-light", style: { padding: "0.5rem 0.85rem" }, onClick: () => {
+        setEditingLaborId(null);
+        setActiveAddArea(null);
+      } }, "Cancel"), /* @__PURE__ */ React.createElement(
         "button",
         {
           className: "rof-btn-light primary",
@@ -16923,7 +16972,7 @@
           disabled: !canAdd,
           style: { padding: "0.5rem 1.1rem", opacity: canAdd ? 1 : 0.5, cursor: canAdd ? "pointer" : "not-allowed" }
         },
-        "Add labor"
+        editingLaborId ? "Save changes" : "Add labor"
       ))));
     };
     const renderMaterialsBody = () => {

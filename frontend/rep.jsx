@@ -23433,6 +23433,9 @@
         labor_category: 'installation', custom_name: '', description: '', rate_type: 'per_sqft',
         rate_sqft: '', labor_sqft: '', unit_price: '', quantity: '1', area_id: null
       });
+      // id of the labor line being edited (null = adding a new one). When set, the
+      // labor form is pre-filled and its submit PUTs instead of POSTing.
+      const [editingLaborId, setEditingLaborId] = useState(null);
       // Unified add panel: which tab is showing inside the open area's panel
       const [addPanelTab, setAddPanelTab] = useState('material'); // 'material' | 'labor'
 
@@ -23993,7 +23996,27 @@
         } catch (err) { setActionError(err.message || 'Failed to remove item'); }
       };
 
-      // Add labor item
+      // Open the labor form pre-filled to edit an existing labor line. Mirrors the
+      // field mapping addLaborItem writes (custom name lives in product_name when
+      // the category is "other"); numbers are stringified for the text inputs.
+      const startEditLabor = (item) => {
+        const numStr = (v) => (v == null || v === '') ? '' : String(parseFloat(v));
+        setLaborItem({
+          labor_category: item.labor_category || 'installation',
+          custom_name: item.labor_category === 'other' ? (item.product_name || '') : '',
+          description: item.description || '',
+          rate_type: item.rate_type || 'per_sqft',
+          rate_sqft: numStr(item.rate_sqft),
+          labor_sqft: numStr(item.labor_sqft),
+          unit_price: numStr(item.unit_price),
+          quantity: item.quantity != null ? String(parseFloat(item.quantity)) : '1',
+          area_id: item.area_id || null
+        });
+        setEditingLaborId(item.id);
+        setActiveAddArea('labor');
+      };
+
+      // Add (or, when editingLaborId is set, update) a labor item
       const addLaborItem = async () => {
         const li = laborItem;
         let unitPrice, qty, sub;
@@ -24021,6 +24044,23 @@
           subtotal: sub.toFixed(2),
           area_id: li.area_id || null
         };
+
+        // Edit mode: PUT the existing line and replace it in place.
+        if (editingLaborId) {
+          try {
+            const result = await repFetch('/api/rep/estimates/' + estimate.id + '/items/' + editingLaborId, {
+              method: 'PUT', body: JSON.stringify(newItem)
+            });
+            if (result.item) {
+              setItems(prev => prev.map(it => it.id === editingLaborId ? result.item : it));
+              if (result.estimate) setEstimate(result.estimate);
+            }
+          } catch (err) { setActionError(err.message || 'Failed to update labor'); return; }
+          setEditingLaborId(null);
+          setLaborItem({ labor_category: 'installation', custom_name: '', description: '', rate_type: 'per_sqft', rate_sqft: '', labor_sqft: '', unit_price: '', quantity: '1', area_id: null });
+          setActiveAddArea(null);
+          return;
+        }
 
         const existed = !!estimate;
         let est;
@@ -24551,6 +24591,10 @@
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', justifyContent: 'flex-end' }}>
             <span className="rof-item-price">${parseFloat(item.subtotal || 0).toFixed(2)}</span>
             {!isReadonly && (
+              <button className="rof-edit-btn" onClick={() => startEditLabor(item)} title="Edit"
+                style={{ background: 'none', border: 'none', padding: '2px 4px', cursor: 'pointer', color: '#8a7e68', font: '400 13px/1 Inter, sans-serif' }}>{'✎'}</button>
+            )}
+            {!isReadonly && (
               <button className="rof-remove-btn" onClick={() => deleteItem(item.id)} title="Remove">{'✕'}</button>
             )}
           </div>
@@ -24620,7 +24664,7 @@
         if (isReadonly) return null;
         if (activeAddArea !== 'labor') return (
           <div style={{ marginTop: '0.75rem' }}>
-            <button className="rof-card-action" onClick={() => { setLaborItem(l => ({ ...l, area_id: null })); setActiveAddArea('labor'); }}>+ Add labor</button>
+            <button className="rof-card-action" onClick={() => { setEditingLaborId(null); setLaborItem({ labor_category: 'installation', custom_name: '', description: '', rate_type: 'per_sqft', rate_sqft: '', labor_sqft: '', unit_price: '', quantity: '1', area_id: null }); setActiveAddArea('labor'); }}>+ Add labor</button>
           </div>
         );
         const isSqft = laborItem.rate_type === 'per_sqft';
@@ -24646,7 +24690,7 @@
           <div style={{ marginTop: '0.75rem', border: '0.5px solid rgba(28,25,23,0.16)', borderLeft: '2px solid #a87935', background: 'rgba(28,25,23,0.025)' }}>
             {/* Header: title + billing-mode segmented toggle */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '0.75rem 1rem', borderBottom: '0.5px solid rgba(28,25,23,0.1)', flexWrap: 'wrap' }}>
-              <span style={{ font: '500 0.5625rem/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68' }}>New labor line</span>
+              <span style={{ font: '500 0.5625rem/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68' }}>{editingLaborId ? 'Edit labor line' : 'New labor line'}</span>
               <div style={{ display: 'inline-flex', border: '0.5px solid rgba(28,25,23,0.2)' }}>
                 {[['per_sqft', isLinear ? 'Per lin ft' : 'Per sq ft'], ['flat', 'Flat rate']].map(([rt, lbl]) => (
                   <button key={rt} onClick={() => setLaborItem(l => ({ ...l, rate_type: rt }))}
@@ -24725,9 +24769,9 @@
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
-                <button className="rof-btn-light" style={{ padding: '0.5rem 0.85rem' }} onClick={() => setActiveAddArea(null)}>Cancel</button>
+                <button className="rof-btn-light" style={{ padding: '0.5rem 0.85rem' }} onClick={() => { setEditingLaborId(null); setActiveAddArea(null); }}>Cancel</button>
                 <button className="rof-btn-light primary" onClick={addLaborItem} disabled={!canAdd}
-                  style={{ padding: '0.5rem 1.1rem', opacity: canAdd ? 1 : 0.5, cursor: canAdd ? 'pointer' : 'not-allowed' }}>Add labor</button>
+                  style={{ padding: '0.5rem 1.1rem', opacity: canAdd ? 1 : 0.5, cursor: canAdd ? 'pointer' : 'not-allowed' }}>{editingLaborId ? 'Save changes' : 'Add labor'}</button>
               </div>
             </div>
           </div>
