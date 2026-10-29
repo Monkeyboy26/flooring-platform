@@ -159,6 +159,15 @@ async function attrId(slug) {
   attrCache.set(slug, id);
   return id;
 }
+// The `size` attribute is the physical dimensions (+ any "(… miter)" note). The
+// cut FORMAT (Prefab / Jumbo Slab / Standard Slab) lives in variant_name, so strip
+// it here to avoid the format block rendering twice (title + Size spec row). See
+// data/genuine-materials/fix-size-attr-dedupe-2026-10-28.mjs.
+function cleanSizeAttr(value) {
+  if (typeof value !== 'string') return value;
+  return value.replace(/\s*\b(Jumbo Slab|Standard Slab|Prefab)\b/g, '')
+    .replace(/\s{2,}/g, ' ').replace(/\s+\)/g, ')').trim();
+}
 async function setAttr(skuId, slug, value) {
   if (value == null || value === '') return;
   const id = await attrId(slug);
@@ -229,7 +238,7 @@ async function main() {
       await upsertPackaging(sku.id, s);
       // product-level attrs + sku-level attrs
       const merged = { ...(p.attrs||{}), ...(s.attrs||{}) };
-      for (const [slug, val] of Object.entries(merged)) await setAttr(sku.id, slug, val);
+      for (const [slug, val] of Object.entries(merged)) await setAttr(sku.id, slug, slug === 'size' ? cleanSizeAttr(val) : val);
     }
 
     // media (product-level; color is per product). Prefer the curated swatch pick.
