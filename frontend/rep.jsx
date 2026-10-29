@@ -16192,6 +16192,10 @@
       const [showSendInvoiceModal, setShowSendInvoiceModal] = useState(false);
       const [invoiceMessage, setInvoiceMessage] = useState('');
       const [sendingInvoice, setSendingInvoice] = useState(false);
+      // Labor line editing (order detail). Edits a placed order's labor line the
+      // same way price adjustments work — logged + totals recomputed server-side.
+      const [laborEdit, setLaborEdit] = useState(null);
+      const [laborEditSaving, setLaborEditSaving] = useState(false);
       const [showScheduleForm, setShowScheduleForm] = useState(false);
       const [scheduleForm, setScheduleForm] = useState({ date: '', window: '', crew: '', notes: '', notify: false });
       const [savingSchedule, setSavingSchedule] = useState(false);
@@ -16407,6 +16411,54 @@
           })
           .catch(() => setLoading(false));
       }, [editId]);
+
+      // ── Labor line edit (order detail) ──────────────────────────────────
+      const laborCatLabels = {
+        installation: 'Installation', tearout: 'Tearout', underlayment: 'Underlayment',
+        transitions: 'Transitions', baseboards: 'Baseboards', floor_leveling: 'Floor Leveling',
+        moisture_barrier: 'Moisture Barrier', furniture_moving: 'Furniture Moving', other: 'Other'
+      };
+      const laborUnit = (cat) => cat === 'baseboards' ? 'lin ft' : 'sqft';
+      const openLaborEdit = (item) => {
+        const numStr = v => (v == null || v === '') ? '' : String(parseFloat(v));
+        setLaborEdit({
+          itemId: item.id,
+          labor_category: item.labor_category || 'installation',
+          custom_name: item.labor_category === 'other' ? (item.product_name || '') : '',
+          description: item.description || '',
+          rate_type: item.rate_type || 'per_sqft',
+          rate_sqft: numStr(item.rate_sqft),
+          labor_sqft: numStr(item.labor_sqft),
+          unit_price: numStr(item.unit_price),
+          quantity: item.quantity != null ? String(parseFloat(item.quantity)) : '1'
+        });
+      };
+      const saveLaborEdit = async () => {
+        const le = laborEdit; if (!le) return;
+        const rt = le.rate_type;
+        const up = rt === 'per_sqft' ? parseFloat(le.rate_sqft || 0) : parseFloat(le.unit_price || 0);
+        const qty = rt === 'per_sqft' ? parseFloat(le.labor_sqft || 0) : parseFloat(le.quantity || 1);
+        if (!(up * qty > 0)) return alert('Labor subtotal must be greater than zero.');
+        if (le.labor_category === 'other' && !le.custom_name.trim()) return alert('Name this labor line.');
+        setLaborEditSaving(true);
+        try {
+          await repFetch('/api/rep/orders/' + editId + '/items/' + le.itemId + '/labor', {
+            method: 'PUT',
+            body: JSON.stringify({
+              labor_category: le.labor_category,
+              product_name: le.labor_category === 'other' ? le.custom_name.trim() : null,
+              description: le.description,
+              rate_type: rt,
+              rate_sqft: rt === 'per_sqft' ? up : null,
+              labor_sqft: rt === 'per_sqft' ? qty : null,
+              unit_price: up, quantity: qty
+            })
+          });
+          setLaborEdit(null);
+          load();
+        } catch (err) { alert(err.message || 'Failed to update labor'); }
+        setLaborEditSaving(false);
+      };
 
       // Open the "Schedule install" form, pre-filled from the current schedule.
       const openScheduleForm = () => {
@@ -17495,6 +17547,12 @@
                                   <span style={{ marginLeft: '0.5rem', color: 'var(--stone-400)' }}>by {a.rep_name} on {new Date(a.created_at).toLocaleDateString()}</span>
                                 </div>
                               ))}
+                            </div>
+                          )}
+                          {isLabor && (
+                            <div style={{ marginTop: 12 }}>
+                              <button className="rof-btn-light" style={{ padding: '0.35rem 0.75rem', font: '500 0.6875rem/1 Inter, sans-serif' }}
+                                onClick={() => openLaborEdit(item)}>{'✎'} Edit labor line</button>
                             </div>
                           )}
                         </div>
@@ -18717,6 +18775,82 @@
 
           {/* F. Modals (unchanged) — payment request is now merged into the
               Collect payment drawer as the "Request" method (Totals card). */}
+          {laborEdit && (() => {
+            const le = laborEdit;
+            const isSqft = le.rate_type === 'per_sqft';
+            const isOther = le.labor_category === 'other';
+            const unit = laborUnit(le.labor_category);
+            const up = isSqft ? parseFloat(le.rate_sqft || 0) : parseFloat(le.unit_price || 0);
+            const qty = isSqft ? parseFloat(le.labor_sqft || 0) : parseFloat(le.quantity || 1);
+            const lineTotal = up * qty;
+            const canSave = lineTotal > 0 && !(isOther && !le.custom_name.trim()) && !laborEditSaving;
+            const setLE = (patch) => setLaborEdit(l => ({ ...l, ...patch }));
+            const fl = { display: 'block', font: '500 0.5rem/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 5 };
+            const inBox = { width: '100%', padding: '0.5rem', border: '0.5px solid rgba(28,25,23,0.2)', boxSizing: 'border-box', font: '400 0.875rem/1 Inter, sans-serif', background: '#f5f0e8' };
+            const numInput = (val, onCh) => (
+              <input type="text" inputMode="decimal" placeholder="0" value={val}
+                onChange={e => { const v = e.target.value; if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) onCh(v); }} style={inBox} />
+            );
+            return (
+              <div className="rof-overlay" onMouseDown={e => { if (e.target === e.currentTarget && !laborEditSaving) setLaborEdit(null); }}>
+                <div className="rof-modal-card rof-pop" style={{ maxWidth: 460 }}>
+                  <div style={{ padding: '18px 24px', borderBottom: '0.5px solid rgba(28,25,23,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <div style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#8a7e68' }}>Edit labor line</div>
+                    <div style={{ display: 'inline-flex', border: '0.5px solid rgba(28,25,23,0.2)' }}>
+                      {[['per_sqft', unit === 'lin ft' ? 'Per lin ft' : 'Per sq ft'], ['flat', 'Flat rate']].map(([rt, lbl]) => (
+                        <button key={rt} onClick={() => setLE({ rate_type: rt })}
+                          style={{ padding: '0.35rem 0.7rem', border: 'none', cursor: 'pointer', font: '500 0.5625rem/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase',
+                            background: le.rate_type === rt ? '#1c1917' : 'transparent', color: le.rate_type === rt ? '#f5f0e8' : '#8a7e68' }}>{lbl}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ padding: '16px 24px' }}>
+                    <div style={{ marginBottom: 12 }}>
+                      <label style={fl}>Category</label>
+                      <select value={le.labor_category} onChange={e => setLE({ labor_category: e.target.value })} style={{ ...inBox, background: '#fff' }}>
+                        {Object.entries(laborCatLabels).map(([v, lbl]) => <option key={v} value={v}>{lbl}</option>)}
+                      </select>
+                    </div>
+                    {isOther && (
+                      <div style={{ marginBottom: 12 }}>
+                        <label style={fl}>Name this labor line *</label>
+                        <input type="text" maxLength={60} value={le.custom_name} onChange={e => setLE({ custom_name: e.target.value })} style={inBox} />
+                      </div>
+                    )}
+                    <div style={{ marginBottom: 12 }}>
+                      <label style={fl}>Description</label>
+                      <textarea rows="2" value={le.description} onChange={e => setLE({ description: e.target.value })} style={{ ...inBox, resize: 'vertical' }} />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, flexWrap: 'wrap', paddingTop: 12, borderTop: '0.5px solid rgba(28,25,23,0.08)' }}>
+                      {isSqft ? (
+                        <React.Fragment>
+                          <div style={{ width: 110 }}><label style={fl}>Rate / {unit}</label>{numInput(le.rate_sqft, v => setLE({ rate_sqft: v }))}</div>
+                          <span style={{ paddingBottom: 8, color: '#8a7e68' }}>×</span>
+                          <div style={{ width: 120 }}><label style={fl}>{unit === 'lin ft' ? 'Length' : 'Area'} ({unit})</label>{numInput(le.labor_sqft, v => setLE({ labor_sqft: v }))}</div>
+                        </React.Fragment>
+                      ) : (
+                        <React.Fragment>
+                          <div style={{ width: 110 }}><label style={fl}>Price</label>{numInput(le.unit_price, v => setLE({ unit_price: v }))}</div>
+                          <span style={{ paddingBottom: 8, color: '#8a7e68' }}>×</span>
+                          <div style={{ width: 90 }}><label style={fl}>Qty</label>{numInput(le.quantity, v => setLE({ quantity: v }))}</div>
+                        </React.Fragment>
+                      )}
+                      <div style={{ flex: 1, minWidth: 90, textAlign: 'right' }}>
+                        <div style={{ ...fl, marginBottom: 3 }}>Line total</div>
+                        <div style={{ font: '300 1.4rem/1 "Cormorant Garamond", serif', color: lineTotal > 0 ? '#1c1917' : '#b8ad97' }}>${lineTotal.toFixed(2)}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ padding: '14px 24px', borderTop: '0.5px solid rgba(28,25,23,0.1)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <button className="rof-btn-light" disabled={laborEditSaving} onClick={() => setLaborEdit(null)} style={{ padding: '0.5rem 1rem' }}>Cancel</button>
+                    <button className="rof-btn-light primary" disabled={!canSave} onClick={saveLaborEdit}
+                      style={{ padding: '0.5rem 1.1rem', opacity: canSave ? 1 : 0.5, cursor: canSave ? 'pointer' : 'not-allowed' }}>{laborEditSaving ? 'Saving…' : 'Save changes'}</button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {showSendInvoiceModal && (() => {
             const hasBalance = balanceInfo && balanceInfo.balance > 0.01;
             const noEmail = !(order.customer_email && String(order.customer_email).trim());

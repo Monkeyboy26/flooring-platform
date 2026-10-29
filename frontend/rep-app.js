@@ -10418,6 +10418,8 @@
     const [showSendInvoiceModal, setShowSendInvoiceModal] = useState(false);
     const [invoiceMessage, setInvoiceMessage] = useState("");
     const [sendingInvoice, setSendingInvoice] = useState(false);
+    const [laborEdit, setLaborEdit] = useState(null);
+    const [laborEditSaving, setLaborEditSaving] = useState(false);
     const [showScheduleForm, setShowScheduleForm] = useState(false);
     const [scheduleForm, setScheduleForm] = useState({ date: "", window: "", crew: "", notes: "", notify: false });
     const [savingSchedule, setSavingSchedule] = useState(false);
@@ -10671,6 +10673,62 @@
         setLoading(false);
       }).catch(() => setLoading(false));
     }, [editId]);
+    const laborCatLabels = {
+      installation: "Installation",
+      tearout: "Tearout",
+      underlayment: "Underlayment",
+      transitions: "Transitions",
+      baseboards: "Baseboards",
+      floor_leveling: "Floor Leveling",
+      moisture_barrier: "Moisture Barrier",
+      furniture_moving: "Furniture Moving",
+      other: "Other"
+    };
+    const laborUnit = (cat) => cat === "baseboards" ? "lin ft" : "sqft";
+    const openLaborEdit = (item) => {
+      const numStr = (v) => v == null || v === "" ? "" : String(parseFloat(v));
+      setLaborEdit({
+        itemId: item.id,
+        labor_category: item.labor_category || "installation",
+        custom_name: item.labor_category === "other" ? item.product_name || "" : "",
+        description: item.description || "",
+        rate_type: item.rate_type || "per_sqft",
+        rate_sqft: numStr(item.rate_sqft),
+        labor_sqft: numStr(item.labor_sqft),
+        unit_price: numStr(item.unit_price),
+        quantity: item.quantity != null ? String(parseFloat(item.quantity)) : "1"
+      });
+    };
+    const saveLaborEdit = async () => {
+      const le = laborEdit;
+      if (!le) return;
+      const rt = le.rate_type;
+      const up = rt === "per_sqft" ? parseFloat(le.rate_sqft || 0) : parseFloat(le.unit_price || 0);
+      const qty = rt === "per_sqft" ? parseFloat(le.labor_sqft || 0) : parseFloat(le.quantity || 1);
+      if (!(up * qty > 0)) return alert("Labor subtotal must be greater than zero.");
+      if (le.labor_category === "other" && !le.custom_name.trim()) return alert("Name this labor line.");
+      setLaborEditSaving(true);
+      try {
+        await repFetch("/api/rep/orders/" + editId + "/items/" + le.itemId + "/labor", {
+          method: "PUT",
+          body: JSON.stringify({
+            labor_category: le.labor_category,
+            product_name: le.labor_category === "other" ? le.custom_name.trim() : null,
+            description: le.description,
+            rate_type: rt,
+            rate_sqft: rt === "per_sqft" ? up : null,
+            labor_sqft: rt === "per_sqft" ? qty : null,
+            unit_price: up,
+            quantity: qty
+          })
+        });
+        setLaborEdit(null);
+        load();
+      } catch (err) {
+        alert(err.message || "Failed to update labor");
+      }
+      setLaborEditSaving(false);
+    };
     const openScheduleForm = () => {
       const iso = order && order.install_scheduled_at;
       setScheduleForm({
@@ -11446,7 +11504,16 @@
             const cap = recv != null ? Math.min(recv, ordered) : 0;
             const avail = Math.max(0, cap - released);
             return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "rod-li-cell-label" }, "Received"), /* @__PURE__ */ React.createElement("div", { className: "rod-li-cell-value", style: { color: recv == null ? "var(--rod-muted)" : void 0 } }, recv == null ? "Not recorded" : parseFloat(recv.toFixed(2)) + " of " + parseFloat(ordered.toFixed(2)))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "rod-li-cell-label" }, "To release"), /* @__PURE__ */ React.createElement("div", { className: "rod-li-cell-value", style: { color: avail > 0 ? void 0 : "var(--rod-muted)" } }, parseFloat(avail.toFixed(2)))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "rod-li-cell-label" }, "Released"), /* @__PURE__ */ React.createElement("div", { className: "rod-li-cell-value", style: { color: released > 0 ? released + 1e-3 >= ordered ? "var(--rod-green)" : "var(--rod-accent)" : "var(--rod-muted)" } }, released > 0 ? parseFloat(released.toFixed(2)) + " of " + parseFloat(ordered.toFixed(2)) : "None")));
-          })()), itemAdj.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 12, fontSize: "0.6875rem", color: "var(--stone-500)" } }, /* @__PURE__ */ React.createElement("div", { className: "rod-li-cell-label" }, "Price history"), itemAdj.map((a) => /* @__PURE__ */ React.createElement("div", { key: a.id, style: { marginBottom: "0.15rem" } }, "$", parseFloat(a.previous_unit_price).toFixed(2), " \u2192 $", parseFloat(a.new_unit_price).toFixed(2), a.reason && /* @__PURE__ */ React.createElement("span", null, " \u2014 ", a.reason), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "0.5rem", color: "var(--stone-400)" } }, "by ", a.rep_name, " on ", new Date(a.created_at).toLocaleDateString()))))));
+          })()), itemAdj.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 12, fontSize: "0.6875rem", color: "var(--stone-500)" } }, /* @__PURE__ */ React.createElement("div", { className: "rod-li-cell-label" }, "Price history"), itemAdj.map((a) => /* @__PURE__ */ React.createElement("div", { key: a.id, style: { marginBottom: "0.15rem" } }, "$", parseFloat(a.previous_unit_price).toFixed(2), " \u2192 $", parseFloat(a.new_unit_price).toFixed(2), a.reason && /* @__PURE__ */ React.createElement("span", null, " \u2014 ", a.reason), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "0.5rem", color: "var(--stone-400)" } }, "by ", a.rep_name, " on ", new Date(a.created_at).toLocaleDateString())))), isLabor && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 12 } }, /* @__PURE__ */ React.createElement(
+            "button",
+            {
+              className: "rof-btn-light",
+              style: { padding: "0.35rem 0.75rem", font: "500 0.6875rem/1 Inter, sans-serif" },
+              onClick: () => openLaborEdit(item)
+            },
+            "\u270E",
+            " Edit labor line"
+          ))));
         });
       })(),
       /* @__PURE__ */ React.createElement("div", { style: { padding: "14px 20px", borderTop: "1px solid rgba(28,25,23,0.13)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 8 } }, /* @__PURE__ */ React.createElement("span", { style: { font: "500 9px/1 ui-monospace, monospace", letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--rod-muted)" } }, "Invoice note"), !editingInvoiceNote && /* @__PURE__ */ React.createElement(
@@ -12235,7 +12302,62 @@
         onClose: () => setRugModalItem(null),
         onAdd: addRugToOrder
       }
-    ), showSendInvoiceModal && (() => {
+    ), laborEdit && (() => {
+      const le = laborEdit;
+      const isSqft = le.rate_type === "per_sqft";
+      const isOther = le.labor_category === "other";
+      const unit = laborUnit(le.labor_category);
+      const up = isSqft ? parseFloat(le.rate_sqft || 0) : parseFloat(le.unit_price || 0);
+      const qty = isSqft ? parseFloat(le.labor_sqft || 0) : parseFloat(le.quantity || 1);
+      const lineTotal = up * qty;
+      const canSave = lineTotal > 0 && !(isOther && !le.custom_name.trim()) && !laborEditSaving;
+      const setLE = (patch) => setLaborEdit((l) => ({ ...l, ...patch }));
+      const fl = { display: "block", font: "500 0.5rem/1 ui-monospace, monospace", letterSpacing: "0.1em", textTransform: "uppercase", color: "#8a7e68", marginBottom: 5 };
+      const inBox = { width: "100%", padding: "0.5rem", border: "0.5px solid rgba(28,25,23,0.2)", boxSizing: "border-box", font: "400 0.875rem/1 Inter, sans-serif", background: "#f5f0e8" };
+      const numInput = (val, onCh) => /* @__PURE__ */ React.createElement(
+        "input",
+        {
+          type: "text",
+          inputMode: "decimal",
+          placeholder: "0",
+          value: val,
+          onChange: (e) => {
+            const v = e.target.value;
+            if (v === "" || /^\d*\.?\d{0,2}$/.test(v)) onCh(v);
+          },
+          style: inBox
+        }
+      );
+      return /* @__PURE__ */ React.createElement("div", { className: "rof-overlay", onMouseDown: (e) => {
+        if (e.target === e.currentTarget && !laborEditSaving) setLaborEdit(null);
+      } }, /* @__PURE__ */ React.createElement("div", { className: "rof-modal-card rof-pop", style: { maxWidth: 460 } }, /* @__PURE__ */ React.createElement("div", { style: { padding: "18px 24px", borderBottom: "0.5px solid rgba(28,25,23,0.1)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { style: { font: "500 9px/1 ui-monospace, monospace", letterSpacing: "0.2em", textTransform: "uppercase", color: "#8a7e68" } }, "Edit labor line"), /* @__PURE__ */ React.createElement("div", { style: { display: "inline-flex", border: "0.5px solid rgba(28,25,23,0.2)" } }, [["per_sqft", unit === "lin ft" ? "Per lin ft" : "Per sq ft"], ["flat", "Flat rate"]].map(([rt, lbl]) => /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          key: rt,
+          onClick: () => setLE({ rate_type: rt }),
+          style: {
+            padding: "0.35rem 0.7rem",
+            border: "none",
+            cursor: "pointer",
+            font: "500 0.5625rem/1 ui-monospace, monospace",
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            background: le.rate_type === rt ? "#1c1917" : "transparent",
+            color: le.rate_type === rt ? "#f5f0e8" : "#8a7e68"
+          }
+        },
+        lbl
+      )))), /* @__PURE__ */ React.createElement("div", { style: { padding: "16px 24px" } }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("label", { style: fl }, "Category"), /* @__PURE__ */ React.createElement("select", { value: le.labor_category, onChange: (e) => setLE({ labor_category: e.target.value }), style: { ...inBox, background: "#fff" } }, Object.entries(laborCatLabels).map(([v, lbl]) => /* @__PURE__ */ React.createElement("option", { key: v, value: v }, lbl)))), isOther && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("label", { style: fl }, "Name this labor line *"), /* @__PURE__ */ React.createElement("input", { type: "text", maxLength: 60, value: le.custom_name, onChange: (e) => setLE({ custom_name: e.target.value }), style: inBox })), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("label", { style: fl }, "Description"), /* @__PURE__ */ React.createElement("textarea", { rows: "2", value: le.description, onChange: (e) => setLE({ description: e.target.value }), style: { ...inBox, resize: "vertical" } })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "flex-end", gap: 10, flexWrap: "wrap", paddingTop: 12, borderTop: "0.5px solid rgba(28,25,23,0.08)" } }, isSqft ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { width: 110 } }, /* @__PURE__ */ React.createElement("label", { style: fl }, "Rate / ", unit), numInput(le.rate_sqft, (v) => setLE({ rate_sqft: v }))), /* @__PURE__ */ React.createElement("span", { style: { paddingBottom: 8, color: "#8a7e68" } }, "\xD7"), /* @__PURE__ */ React.createElement("div", { style: { width: 120 } }, /* @__PURE__ */ React.createElement("label", { style: fl }, unit === "lin ft" ? "Length" : "Area", " (", unit, ")"), numInput(le.labor_sqft, (v) => setLE({ labor_sqft: v })))) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { width: 110 } }, /* @__PURE__ */ React.createElement("label", { style: fl }, "Price"), numInput(le.unit_price, (v) => setLE({ unit_price: v }))), /* @__PURE__ */ React.createElement("span", { style: { paddingBottom: 8, color: "#8a7e68" } }, "\xD7"), /* @__PURE__ */ React.createElement("div", { style: { width: 90 } }, /* @__PURE__ */ React.createElement("label", { style: fl }, "Qty"), numInput(le.quantity, (v) => setLE({ quantity: v })))), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 90, textAlign: "right" } }, /* @__PURE__ */ React.createElement("div", { style: { ...fl, marginBottom: 3 } }, "Line total"), /* @__PURE__ */ React.createElement("div", { style: { font: '300 1.4rem/1 "Cormorant Garamond", serif', color: lineTotal > 0 ? "#1c1917" : "#b8ad97" } }, "$", lineTotal.toFixed(2))))), /* @__PURE__ */ React.createElement("div", { style: { padding: "14px 24px", borderTop: "0.5px solid rgba(28,25,23,0.1)", display: "flex", gap: 8, justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement("button", { className: "rof-btn-light", disabled: laborEditSaving, onClick: () => setLaborEdit(null), style: { padding: "0.5rem 1rem" } }, "Cancel"), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "rof-btn-light primary",
+          disabled: !canSave,
+          onClick: saveLaborEdit,
+          style: { padding: "0.5rem 1.1rem", opacity: canSave ? 1 : 0.5, cursor: canSave ? "pointer" : "not-allowed" }
+        },
+        laborEditSaving ? "Saving\u2026" : "Save changes"
+      ))));
+    })(), showSendInvoiceModal && (() => {
       const hasBalance = balanceInfo && balanceInfo.balance > 0.01;
       const noEmail = !(order.customer_email && String(order.customer_email).trim());
       return /* @__PURE__ */ React.createElement("div", { className: "rof-overlay", onMouseDown: (e) => {

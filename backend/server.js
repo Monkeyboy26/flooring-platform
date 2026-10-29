@@ -21872,6 +21872,70 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
   }
 });
 
+// Edit a labor line on a placed order (rep). Same rules as the price-adjust
+// path: a direct edit logged to order_price_adjustments, with order totals
+// recomputed. Recomputes the line subtotal server-side from the rate so the
+// money is authoritative. See [[labor-item-editing]].
+app.put('/api/rep/orders/:id/items/:itemId/labor', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id, itemId } = req.params;
+    const { labor_category, rate_type, rate_sqft, labor_sqft, unit_price, quantity, description, product_name } = req.body;
+
+    await client.query('BEGIN');
+    const item = await client.query('SELECT * FROM order_items WHERE id = $1 AND order_id = $2', [itemId, id]);
+    if (!item.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order item not found' }); }
+    const current = item.rows[0];
+    if ((current.item_type || 'material') !== 'labor') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Not a labor line' }); }
+
+    const rt = (rate_type === 'per_sqft' || rate_type === 'flat') ? rate_type : (current.rate_type || 'per_sqft');
+    const cat = labor_category || current.labor_category || 'installation';
+    let up, qty;
+    if (rt === 'per_sqft') {
+      up = parseFloat(rate_sqft != null ? rate_sqft : (current.rate_sqft || 0));
+      qty = parseFloat(labor_sqft != null ? labor_sqft : (current.labor_sqft || 0));
+    } else {
+      up = parseFloat(unit_price != null ? unit_price : (current.unit_price || 0));
+      qty = parseFloat(quantity != null ? quantity : (current.quantity || 1));
+    }
+    if (isNaN(up) || up < 0 || isNaN(qty) || qty < 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Invalid rate or quantity' }); }
+    const sub = parseFloat((up * qty).toFixed(2));
+    if (!(sub > 0)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Labor subtotal must be greater than zero.' }); }
+
+    const name = cat === 'other' ? (((product_name || '').trim()) || current.product_name || null) : null;
+    const desc = description !== undefined ? description : current.description;
+    const prevPrice = parseFloat(current.unit_price || 0);
+    const prevSubtotal = parseFloat(current.subtotal || 0);
+
+    await client.query(
+      `UPDATE order_items SET labor_category = $1, rate_type = $2, rate_sqft = $3, labor_sqft = $4,
+         unit_price = $5, quantity = $6, subtotal = $7, product_name = $8, description = $9 WHERE id = $10`,
+      [cat, rt, rt === 'per_sqft' ? up.toFixed(2) : null, rt === 'per_sqft' ? qty : null,
+       up.toFixed(2), qty, sub.toFixed(2), name, desc, itemId]
+    );
+
+    await client.query(
+      `INSERT INTO order_price_adjustments (order_item_id, rep_id, previous_unit_price, new_unit_price, previous_subtotal, new_subtotal, reason)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [itemId, req.rep.id, prevPrice, up, prevSubtotal, sub, 'labor edit']
+    );
+
+    await recalcOrderTotals(client, id);
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    await logOrderActivity(client, id, 'price_adjusted', req.rep.id, repName,
+      { product_name: name || ('Labor · ' + String(cat).replace(/_/g, ' ')), previous_price: prevPrice.toFixed(2), new_price: up.toFixed(2), reason: 'labor edit' });
+
+    await client.query('COMMIT');
+    const updated = await client.query('SELECT * FROM order_items WHERE id = $1', [itemId]);
+    res.json({ success: true, item: updated.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
 // Apply / change a manual discount on an order (rep). Sets orders.discount_amount
 // (a dollar amount off the total), recomputes totals, and logs 'discount_changed'
 // — which latches the order REVISED (stamping the invoice) when it was already
