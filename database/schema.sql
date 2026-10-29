@@ -636,6 +636,17 @@ CREATE TABLE quotes (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Duplicate-send guard: dedupes rapid repeat sends of the same document (PO,
+-- invoice, visit recap, material release, payment request, sample-to-vendor,
+-- …) across the manual send endpoints. claimEmailSend(kind, entity_id) upserts
+-- here and only permits a send when none happened within its recency window.
+CREATE TABLE IF NOT EXISTS email_send_claims (
+    kind TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    sent_at TIMESTAMP NOT NULL DEFAULT now(),
+    PRIMARY KEY (kind, entity_id)
+);
+
 CREATE TABLE quote_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     quote_id UUID NOT NULL REFERENCES quotes(id) ON DELETE CASCADE,

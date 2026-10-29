@@ -5745,6 +5745,43 @@ async function logEstimateEvent(db, estimateId, eventType, { body = null, meta =
   }
 }
 
+// Duplicate-send guard for manual "send document" endpoints (PO, invoice, visit
+// recap, material release, payment request, sample-to-vendor, …). A single
+// atomic upsert claims (kind, entityId): it returns a row only when no send for
+// that document happened within `windowSeconds`, so a double-click / client
+// retry / second tab can't email the customer or vendor the same document
+// several times (the RDE-10102 failure mode). Same 30s recency semantics as the
+// quote/estimate sent_at guards. Fails OPEN — a guard error never blocks a real
+// send. See [[duplicate-send-guard]].
+async function claimEmailSend(kind, entityId, windowSeconds = 30) {
+  if (entityId == null || entityId === '') return true;  // nothing to key on
+  try {
+    const r = await pool.query(
+      `INSERT INTO email_send_claims (kind, entity_id, sent_at)
+         VALUES ($1, $2, now())
+       ON CONFLICT (kind, entity_id) DO UPDATE SET sent_at = now()
+         WHERE email_send_claims.sent_at <= now() - make_interval(secs => $3)
+       RETURNING sent_at`,
+      [kind, String(entityId), windowSeconds]
+    );
+    return r.rows.length > 0;
+  } catch (err) {
+    console.error('[claimEmailSend] guard error — allowing send:', err.message);
+    return true;
+  }
+}
+
+// Release a claim taken by claimEmailSend() when the send did NOT go out (e.g.
+// SMTP returned not-sent), so a legitimate retry isn't suppressed by the window.
+async function releaseEmailClaim(kind, entityId) {
+  if (entityId == null || entityId === '') return;
+  try {
+    await pool.query('DELETE FROM email_send_claims WHERE kind = $1 AND entity_id = $2', [kind, String(entityId)]);
+  } catch (err) {
+    console.error('[releaseEmailClaim] cleanup failed (non-fatal):', err.message);
+  }
+}
+
 async function getNextSampleNumber() {
   return nextRdFamilyNumber(pool, 'RDS-');
 }
@@ -11827,6 +11864,9 @@ app.post('/api/admin/orders/:id/payment-request', staffAuth, requireRole('admin'
         console.error(`[Admin] Payment request: PDF generation failed for ${o.order_number}, sending without attachment:`, pdfErr.message);
       }
       await attachRep(o);
+      // Suppress a duplicate payment-request email from a rapid repeat click; the
+      // payment link itself is already persisted on the order either way.
+      if (!(await claimEmailSend('payment-request', id))) return;
       sendPaymentRequest({ order: o, amount: amountDue, checkout_url: session.url, message: message || null,
         items, pdf_buffer: pdfBuffer, expires_at: paymentRequestRow.expires_at });
     });
@@ -17031,6 +17071,9 @@ app.post('/api/rep/releases/:id/email', repAuth, async (req, res) => {
       if (pdf) attachments = [{ filename: built.filename, content: pdf, contentType: 'application/pdf' }];
     } catch (pdfErr) { console.error('[Releases] Release-form PDF for email failed:', pdfErr.message); }
 
+    if (!(await claimEmailSend('release-email', req.params.id))) {
+      return res.json({ success: true, sent: true, deduped: true, to: release.customer_email });
+    }
     const result = await sendMaterialRelease({
       release_number: release.release_number, order_number: release.order_number,
       customer_name: release.customer_name, customer_email: release.customer_email,
@@ -17041,7 +17084,10 @@ app.post('/api/rep/releases/:id/email', repAuth, async (req, res) => {
       items: emailItems,
     }, { attachments });
 
-    if (!result || !result.sent) return res.status(502).json({ error: 'Email could not be sent — SMTP may not be configured.' });
+    if (!result || !result.sent) {
+      await releaseEmailClaim('release-email', req.params.id);
+      return res.status(502).json({ error: 'Email could not be sent — SMTP may not be configured.' });
+    }
     res.json({ success: true, sent: true, to: release.customer_email });
   } catch (err) {
     console.error('[Releases] Email release failed:', err);
@@ -17090,6 +17136,12 @@ app.post('/api/staff/orders/:id/send-invoice', staffAuth, async (req, res) => {
     const balanceDue = balanceInfo && balanceInfo.balance > 0.01 ? balanceInfo.balance : 0;
     let checkoutUrl = null;
     const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+
+    // De-dupe rapid repeat sends before creating a 2nd payment request / Stripe
+    // session / email (released in catch so a failed attempt can be retried).
+    if (!(await claimEmailSend('order-invoice', id))) {
+      return res.json({ success: true, deduped: true, sent_to: o.customer_email, balance_due: balanceDue, payment_requested: balanceDue > 0 });
+    }
 
     if (balanceDue > 0) {
       // Insert the request row first so its id can ride in the session's
@@ -17154,6 +17206,7 @@ app.post('/api/staff/orders/:id/send-invoice', staffAuth, async (req, res) => {
       payment_requested: balanceDue > 0
     });
   } catch (err) {
+    await releaseEmailClaim('order-invoice', req.params.id);
     console.error('[Staff] Send invoice error:', err);
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -18338,6 +18391,9 @@ app.post('/api/rep/visits/:id/send', repAuth, async (req, res) => {
     const recapUrl = `${storefrontUrl}/visit/${visit.token}`;
     const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
 
+    if (!(await claimEmailSend('visit-recap', visit.id))) {
+      return res.json({ success: true, deduped: true });
+    }
     await sendVisitRecap({
       customer_name: visit.customer_name,
       customer_email: visit.customer_email,
@@ -18450,6 +18506,9 @@ app.post('/api/admin/visits/:id/send', staffAuth, requireRole('admin', 'manager'
     const recapUrl = `${storefrontUrl}/visit/${visit.token}`;
     const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
 
+    if (!(await claimEmailSend('visit-recap', visit.id))) {
+      return res.json({ success: true, deduped: true });
+    }
     await sendVisitRecap({
       customer_name: visit.customer_name,
       customer_email: visit.customer_email,
@@ -19176,6 +19235,9 @@ app.post('/api/rep/sample-requests/:id/send-to-vendor', repAuth, async (req, res
 
     const pdfBuffer = await generatePDFBuffer(html);
 
+    if (!(await claimEmailSend('sample-to-vendor', req.params.id))) {
+      return res.json({ vendor_name: vendor.name, vendor_email: toEmail, sent: true, deduped: true });
+    }
     const emailResult = await sendSampleRequestToVendor({
       vendor_email: toEmail,
       vendor_name: vendor.name,
@@ -22562,6 +22624,9 @@ app.post('/api/rep/orders/:id/payment-request', repAuth, async (req, res) => {
         console.error(`[Rep] Payment request: PDF generation failed for ${o.order_number}, sending without attachment:`, pdfErr.message);
       }
       await attachRep(o);
+      // Suppress a duplicate payment-request email from a rapid repeat click; the
+      // payment link itself is already persisted on the order either way.
+      if (!(await claimEmailSend('payment-request', id))) return;
       sendPaymentRequest({ order: o, amount: amountDue, checkout_url: session.url, message: message || null,
         items, pdf_buffer: pdfBuffer, expires_at: paymentRequestRow.expires_at });
     });
@@ -23814,6 +23879,9 @@ app.post('/api/admin/releases/:releaseId/email', staffAuth, requireRole('admin',
       if (pdf) attachments = [{ filename: built.filename, content: pdf, contentType: 'application/pdf' }];
     } catch (pdfErr) { console.error('[Releases] Release-form PDF for email failed:', pdfErr.message); }
 
+    if (!(await claimEmailSend('release-email', req.params.releaseId))) {
+      return res.json({ success: true, sent: true, deduped: true, to: release.customer_email });
+    }
     const result = await sendMaterialRelease({
       release_number: release.release_number, order_number: release.order_number,
       customer_name: release.customer_name, customer_email: release.customer_email,
@@ -23824,7 +23892,10 @@ app.post('/api/admin/releases/:releaseId/email', staffAuth, requireRole('admin',
       items: emailItems,
     }, { attachments });
 
-    if (!result || !result.sent) return res.status(502).json({ error: 'Email could not be sent — SMTP may not be configured.' });
+    if (!result || !result.sent) {
+      await releaseEmailClaim('release-email', req.params.releaseId);
+      return res.status(502).json({ error: 'Email could not be sent — SMTP may not be configured.' });
+    }
     res.json({ success: true, sent: true, to: release.customer_email });
   } catch (err) {
     console.error('[Releases] Email release (staff) failed:', err);
@@ -24800,6 +24871,9 @@ app.post('/api/rep/share-product', repAuth, async (req, res) => {
     const product_url = `${siteUrl}/shop/${p.slug || product_id}`;
 
     const rep = req.rep;
+    if (!(await claimEmailSend('product-share', `${product_id}:${String(customer_email).trim().toLowerCase()}`))) {
+      return res.json({ success: true, deduped: true });
+    }
     await sendProductShare({
       product_name: p.collection ? `${p.collection} ${p.name}` : p.name,
       collection: p.collection,
@@ -25359,6 +25433,12 @@ app.post('/api/rep/orders/:id/send-invoice', repAuth, async (req, res) => {
     let checkoutUrl = null;
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
 
+    // De-dupe rapid repeat sends before creating a 2nd payment request / Stripe
+    // session / email (released in catch so a failed attempt can be retried).
+    if (!(await claimEmailSend('order-invoice', id))) {
+      return res.json({ success: true, deduped: true, sent_to: o.customer_email, balance_due: balanceDue, payment_requested: balanceDue > 0 });
+    }
+
     if (balanceDue > 0) {
       // Insert the request row first so its id can ride in the session's
       // create-time metadata (this SDK version has no sessions.update).
@@ -25424,6 +25504,7 @@ app.post('/api/rep/orders/:id/send-invoice', repAuth, async (req, res) => {
       payment_requested: balanceDue > 0
     });
   } catch (err) {
+    await releaseEmailClaim('order-invoice', req.params.id);
     console.error('[Rep] Send invoice error:', err);
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -26174,7 +26255,8 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
         const poData = await generatePOHtml(pool, poId);
         if (poData) {
           const pdfBuffer = await generatePDFBuffer(poData.html, PO_PDF_MARGIN);
-          const result = await sendPurchaseOrderToVendor({
+          const result = (await claimEmailSend('po-send', poId))
+            ? await sendPurchaseOrderToVendor({
             vendor_email: toEmail,
             vendor_name: po.vendor_name,
             po_number: po.po_number,
@@ -26187,7 +26269,8 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
             vendor_contact_email: po.vendor_contact_email,
             cc_list: ccOverride || undefined,
             notes: emailNotes || undefined
-          });
+          })
+            : { sent: true, deduped: true };  // deduped: a PO email went out moments ago
           emailSent = result.sent;
         }
       } catch (emailErr) {
@@ -26375,7 +26458,8 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
         const poData = await generatePOHtml(pool, poId);
         if (poData) {
           const pdfBuffer = await generatePDFBuffer(poData.html, PO_PDF_MARGIN);
-          const result = await sendPurchaseOrderToVendor({
+          const result = (await claimEmailSend('po-send', poId))
+            ? await sendPurchaseOrderToVendor({
             vendor_email: toEmail,
             vendor_name: po.vendor_name,
             po_number: po.po_number,
@@ -26388,7 +26472,8 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
             vendor_contact_email: po.vendor_contact_email,
             cc_list: ccOverride || undefined,
             notes: emailNotes || undefined
-          });
+          })
+            : { sent: true, deduped: true };  // deduped: a PO email went out moments ago
           emailSent = result.sent;
         }
       } catch (emailErr) {
@@ -32073,6 +32158,10 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
       return res.status(500).json({ error: 'PDF generation failed. Puppeteer may not be available.' });
     }
 
+    if (!(await claimEmailSend('po-send', poId))) {
+      const cur = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+      return res.json({ purchase_order: cur.rows[0] || null, sent_via: 'email', email_sent: true, deduped: true });
+    }
     emailResult = await sendPurchaseOrderToVendor({
       vendor_email: po.vendor_email,
       vendor_name: po.vendor_name,
@@ -32102,6 +32191,7 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
         [poId, req.staff.id, staffName, po.vendor_email, po.revision || 0,
          JSON.stringify({ reason: 'email_delivery_failed', ...(ediDetails || {}) })]
       );
+      await releaseEmailClaim('po-send', poId);
       return res.status(502).json({ error: `Couldn't email the PO to ${po.vendor_email} (mail server error). The PO was NOT sent and is unchanged — verify the vendor email and try again.` });
     }
 
@@ -33784,6 +33874,9 @@ app.post('/api/admin/accounting/invoices/:id/send', staffAuth, requireRole('admi
       WHERE ii.invoice_id = $1 ORDER BY ii.sort_order`, [req.params.id]);
     await enrichItemsForNaming(items.rows);
 
+    if (!(await claimEmailSend('accounting-invoice', req.params.id))) {
+      return res.json({ sent: true, deduped: true });
+    }
     // Send email
     try {
       await sendInvoiceSent({ ...invoice, items: items.rows });
@@ -33961,6 +34054,9 @@ app.post('/api/admin/accounting/invoices/:id/send-reminder', staffAuth, requireR
     const invoice = result.rows[0];
     if (!['overdue', 'sent', 'partial'].includes(invoice.status)) {
       return res.status(400).json({ error: 'Reminders can only be sent for overdue, sent, or partial invoices' });
+    }
+    if (!(await claimEmailSend('invoice-reminder', req.params.id))) {
+      return res.json({ success: true, deduped: true });
     }
     await sendInvoiceReminder(invoice);
     res.json({ success: true });
@@ -37007,6 +37103,26 @@ async function runMigrations() {
     await pool.query('ALTER TABLE quotes ADD COLUMN IF NOT EXISTS tax_rate DECIMAL(5,4) DEFAULT 0');
     await pool.query('ALTER TABLE quotes ADD COLUMN IF NOT EXISTS tax_amount DECIMAL(10,2) DEFAULT 0');
     console.log('Migrations: quotes tax columns applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
+
+  // Duplicate-send guard: dedupe rapid repeat sends of the same document across
+  // the manual send endpoints (quote/estimate already use per-row sent_at; this
+  // backs the rest — PO, invoice, visit recap, release, payment request, etc.).
+  // claimEmailSend() upserts (kind, entity_id) and only allows a send when none
+  // happened within its window. See [[duplicate-send-guard]].
+  try {
+    await pool.query('ALTER TABLE quotes ADD COLUMN IF NOT EXISTS sent_at TIMESTAMP');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS email_send_claims (
+        kind TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        sent_at TIMESTAMP NOT NULL DEFAULT now(),
+        PRIMARY KEY (kind, entity_id)
+      );
+    `);
+    console.log('Migrations: email_send_claims table applied');
   } catch (err) {
     console.error('Migration warning:', err.message);
   }
