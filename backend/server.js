@@ -27047,12 +27047,37 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
       recipient = [...new Set(list)].join(', ');
     }
 
-    // Mark as sent — validity runs 10 days from send (resends refresh it)
+    // Mark as sent — validity runs 10 days from send (resends refresh it).
+    // De-dupe rapid repeat sends (double-click, client retry, a second tab):
+    // claim under a row lock and skip the email if the quote was sent seconds
+    // ago, so the customer isn't emailed the same quote several times.
     const quoteExpiresAt = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
-    await pool.query(
-      "UPDATE quotes SET status = 'sent', expires_at = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
-      [id, quoteExpiresAt]
-    );
+    const claim = await pool.connect();
+    let quoteDeduped = false;
+    try {
+      await claim.query('BEGIN');
+      const locked = await claim.query(
+        "SELECT (sent_at IS NOT NULL AND sent_at > now() - interval '30 seconds') AS recent FROM quotes WHERE id = $1 FOR UPDATE",
+        [id]
+      );
+      if (locked.rows[0] && locked.rows[0].recent) {
+        quoteDeduped = true;
+      } else {
+        await claim.query(
+          "UPDATE quotes SET status = 'sent', sent_at = CURRENT_TIMESTAMP, expires_at = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+          [id, quoteExpiresAt]
+        );
+      }
+      await claim.query('COMMIT');
+    } catch (claimErr) {
+      try { await claim.query('ROLLBACK'); } catch (_) { /* already failed */ }
+      throw claimErr;
+    } finally {
+      claim.release();
+    }
+    if (quoteDeduped) {
+      return res.json({ success: true, emailed: true, deduped: true, message: 'Quote already sent moments ago to ' + recipient });
+    }
     q.expires_at = quoteExpiresAt;
 
     // Fetch quote items for the email
@@ -28712,10 +28737,36 @@ async function deliverEstimate(bundle, rep) {
   const isResend = e.status === 'sent';
   const previousExpiry = e.expires_at;
   const newExpiry = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-  await pool.query(
-    "UPDATE estimates SET status = 'sent', sent_at = CURRENT_TIMESTAMP, expires_at = $2, reminder_sent_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
-    [e.id, newExpiry]
-  );
+
+  // De-dupe rapid repeat sends (double-click, client retry, a second browser
+  // tab): claim the send under a row lock and skip if this estimate was already
+  // sent seconds ago, so the customer isn't emailed the same estimate several
+  // times (the cause of RDE-10102 going out 3×). The rep UI also disables the
+  // button while a send is in flight. Recency is evaluated in SQL (now() vs
+  // sent_at, same frame of reference) so it's timezone-safe.
+  const claim = await pool.connect();
+  try {
+    await claim.query('BEGIN');
+    const locked = await claim.query(
+      "SELECT (sent_at IS NOT NULL AND sent_at > now() - interval '30 seconds') AS recent FROM estimates WHERE id = $1 FOR UPDATE",
+      [e.id]
+    );
+    if (locked.rows[0] && locked.rows[0].recent) {
+      await claim.query('COMMIT');
+      e.status = 'sent';
+      return { emailed: true, resend: isResend, deduped: true };
+    }
+    await claim.query(
+      "UPDATE estimates SET status = 'sent', sent_at = CURRENT_TIMESTAMP, expires_at = $2, reminder_sent_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+      [e.id, newExpiry]
+    );
+    await claim.query('COMMIT');
+  } catch (claimErr) {
+    try { await claim.query('ROLLBACK'); } catch (_) { /* already failed */ }
+    throw claimErr;
+  } finally {
+    claim.release();
+  }
   e.status = 'sent';
   e.expires_at = newExpiry;
 

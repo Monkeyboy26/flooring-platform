@@ -23453,6 +23453,7 @@
       const [previewMeta, setPreviewMeta] = useState(null);
       const [previewLoading, setPreviewLoading] = useState(false);
       const [sendFeedback, setSendFeedback] = useState(null);
+      const [sending, setSending] = useState(false);
       const [pdfViewer, setPdfViewer] = useState(null);
 
       // Conversion modals
@@ -24135,12 +24136,19 @@
 
       // Send estimate
       const sendEstimate = async () => {
-        if (!estimate) return;
+        if (!estimate || sending) return;   // re-entry guard: one send per click
+        setSending(true);
         setSendFeedback(null);
-        const result = await repFetch('/api/rep/estimates/' + estimate.id + '/send', { method: 'POST' });
-        setEstimate(prev => ({ ...prev, status: 'sent' }));
-        setSendFeedback(result.emailed ? 'Estimate emailed to ' + estimate.customer_email : 'Estimate marked as sent');
-        setShowPreview(false);
+        try {
+          const result = await repFetch('/api/rep/estimates/' + estimate.id + '/send', { method: 'POST' });
+          setEstimate(prev => ({ ...prev, status: 'sent' }));
+          setSendFeedback(result.emailed ? 'Estimate emailed to ' + estimate.customer_email : 'Estimate marked as sent');
+          setShowPreview(false);
+        } catch (err) {
+          setSendFeedback(err.message || 'Failed to send estimate');
+        } finally {
+          setSending(false);
+        }
       };
 
       // ---- Payment schedule (draw schedule) ----
@@ -25731,7 +25739,7 @@
                 </div>
                 <div className="modal-footer">
                   <button className="btn btn-secondary" onClick={() => setShowPreview(false)}>Cancel</button>
-                  <button className="btn btn-primary" onClick={sendEstimate}>Send to Customer</button>
+                  <button className="btn btn-primary" onClick={sendEstimate} disabled={sending}>{sending ? 'Sending…' : 'Send to Customer'}</button>
                 </div>
               </div>
             </div>

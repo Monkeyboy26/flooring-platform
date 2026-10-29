@@ -631,6 +631,7 @@ CREATE TABLE quotes (
     converted_order_id UUID REFERENCES orders(id),
     payment_method VARCHAR(20),
     expires_at TIMESTAMP,
+    sent_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
