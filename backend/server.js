@@ -6003,6 +6003,19 @@ async function writeBackPoLineCost(client, poItem, poUnitCost) {
   return { orderId: oi.order_id, productName: oi.product_name, previousCost: oi.cost, newCost: lineCost.toFixed(2) };
 }
 
+// A catalog line must carry its product_id: the PO generator groups lines by
+// product → vendor. Some add-item payloads (sibling accessories / trims) send
+// only sku_id, which left product_id NULL and silently dropped the line from its
+// vendor's PO (RD-10109: Cloe pencil trims missing from the Bedrosians PO).
+// Resolve product_id from the sku whenever a sku is given but product_id wasn't.
+// [[po-trim-missing-productid]]
+async function resolveProductIdForSku(client, skuId, givenProductId) {
+  if (givenProductId) return givenProductId;
+  if (!skuId) return null;
+  const r = await client.query('SELECT product_id FROM skus WHERE id = $1', [skuId]);
+  return r.rows.length ? r.rows[0].product_id : null;
+}
+
 async function generatePurchaseOrders(orderId, client) {
   // Get order items with vendor and cost info (exclude samples and custom items)
   const itemsResult = await client.query(`
@@ -6016,19 +6029,22 @@ async function generatePurchaseOrders(orderId, client) {
            pr.cut_cost, pr.roll_cost,
            pk.sqft_per_box, pk.roll_width_ft
     FROM order_items oi
-    JOIN products p ON p.id = oi.product_id
-    JOIN vendors v ON v.id = p.vendor_id
     LEFT JOIN skus s ON s.id = oi.sku_id
+    JOIN products p ON p.id = COALESCE(oi.product_id, s.product_id)
+    JOIN vendors v ON v.id = p.vendor_id
     LEFT JOIN pricing pr ON pr.sku_id = s.id
     LEFT JOIN packaging pk ON pk.sku_id = s.id
     WHERE oi.order_id = $1
       AND oi.is_sample = false
-      AND oi.product_id IS NOT NULL
+      AND COALESCE(oi.product_id, s.product_id) IS NOT NULL
       AND COALESCE(oi.item_type, 'material') != 'labor'
   `, [orderId]);
 
   // Custom (off-catalog) lines tied to a known vendor also go on that vendor's
   // PO. One-off vendor lines (custom_vendor text, no vendor_id) never do.
+  // `sku_id IS NULL` keeps this disjoint from the catalog query above, which now
+  // resolves the vendor through the sku for lines whose product_id was never
+  // denormalized (sibling accessories / trims added by sku_id only). [[po-trim-missing-productid]]
   const customItemsResult = await client.query(`
     SELECT oi.id as order_item_id, oi.product_name, oi.num_boxes as qty, oi.unit_price,
            oi.sqft_needed, oi.sell_by, oi.description, oi.cost as custom_cost, oi.vendor_sku,
@@ -6038,6 +6054,7 @@ async function generatePurchaseOrders(orderId, client) {
     WHERE oi.order_id = $1
       AND oi.is_sample = false
       AND oi.product_id IS NULL
+      AND oi.sku_id IS NULL
       AND oi.vendor_id IS NOT NULL
       AND COALESCE(oi.item_type, 'material') != 'labor'
   `, [orderId]);
@@ -16095,10 +16112,13 @@ app.post('/api/trade/bulk-order/confirm', tradeAuth, async (req, res) => {
     const order = orderResult.rows[0];
 
     for (const item of items) {
+      // Denormalize product_id from the sku so every line reaches its vendor PO
+      // (the bulk payload carries only sku_id). [[po-trim-missing-productid]]
+      const productId = await resolveProductIdForSku(client, item.sku_id, item.product_id);
       await client.query(`
-        INSERT INTO order_items (order_id, sku_id, product_name, collection, num_boxes, unit_price, subtotal)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-      `, [order.id, item.sku_id, item.product_name, item.collection || null,
+        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, num_boxes, unit_price, subtotal)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [order.id, productId, item.sku_id, item.product_name, item.collection || null,
           item.num_boxes, item.unit_price, item.subtotal]);
     }
 
@@ -26742,10 +26762,14 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
         // honors an overridden order_items.cost. A rug's server-computed cost wins.
         const rugCost = rug ? (rug.cost != null ? parseFloat(rug.cost).toFixed(2) : null)
           : (item.cost != null && item.cost !== '' && !isNaN(parseFloat(item.cost)) && parseFloat(item.cost) >= 0 ? parseFloat(item.cost).toFixed(2) : null);
+        // Backfill product_id from sku_id for accessory/trim lines that only
+        // carry a sku, so they land on a vendor PO. [[po-trim-missing-productid]]
+        const resolvedProductId = rug ? rug.product_id
+          : await resolveProductIdForSku(client, item.sku_id, item.product_id);
         await client.query(`
           INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, vendor_sku, cost, is_custom_rug, custom_width_ft, custom_length_ft, price_basis, sqft_per_box)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
-        `, [quote.id, item.product_id || null, item.sku_id || null,
+        `, [quote.id, resolvedProductId, item.sku_id || null,
             item.product_name || null, item.collection || null,
             item.description || null,
             item.sqft_needed || null, item.num_boxes || 1,
@@ -27050,11 +27074,14 @@ app.post('/api/rep/quotes/:id/items', repAuth, async (req, res) => {
     if (!sku_id && !quoteItemVendorId && customVendorName && /^\S+@\S+\.\S+$/.test(customVendorEmail)) {
       quoteItemVendorId = await findOrCreateOneOffVendor(client, customVendorName, customVendorEmail);
     }
+    // Sibling-accessory / trim payloads carry only sku_id — backfill product_id
+    // so the line reaches its vendor PO on conversion. [[po-trim-missing-productid]]
+    const resolvedProductId = rug ? rug.product_id : await resolveProductIdForSku(client, sku_id, product_id);
     const itemResult = await client.query(`
       INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, vendor_sku, cost, is_custom_rug, custom_width_ft, custom_length_ft, price_basis, sqft_per_box)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
       RETURNING *
-    `, [id, rug ? rug.product_id : (product_id || null), rug ? rug.sku_id : (sku_id || null),
+    `, [id, resolvedProductId, rug ? rug.sku_id : (sku_id || null),
         rug ? rug.product_name : (product_name || null), rug ? rug.collection : (collection || null),
         rug ? rug.description : (description || null),
         rug ? null : (sqft_needed || null), rug ? rug.num_boxes : (num_boxes || 1),
