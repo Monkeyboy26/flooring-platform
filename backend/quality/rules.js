@@ -968,7 +968,12 @@ export const RULES = [
     // Read-only detector: reads the CACHED verdicts in image_vision_checks
     // (populated out-of-band by verify-image-vision.mjs). It does NOT make any
     // OpenAI calls itself. Only confident mismatches (confidence >= 0.7) surface,
-    // so fix-msi-vision-demote.mjs (or a human) can demote the wrong primary.
+    // so a human (or a demote-to-lifestyle_hidden sweep) can hide the wrong
+    // primary. The verdict is only a live violation while the checked image is
+    // STILL the SKU's primary: once it's demoted out of 'primary' (the fix), the
+    // row no longer reproduces and the nightly diff auto-closes it. media_id is
+    // the exact row the verdict judged; a null linkage (legacy verdicts) stays
+    // conservative and keeps firing.
     async run(pool, { vendorId }) {
       const { rows } = await pool.query(`
         SELECT ivc.sku_id, s.product_id, v.id AS vendor_id, v.code AS vendor_code,
@@ -982,6 +987,10 @@ export const RULES = [
         WHERE ivc.matched = false AND ivc.confidence >= 0.7
           AND s.status = 'active' AND p.status = 'active'
           AND ($1::uuid IS NULL OR v.id = $1)
+          AND (
+            ivc.media_id IS NULL
+            OR EXISTS (SELECT 1 FROM media_assets ma WHERE ma.id = ivc.media_id AND ma.asset_type = 'primary')
+          )
       `, [vendorId]);
       return rows.map(r => ({
         sku_id: r.sku_id, product_id: r.product_id, vendor_id: r.vendor_id,
