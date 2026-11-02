@@ -26309,10 +26309,22 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
     // in the PO document. An empty string clears them; omitting keeps existing.
     const notesOverride = typeof req.body.notes === 'string' ? req.body.notes.slice(0, 2000) : null;
     const toEmail = toOverride || po.vendor_email;
+    // Persist recipient_email ONLY when it's a GENUINE override — an address that
+    // differs from the vendor's current email. A To equal to the vendor email (the
+    // common case — the send dialog pre-fills it) is stored as NULL so that a later
+    // change to the vendor's email propagates to resends instead of being trapped by
+    // a stale snapshot. When the dialog supplies a To ($5 true) we write the column
+    // outright (override or NULL-to-clear); otherwise we leave it. [[po-resend-recipient-snapshot]]
+    const vendorEmailNorm = (po.vendor_email || '').trim().toLowerCase();
+    const recipientOverride = (toOverride && toOverride.toLowerCase() !== vendorEmailNorm) ? toOverride : null;
     if (toOverride || ccOverride || notesOverride !== null) {
       await pool.query(
-        'UPDATE purchase_orders SET recipient_email = COALESCE($2, recipient_email), cc_emails = COALESCE($3, cc_emails), notes = COALESCE($4, notes) WHERE id = $1',
-        [poId, toOverride, ccOverride, notesOverride]);
+        `UPDATE purchase_orders SET
+           recipient_email = CASE WHEN $5::boolean THEN $2 ELSE COALESCE($2, recipient_email) END,
+           cc_emails = COALESCE($3, cc_emails),
+           notes = COALESCE($4, notes)
+         WHERE id = $1`,
+        [poId, recipientOverride, ccOverride, notesOverride, toOverride != null]);
     }
     // Per-line notes printed under each line on the PDF. Map of { po_item_id: text };
     // scoped to this PO so a caller can't write to another PO's items.
