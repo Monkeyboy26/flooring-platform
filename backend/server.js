@@ -28513,6 +28513,9 @@ app.post('/api/rep/estimates/:id/items', repAuth, async (req, res) => {
       if (rug.error) { await client.query('ROLLBACK'); return res.status(400).json({ error: rug.error }); }
     }
 
+    // Backfill product_id from sku_id for accessory/trim lines that carry only a
+    // sku, so the line reaches its vendor PO once the estimate converts. [[po-trim-missing-productid]]
+    const estResolvedProductId = rug ? rug.product_id : await resolveProductIdForSku(client, sku_id, product_id);
     const itemResult = await client.query(`
       INSERT INTO estimate_items (estimate_id, item_type, product_id, sku_id, product_name, collection, description,
         sqft_needed, num_boxes, sell_by, labor_category, rate_type, rate_sqft, labor_sqft,
@@ -28520,7 +28523,7 @@ app.post('/api/rep/estimates/:id/items', repAuth, async (req, res) => {
         price_basis, sqft_per_box)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
       RETURNING *
-    `, [id, rug ? 'material' : (item_type || 'material'), rug ? rug.product_id : (product_id || null), rug ? rug.sku_id : (sku_id || null),
+    `, [id, rug ? 'material' : (item_type || 'material'), estResolvedProductId, rug ? rug.sku_id : (sku_id || null),
         rug ? rug.product_name : (product_name || null), rug ? rug.collection : (collection || null), rug ? rug.description : (description || null),
         rug ? null : (sqft_needed || null), rug ? rug.num_boxes : (num_boxes || null), rug ? 'unit' : (sell_by || null),
         rug ? null : (labor_category || null), rug ? null : (rate_type || null), rug ? null : (rate_sqft || null), rug ? null : (labor_sqft || null),
@@ -29145,13 +29148,15 @@ app.post('/api/rep/estimates/:id/duplicate', repAuth, async (req, res) => {
     // Items (material + labor + custom rug), remapping area_id to the clone.
     const items = await client.query('SELECT * FROM estimate_items WHERE estimate_id = $1 ORDER BY sort_order, created_at', [id]);
     for (const it of items.rows) {
+      // Heal legacy sku-only lines (NULL product_id) on clone so they reach a PO. [[po-trim-missing-productid]]
+      const clonedProductId = await resolveProductIdForSku(client, it.sku_id, it.product_id);
       await client.query(`
         INSERT INTO estimate_items (estimate_id, item_type, product_id, sku_id, product_name, collection, description,
           sqft_needed, num_boxes, sell_by, labor_category, rate_type, rate_sqft, labor_sqft,
           unit_price, quantity, subtotal, sort_order, area_id, cost, is_custom_rug, custom_width_ft, custom_length_ft,
           price_basis, sqft_per_box)
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)`,
-        [newId, it.item_type, it.product_id, it.sku_id, it.product_name, it.collection, it.description,
+        [newId, it.item_type, clonedProductId, it.sku_id, it.product_name, it.collection, it.description,
          it.sqft_needed, it.num_boxes, it.sell_by, it.labor_category, it.rate_type, it.rate_sqft, it.labor_sqft,
          it.unit_price, it.quantity, it.subtotal, it.sort_order, it.area_id ? (areaMap[it.area_id] || null) : null,
          it.cost, it.is_custom_rug, it.custom_width_ft, it.custom_length_ft, it.price_basis, it.sqft_per_box]);
