@@ -9444,8 +9444,27 @@
                 // Skip for slab/prefab products — their length (1st dim) is constant, so width
                 // heuristics misfire; the dedicated Size pills above the price handle those.
                 const _isSlabVariant = /prefab|slab/i.test(sku.variant_name || '') || mainSiblings.some(s => /prefab|slab/i.test(s.variant_name || ''));
+                // When a sub_line (Format) axis maps 1:1 to size — Mannington ADURA, where each
+                // format carries exactly one plank size (Flex=2.5mm/6x48, Max=8mm/6x48,
+                // APEX=8mm/8x72, Rigid=5.5mm/6x48) — the Format selector already determines the
+                // size, so the width/size selectors below are redundant. Worse, the width
+                // heuristic buckets the 4 formats into 2 plank-widths {6",8"} (a broken Size row)
+                // and re-points the color pills to wrong-format SKUs, which the sub_line filter
+                // then strips (stranding the Color row). Detect that case and let Format be the
+                // sole size-bearing selector. Scoped to "size is a pure function of sub_line" so
+                // Roman-numeral Series lines (size varies within a series) are unaffected.
+                const _subLineSizes = new Map(); // sub_line value -> Set of size values
+                allSiblings.forEach(s => {
+                  const sl = (s.attributes || []).find(a => a.slug === 'sub_line');
+                  const sz = (s.attributes || []).find(a => a.slug === 'size');
+                  if (sl && sl.value && sz && sz.value) {
+                    if (!_subLineSizes.has(sl.value)) _subLineSizes.set(sl.value, new Set());
+                    _subLineSizes.get(sl.value).add(sz.value);
+                  }
+                });
+                const _sizeFollowsSubLine = _subLineSizes.size > 1 && [..._subLineSizes.values()].every(set => set.size === 1);
                 let sibSizeItems = [];
-                if (mainSiblings.length > 0 && !showSizePills && !_isSlabVariant) {
+                if (mainSiblings.length > 0 && !showSizePills && !_isSlabVariant && !_sizeFollowsSubLine) {
                   const _getWidthRaw = (attrs) => { const ol = (attrs || []).find(a => a.slug === 'overall_length'); if (ol) return ol.value; const wa = (attrs || []).find(a => a.slug === 'width'); return wa ? wa.value : null; };
                   const _getWidthNum = (attrs, vn) => { const raw = _getWidthRaw(attrs); if (raw) return parseFractionalInches(raw); const m = (vn || '').match(/\b(\d+(?:[-\s]\d+\/\d+)?\.?\d*)\s*["″]/); return m ? parseFractionalInches(m[1]) : null; };
                   const _getSize = (attrs) => { const sa = (attrs || []).find(a => a.slug === 'size'); return sa ? sa.value : null; };
@@ -9509,7 +9528,7 @@
 
                 // Size pills from size attribute (tile vendors like Roca: Arena 12X24, Arena 24X48)
                 let attrSizeItems = [];
-                if (!showSizePills && sibSizeItems.length === 0 && !slabSizeIsPrefab && mainSiblings.length > 0) {
+                if (!showSizePills && sibSizeItems.length === 0 && !slabSizeIsPrefab && mainSiblings.length > 0 && !_sizeFollowsSubLine) {
                   const _getSizeAttr = (attrs) => { const sa = (attrs || []).find(a => a.slug === 'size'); return sa ? sa.value : null; };
                   const curSizeVal = _getSizeAttr(sku.attributes);
                   // Tolerate an inch mark between the dimension and the separator — some
@@ -9537,7 +9556,7 @@
                   }
                 }
                 // Augment with collection-wide sizes for consistent pills across the collection
-                if (!showSizePills && sibSizeItems.length === 0 && !slabSizeIsPrefab && collectionAttributes.size && (collectionAttributes.size.values || []).length >= 2) {
+                if (!showSizePills && sibSizeItems.length === 0 && !slabSizeIsPrefab && !_sizeFollowsSubLine && collectionAttributes.size && (collectionAttributes.size.values || []).length >= 2) {
                   const _csa = (attrs) => { const sa = (attrs || []).find(a => a.slug === 'size'); return sa ? sa.value : null; };
                   let curSz = _csa(sku.attributes);
                   const _dimRe = /(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)/;

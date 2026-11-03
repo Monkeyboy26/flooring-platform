@@ -6969,8 +6969,18 @@
       const _hasCountertopFinish = (sku.attributes || []).some((a) => a.slug === "countertop_finish") || allSiblings.some((s) => (s.attributes || []).some((a) => a.slug === "countertop_finish"));
       const showFinishPills = collectionFinishItems.length > 0 && !_isDecorativeHW && !_hasCountertopFinish;
       const _isSlabVariant = /prefab|slab/i.test(sku.variant_name || "") || mainSiblings.some((s) => /prefab|slab/i.test(s.variant_name || ""));
+      const _subLineSizes = /* @__PURE__ */ new Map();
+      allSiblings.forEach((s) => {
+        const sl = (s.attributes || []).find((a) => a.slug === "sub_line");
+        const sz = (s.attributes || []).find((a) => a.slug === "size");
+        if (sl && sl.value && sz && sz.value) {
+          if (!_subLineSizes.has(sl.value)) _subLineSizes.set(sl.value, /* @__PURE__ */ new Set());
+          _subLineSizes.get(sl.value).add(sz.value);
+        }
+      });
+      const _sizeFollowsSubLine = _subLineSizes.size > 1 && [..._subLineSizes.values()].every((set) => set.size === 1);
       let sibSizeItems = [];
-      if (mainSiblings.length > 0 && !showSizePills && !_isSlabVariant) {
+      if (mainSiblings.length > 0 && !showSizePills && !_isSlabVariant && !_sizeFollowsSubLine) {
         const _getWidthRaw = (attrs) => {
           const ol = (attrs || []).find((a) => a.slug === "overall_length");
           if (ol) return ol.value;
@@ -7063,7 +7073,7 @@
         }
       }
       let attrSizeItems = [];
-      if (!showSizePills && sibSizeItems.length === 0 && !slabSizeIsPrefab && mainSiblings.length > 0) {
+      if (!showSizePills && sibSizeItems.length === 0 && !slabSizeIsPrefab && mainSiblings.length > 0 && !_sizeFollowsSubLine) {
         const _getSizeAttr = (attrs) => {
           const sa = (attrs || []).find((a) => a.slug === "size");
           return sa ? sa.value : null;
@@ -7088,7 +7098,7 @@
           }
         }
       }
-      if (!showSizePills && sibSizeItems.length === 0 && !slabSizeIsPrefab && collectionAttributes.size && (collectionAttributes.size.values || []).length >= 2) {
+      if (!showSizePills && sibSizeItems.length === 0 && !slabSizeIsPrefab && !_sizeFollowsSubLine && collectionAttributes.size && (collectionAttributes.size.values || []).length >= 2) {
         const _csa = (attrs) => {
           const sa = (attrs || []).find((a) => a.slug === "size");
           return sa ? sa.value : null;
