@@ -3140,6 +3140,8 @@
       const fetchFacetsRef = useRef(null);
       const fetchSkusAbort = useRef(null);
       const fetchFacetsAbort = useRef(null);
+      // Last resolved SKU-fetch args, so a stuck load can be re-fired on resume.
+      const lastSkuFetch = useRef(null);
 
       // ---- Fetch SKUs ----
       const fetchSkus = useCallback((opts = {}) => {
@@ -3149,6 +3151,9 @@
           activeFilters: filters, sort: sortBy, page: currentPage,
           vendors: vendorFilters, priceMin: userPriceRange.min, priceMax: userPriceRange.max, tags: tagFilters, ...opts
         };
+        // Remember the query so a hung/stuck load can be replayed on resume. Drop
+        // restoreScroll — a recovery refetch shouldn't yank the page to an old spot.
+        lastSkuFetch.current = { cat, coll, collVendor, search, activeFilters, sort, page, vendors, priceMin, priceMax, tags };
         const params = new URLSearchParams();
         if (cat) params.set('category', cat);
         if (coll) params.set('collection', coll);
@@ -3275,6 +3280,26 @@
       // Keep refs up to date so popstate always uses latest versions
       fetchSkusRef.current = fetchSkus;
       fetchFacetsRef.current = fetchFacets;
+
+      // Recover from stuck skeletons. Mobile Safari can leave a fetch hung forever
+      // after the tab is backgrounded (OS tears down the socket, but the promise
+      // never settles and the per-attempt abort timer is frozen while suspended), so
+      // the grid stays on the loading skeleton with no error to retry from. When the
+      // user returns to a still-loading page, replay the last query to break the hang.
+      useEffect(() => {
+        if (!loadingSkus) return;
+        const onVisible = () => {
+          if (document.visibilityState === 'visible' && loadingSkus && lastSkuFetch.current) {
+            fetchSkusRef.current(lastSkuFetch.current);
+          }
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        window.addEventListener('pageshow', onVisible);
+        return () => {
+          document.removeEventListener('visibilitychange', onVisible);
+          window.removeEventListener('pageshow', onVisible);
+        };
+      }, [loadingSkus]);
 
       // ---- URL Helpers ----
       const buildShopUrl = (cat, coll, search, af, vf, prMin, prMax, tf) => {
@@ -6740,7 +6765,7 @@
 
     // ==================== Category Hero ====================
 
-    function CategoryHero({ category, collectionName, brandName, crumbs, searchQuery, totalSkus, vendorCount }) {
+    function CategoryHero({ category, collectionName, brandName, crumbs, searchQuery, totalSkus, loading, vendorCount }) {
       if (searchQuery) {
         return (
           <div className="category-header-editorial category-header-search">
@@ -6757,13 +6782,15 @@
                 ))}
               </div>
               <div className="cat-header-stats">
-                {totalSkus} result{totalSkus !== 1 ? 's' : ''}
+                {loading ? 'Searching\u2026' : (totalSkus + ' result' + (totalSkus !== 1 ? 's' : ''))}
               </div>
             </div>
             <div className="cat-header-body cat-header-body-search">
               <div>
                 <h1 className="cat-header-headline">
-                  {totalSkus} results for {'\u2018'}<em>{searchQuery}</em>{'\u2019'}
+                  {loading
+                    ? <>Searching for {'\u2018'}<em>{searchQuery}</em>{'\u2019'}{'\u2026'}</>
+                    : <>{totalSkus} results for {'\u2018'}<em>{searchQuery}</em>{'\u2019'}</>}
                 </h1>
               </div>
             </div>
@@ -6800,7 +6827,7 @@
               ))}
             </div>
             <div className="cat-header-stats">
-              {totalSkus} product{totalSkus !== 1 ? 's' : ''}
+              {loading ? 'Searching…' : (totalSkus + ' product' + (totalSkus !== 1 ? 's' : ''))}
             </div>
           </div>
           <div className="cat-header-body">
@@ -6884,7 +6911,7 @@
 
       return (
         <>
-          <CategoryHero category={currentCategory} collectionName={selectedCollection} brandName={brandName} crumbs={crumbs} searchQuery={searchQuery} totalSkus={totalSkus} vendorCount={vendorFacets ? vendorFacets.length : 0} />
+          <CategoryHero category={currentCategory} collectionName={selectedCollection} brandName={brandName} crumbs={crumbs} searchQuery={searchQuery} totalSkus={totalSkus} loading={loading} vendorCount={vendorFacets ? vendorFacets.length : 0} />
           {isParentLanding && landingChildren.length > 0 && (
             <div className="subcategory-strip">
               <div className="subcategory-strip-grid" style={{ gridTemplateColumns: 'repeat(' + Math.min(landingChildren.length, 6) + ', 1fr)' }}>
