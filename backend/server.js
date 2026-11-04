@@ -6371,6 +6371,19 @@ function classifyAcquisition(attr) {
   const firstSrc = classifyAttributionTouch(attr.first);
   return (firstSrc && firstSrc !== 'direct') ? firstSrc : (lastSrc || firstSrc);
 }
+// Attribution for TRADE APPLICATIONS (same shape the storefront sends with
+// orders) → sanitized touches + a queryable trade_customers.acquisition_source.
+// Lets campaigns like the CSLB postcards (utm_source=cslb&utm_medium=postcard
+// → 'cslb-postcard') be measured in trade signups, not just orders.
+function tradeAttributionFields(body) {
+  let attribution = null;
+  if (body && body.attribution && typeof body.attribution === 'object') {
+    const f = sanitizeAttributionTouch(body.attribution.first);
+    const l = sanitizeAttributionTouch(body.attribution.last);
+    if (f || l) attribution = { first: f, last: l };
+  }
+  return { attribution, acquisitionSource: classifyAcquisition(attribution) };
+}
 
 app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, async (req, res) => {
   // Honeypot: hidden field that real users never fill in
@@ -14331,10 +14344,12 @@ app.post('/api/trade/register', registrationLimiter, async (req, res) => {
     }
 
     const { hash, salt } = await hashPassword(password);
+    const { attribution, acquisitionSource } = tradeAttributionFields(req.body);
     const ins = await pool.query(
-      `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone, created_via)
-       VALUES ($1, $2, $3, $4, $5, $6, 'self') RETURNING id`,
-      [email.toLowerCase().trim(), hash, salt, collapse(company_name), titleCaseName(contact_name), formatPhone(phone) || null]
+      `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone, created_via, acquisition_source, attribution)
+       VALUES ($1, $2, $3, $4, $5, $6, 'self', $7, $8) RETURNING id`,
+      [email.toLowerCase().trim(), hash, salt, collapse(company_name), titleCaseName(contact_name), formatPhone(phone) || null,
+       acquisitionSource, attribution ? JSON.stringify(attribution) : null]
     );
 
     // Every trade account gets an owning rep from day one (random active rep;
@@ -14575,10 +14590,12 @@ app.post('/api/trade/register/enhanced', registrationLimiter, async (req, res) =
     await client.query('BEGIN');
 
     const { hash, salt } = await hashPassword(password);
+    const { attribution, acquisitionSource } = tradeAttributionFields(req.body);
     const result = await client.query(
-      `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone, business_type, address_line1, city, state, zip, contractor_license, ein, created_via)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'self') RETURNING id`,
-      [email.toLowerCase().trim(), hash, salt, collapse(company_name), titleCaseName(contact_name), formatPhone(phone) || null, business_type || null, collapse(address_line1), collapse(city), normState(state), zip.trim(), contractor_license || null, ein || null]
+      `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone, business_type, address_line1, city, state, zip, contractor_license, ein, created_via, acquisition_source, attribution)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'self', $14, $15) RETURNING id`,
+      [email.toLowerCase().trim(), hash, salt, collapse(company_name), titleCaseName(contact_name), formatPhone(phone) || null, business_type || null, collapse(address_line1), collapse(city), normState(state), zip.trim(), contractor_license || null, ein || null,
+       acquisitionSource, attribution ? JSON.stringify(attribution) : null]
     );
 
     const customerId = result.rows[0].id;
@@ -14668,10 +14685,12 @@ app.post('/api/customer/trade-upgrade', customerAuth, async (req, res) => {
     } else {
       // Fresh trade row seeded from the retail identity. Credentials are copied so
       // the legacy /api/trade/login keeps working with their existing password.
+      const upAttr = tradeAttributionFields(req.body);
       const ins = await client.query(
-        `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone, business_type, address_line1, city, state, zip, contractor_license, ein, created_via)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'retail_upgrade') RETURNING id`,
-        [cust.email, cust.password_hash, cust.password_salt, collapse(company_name), titleCaseName(contactName), usePhone, business_type || null, collapse(address_line1), collapse(city), normState(state), zip.trim(), contractor_license || null, ein || null]
+        `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone, business_type, address_line1, city, state, zip, contractor_license, ein, created_via, acquisition_source, attribution)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'retail_upgrade',$14,$15) RETURNING id`,
+        [cust.email, cust.password_hash, cust.password_salt, collapse(company_name), titleCaseName(contactName), usePhone, business_type || null, collapse(address_line1), collapse(city), normState(state), zip.trim(), contractor_license || null, ein || null,
+         upAttr.acquisitionSource, upAttr.attribution ? JSON.stringify(upAttr.attribution) : null]
       );
       tradeId = ins.rows[0].id;
     }
@@ -37402,6 +37421,16 @@ async function runMigrations() {
     await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_trade_invites_customer ON trade_invites(customer_id)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_trade_invites_due ON trade_invites(send_after) WHERE status = 'scheduled'`);
     console.log('Migrations: trade_invites table applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
+
+  // Trade application attribution — mirrors orders.acquisition_source so trade
+  // signups are campaign-attributable (e.g. CSLB postcards → 'cslb-postcard').
+  try {
+    await pool.query(`ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS acquisition_source TEXT`);
+    await pool.query(`ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS attribution JSONB`);
+    console.log('Migrations: trade_customers attribution columns applied');
   } catch (err) {
     console.error('Migration warning:', err.message);
   }

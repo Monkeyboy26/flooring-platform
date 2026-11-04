@@ -16854,7 +16854,8 @@
             body: JSON.stringify({
               email, password, company_name: companyName, contact_name: contactName, phone,
               business_type: businessType, address_line1: addressLine1, city, state: addrState, zip,
-              contractor_license: contractorLicense || null, document_ids: docIds
+              contractor_license: contractorLicense || null, document_ids: docIds,
+              attribution: getOrderAttribution()
             })
           });
           const data = await resp.json();
@@ -18771,6 +18772,13 @@
                 )}
                 <a href="tel:+17149990009" style={{ padding: '16px 0 8px', color: ink, cursor: 'pointer', textDecoration: 'none', borderBottom: `1px solid ${ink}`, textTransform: 'uppercase', letterSpacing: '0.1em', font: '500 13px/1 var(--roma-sans)' }}>Talk to a rep · (714) 999-0009 →</a>
               </div>
+              {/* The CSLB fast-track is the postcard campaign's hook — it has to be
+                  visible at the point of action, not three scrolls down in the FAQ. */}
+              {!tradeCustomer && (
+                <p style={{ margin: '14px 0 0', font: '400 13.5px/1.5 var(--roma-sans)', color: `${ink}99` }}>
+                  Hold a CSLB license? Most license-holders are <span style={{ color: ink, fontWeight: 500 }}>approved in about 4 hours</span> — just your license number, no paperwork hunt.
+                </p>
+              )}
             </div>
           </div>
         </section>
@@ -19228,7 +19236,8 @@
               body: JSON.stringify({
                 company_name: companyName, business_type: businessType, phone,
                 address_line1: addressLine1, city, state: addrState, zip,
-                ein: ein.trim() || null, contractor_license: contractorLicense.trim() || null, document_ids: docIds
+                ein: ein.trim() || null, contractor_license: contractorLicense.trim() || null, document_ids: docIds,
+                attribution: getOrderAttribution()
               })
             });
             const data = await resp.json();
@@ -19262,7 +19271,8 @@
             body: JSON.stringify({
               email, password, company_name: companyName, contact_name: `${firstName.trim()}${middleInitial.trim() ? ' ' + middleInitial.trim().replace(/\.+$/, '') + '.' : ''} ${lastName.trim()}`,
               phone, business_type: businessType, address_line1: addressLine1, city, state: addrState, zip,
-              ein: ein.trim() || null, contractor_license: contractorLicense.trim() || null, document_ids: docIds
+              ein: ein.trim() || null, contractor_license: contractorLicense.trim() || null, document_ids: docIds,
+              attribution: getOrderAttribution()
             })
           });
           const data = await resp.json();
