@@ -438,11 +438,21 @@ export async function sendTradeInvite(recipient) {
   try {
     const tiers = await loadTradeTiers();
     const html = generateTradeInviteHTML(recipient, tiers);
+    // When a real savings figure was computed from their order, lead with it —
+    // same >= $50 threshold the template uses for the "your number" card.
+    // Deliberately FORWARD-framed ("your next order") rather than loss-framed
+    // ("you left $X on the table"): same number, but it reads as a gift about
+    // the next order, not an accusation about the last one. (Owner call,
+    // 2026-11 — don't regress this to regret copy.)
+    const savings = Math.round(parseFloat(recipient.savings_estimate) || 0);
+    const subject = savings >= 50
+      ? `Your next order could be $${savings.toLocaleString('en-US')} cheaper — trade pricing at Roma Flooring`
+      : 'You buy like a pro — Roma Trade pricing is waiting';
     await deliver({
       from: repFrom(recipient),
       to: recipient.email,
       replyTo: recipient.rep_email || undefined,
-      subject: 'You buy like a pro — Roma Trade pricing is waiting',
+      subject,
       html
     });
     console.log(`[Email] Trade invite sent to ${recipient.email}`);

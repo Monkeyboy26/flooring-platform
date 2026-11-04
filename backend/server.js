@@ -11,6 +11,7 @@ import path from 'path';
 import dns from 'dns';
 import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendProductInquiryNotification, sendProductInquiryConfirmation, sendNewProductInquiryRepAlert, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendWeeklyTrafficReport, sendBankTransferAwaitingEmail, sendNewOrderStaffAlert, sendNewOrderRepAlert, sendNewSampleRequestRepAlert, sendNewInstallInquiryRepAlert, sendMaterialRelease, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer, sendQualityDiffAlert, SCRAPER_ALERT_ADDR } from './services/emailService.js';
 import { queueReviewRequest, processDueReviewRequests, recordRating, saveFeedback, recordPublicClick, getByToken as getReviewByToken, reviewsEnabled, autoReviewEnabled, sendTestReviewRequest, saveFirstPartyReview, listFirstPartyReviews, setReviewPublished, MIN_PUBLIC_RATING } from './services/reviewService.js';
+import { queueTradeInvite, processDueTradeInvites, tradeInvitesEnabled, autoTradeInviteEnabled, computeOrderTradeSavings } from './services/tradeInviteService.js';
 import { reviewStarPickerPage, reviewWriteReviewPage, reviewPrivateFeedbackPage, reviewGenericThanksPage } from './templates/reviewRequest.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
@@ -10887,6 +10888,8 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
       sendOrderStatusUpdate(updatedOrder, status);
       // Delivered → queue the discreet review-request (auto path).
       if (status === 'delivered' && autoReviewEnabled()) queueReviewRequest(updatedOrder, { createdBy: 'auto' });
+      // Delivered + pro-looking retail buyer → queue the one-time trade invite.
+      if (status === 'delivered' && autoTradeInviteEnabled()) queueTradeInvite(updatedOrder, { createdBy: 'auto' });
     });
 
     // Auto-generate and send invoice when order ships
@@ -14885,6 +14888,42 @@ app.post('/api/admin/trade-invites/send', staffAuth, requireRole('admin', 'manag
     if (staffId) await logAudit(staffId, 'trade.invite', 'trade_customers', existing ? existing.id : null, { email: cleanEmail, order_count: orderCount }, req.ip);
 
     res.json({ sent: true, email: cleanEmail });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Admin: the automated trade-invite queue (tradeInviteService) — scheduled,
+// sent, skipped, and failed invites with their computed savings estimates.
+app.get('/api/admin/trade-invites/queue', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT id, customer_id, order_id, order_number, customer_name, customer_email,
+              company_name, order_total, savings_estimate, order_count, status,
+              send_after, sent_at, created_by, created_at
+         FROM trade_invites ORDER BY created_at DESC LIMIT 200`);
+    res.json({ invites: r.rows });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Admin: run the trade-invite sweep now (instead of waiting for the 15-min tick).
+app.post('/api/admin/trade-invites/process', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    await processDueTradeInvites();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Admin: preview the Silver-tier savings estimate for any order — the number
+// the automated invite would quote. Useful before a manual invite send too.
+app.get('/api/admin/orders/:id/trade-savings', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    const savings = await computeOrderTradeSavings(req.params.id);
+    res.json({ order_id: req.params.id, savings_estimate: savings });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -21443,6 +21482,8 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
         // Queue the discreet "how did we do?" satisfaction check (auto path).
         // Sends after REVIEW_REQUEST_DELAY_HOURS; rating self-routes to public vs. private.
         if (autoReviewEnabled()) queueReviewRequest(updatedOrder, { createdBy: 'auto' });
+        // Pro-looking retail buyer → queue the one-time trade invite.
+        if (autoTradeInviteEnabled()) queueTradeInvite(updatedOrder, { createdBy: 'auto' });
         return;
       }
       sendOrderStatusUpdate(updatedOrder, status);
@@ -37332,6 +37373,39 @@ async function runMigrations() {
     console.error('Migration warning:', err.message);
   }
 
+  // Trade-invite automation queue (tradeInviteService.js): delivered orders from
+  // pro-looking retail buyers get ONE scheduled trade-program invite with a
+  // personalized savings estimate. Unique on customer_id = one invite per
+  // customer ever, which is what keeps this a nudge and not a drip campaign.
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS trade_invites (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
+      order_number TEXT,
+      customer_name TEXT,
+      customer_email TEXT,
+      company_name TEXT,
+      order_total NUMERIC(12,2),
+      savings_estimate NUMERIC(12,2),
+      order_count INTEGER,
+      rep_email TEXT,
+      rep_first_name TEXT,
+      rep_last_name TEXT,
+      status VARCHAR(20) NOT NULL DEFAULT 'scheduled',
+      send_after TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      sent_at TIMESTAMP,
+      created_by VARCHAR(20) NOT NULL DEFAULT 'auto',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_trade_invites_customer ON trade_invites(customer_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_trade_invites_due ON trade_invites(send_after) WHERE status = 'scheduled'`);
+    console.log('Migrations: trade_invites table applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
+
   // SMS consent (TCPA): whether the customer agreed to receive text messages.
   // Captured at the point their number is collected (checkout / rep customer form)
   // and honored by the review-request SMS sender. Default false = no texting until
@@ -37905,6 +37979,13 @@ runMigrations().then(() => {
       setTimeout(() => { processDueReviewRequests(); }, 60 * 1000);
       setInterval(() => { processDueReviewRequests(); }, 15 * 60 * 1000);
       console.log('[Reviews] dispatcher scheduled (every 15 min)');
+    }
+    // Trade-invite dispatcher: same cadence, offset so the two sweeps don't
+    // contend for the pool on the same tick.
+    if (tradeInvitesEnabled()) {
+      setTimeout(() => { processDueTradeInvites(); }, 90 * 1000);
+      setInterval(() => { processDueTradeInvites(); }, 15 * 60 * 1000);
+      console.log('[TradeInvite] dispatcher scheduled (every 15 min)');
     }
   });
 });

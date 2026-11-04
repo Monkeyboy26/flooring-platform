@@ -62,6 +62,10 @@ function benefitsGrid(startPct, topPct, orderWord) {
  *   order_count — optional; number of orders in the last 12 months (drives the
  *                 "you've placed N orders" line; a generic line is used if absent)
  *   note        — optional personal note from the rep, shown in a warm card
+ *   savings_estimate — optional; dollars the recipient's own order(s) would have
+ *                 saved at the starting tier. Shown as a "your number" card when
+ *                 >= $50 (smaller figures undersell the program — omit them).
+ *   order_number — optional; the order the savings figure was computed from
  *   rep_first_name — optional; used to sign the closing line
  * @param {Array} tiers — active margin_tiers rows (low→high); falls back to DEFAULT_TIERS
  */
@@ -100,6 +104,23 @@ export function generateTradeInviteHTML(recipient = {}, tiers = []) {
     body: heroBody
   });
 
+  // Personalized "your number" card — the single most persuasive line we can
+  // write, because it's computed from the recipient's own order at the live
+  // Silver formula (see tradeInviteService.computeOrderTradeSavings).
+  // FORWARD-framed on purpose: the figure is pitched at their NEXT order, never
+  // as money lost on the last one — same math, gift instead of regret. (Owner
+  // call, 2026-11 — don't regress this to "left on the table" copy.)
+  const savings = Math.round(parseFloat(recipient.savings_estimate) || 0);
+  const savingsBlock = savings >= 50 ? section(warmCard(`
+    <div style="font-family:${SERIF};font-size:34px;line-height:1;font-weight:300;letter-spacing:-0.014em;color:${T.ink};">$${savings.toLocaleString('en-US')}</div>
+    <div style="margin-top:7px;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:${T.accent};">On your next order like this</div>
+    <p style="margin:10px 0 0;font-family:${SANS};font-size:13.5px;line-height:1.6;color:${T.body};">
+      That&rsquo;s what ${startPct} trade pricing saves on
+      ${recipient.order_number ? `an order like <span style="color:${T.ink};font-weight:500;">${esc(recipient.order_number)}</span>` : 'an order like your recent one'}
+      &mdash; computed line by line from what you actually buy, at today&rsquo;s prices. With a trade account it&rsquo;s applied automatically, every order.
+    </p>
+  `, '20px 22px'), '0 40px 8px') : '';
+
   const note = (recipient.note || '').trim();
   const noteBlock = note ? section(warmCard(`
     <p style="margin:0;font-family:${SANS};font-size:14px;line-height:1.6;color:${T.body};font-style:italic;">&ldquo;${esc(note)}&rdquo;</p>
@@ -126,6 +147,7 @@ export function generateTradeInviteHTML(recipient = {}, tiers = []) {
 
   const content = `
     ${hero}
+    ${savingsBlock}
     ${noteBlock}
     ${ctaButton({
       href: applyUrl,

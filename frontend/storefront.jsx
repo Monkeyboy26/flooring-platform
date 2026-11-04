@@ -12630,6 +12630,16 @@
                         <div className="co-field-label">Company <span style={{ color: 'var(--stone-400)', fontWeight: 400 }}>(optional)</span></div>
                         <input type="text" autoComplete="organization" value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Company name" />
                       </div>
+                      {/* Trade-pricing disclosure BEFORE payment — a pro-looking order
+                          (company name entered, or contractor-sized total) hears about
+                          trade pricing now, so the post-delivery invite email is a
+                          follow-up to something already disclosed, never an ambush. */}
+                      {!tradeCustomer && (companyName.trim() !== '' || productSubtotal >= 2000) && (
+                        <div style={{ marginTop: 8, padding: '10px 14px', background: 'var(--stone-50)', border: '1px solid var(--stone-200)', fontSize: '0.78rem', lineHeight: 1.55, color: 'var(--stone-600)' }}>
+                          Buying for a business? Trade members get 12&ndash;22% off every line, applied automatically at checkout &mdash; approval takes as little as 4 hours with a contractor license.{' '}
+                          <a href="/trade" target="_blank" rel="noopener" style={{ color: 'var(--stone-800)', textDecoration: 'underline' }} onClick={e => e.stopPropagation()}>See the trade program &rarr;</a>
+                        </div>
+                      )}
                       {!customer && !tradeCustomer && (
                         <>
                           <label className="co-create-account">
