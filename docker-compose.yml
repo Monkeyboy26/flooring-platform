@@ -68,6 +68,13 @@ services:
       # default so dev/test order flows never email real customers.
       REVIEW_AUTO_ENABLED: ${REVIEW_AUTO_ENABLED:-false}
       REVIEW_REQUEST_DELAY_HOURS: ${REVIEW_REQUEST_DELAY_HOURS:-3}
+      # Trade invites: auto-queue on delivered pro-looking orders
+      # (tradeInviteService.js). Same posture as reviews — off by default so
+      # dev/test flows never email real customers; prod .env opts in.
+      TRADE_INVITES_ENABLED: ${TRADE_INVITES_ENABLED:-true}
+      TRADE_INVITE_AUTO_ENABLED: ${TRADE_INVITE_AUTO_ENABLED:-false}
+      TRADE_INVITE_DELAY_HOURS: ${TRADE_INVITE_DELAY_HOURS:-72}
+      TRADE_INVITE_MIN_TOTAL: ${TRADE_INVITE_MIN_TOTAL:-2000}
       # In-app redirect base (Stripe return URLs, claim links) — localhost for dev
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
