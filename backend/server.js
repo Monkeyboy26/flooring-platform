@@ -20308,6 +20308,15 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         const isRoll = sellBy === 'roll';
         let customVendorId = null;
         const oneOffName = !item.vendor_id && item.custom_vendor ? String(item.custom_vendor).trim().slice(0, 120) : '';
+        // A custom line MUST resolve to a vendor (stocked vendor_id or a one-off
+        // vendor name) — else it rides on no PO and is silently dropped from
+        // generatePurchaseOrders (RD-10109 "Union Station" Bellezza mosaic: added
+        // with no vendor, never purchased). The rep UI already requires this; the
+        // admin add-item endpoint already 400s — mirror it here. [[po-trim-missing-productid]]
+        if (!item.vendor_id && !oneOffName) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'A vendor (or one-off vendor name) is required for custom item: ' + item.product_name });
+        }
         if (item.vendor_id) {
           const vendorCheck = await client.query('SELECT id FROM vendors WHERE id = $1', [item.vendor_id]);
           if (!vendorCheck.rows.length) {
@@ -27516,6 +27525,19 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
     if (itemsResult.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Quote has no items' });
+    }
+    // Every off-catalog CUSTOM line must carry a vendor by conversion time. A custom
+    // line with no vendor rides on no PO and is silently dropped from
+    // generatePurchaseOrders (RD-10109: the "Union Station" Bellezza mosaic was quoted
+    // with no vendor and never purchased). The quote stage stays lenient (the vendor
+    // can be filled in later); this is the gate. Mirrors the admin add-item + rep
+    // order-create guards. [[po-trim-missing-productid]]
+    const vendorlessCustom = itemsResult.rows.find(it =>
+      !it.sku_id && !it.product_id && !it.is_sample && !it.is_custom_rug
+      && !it.vendor_id && !(it.custom_vendor && String(it.custom_vendor).trim()));
+    if (vendorlessCustom) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Custom item "' + (vendorlessCustom.product_name || 'item') + '" has no vendor assigned — set a vendor (or one-off vendor) on it before converting so it can be purchased.' });
     }
 
     // Auto-create customer for quote conversion
