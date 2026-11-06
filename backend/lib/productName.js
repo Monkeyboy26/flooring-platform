@@ -385,6 +385,11 @@ export function fullProductName(sku) {
       };
       if (cParts.length > 1 && segDupesName(cParts[0])) cParts = cParts.slice(1);
       if (cParts.length > 1 && segDupesName(cParts[cParts.length - 1])) cParts = cParts.slice(0, -1);
+      // A color baked mid-variant (MSI "24x48 Matte, Praia Crema, 8.1mm") is stripped
+      // only when the segment is the ENTIRE product name — a looser fragment match
+      // would drop a legit distinguishing value (Daltile "Sand and Stone" uses the
+      // words Sand/Stone as per-SKU variant segments).
+      if (cParts.length > 2) cParts = cParts.filter((seg, i) => i === 0 || i === cParts.length - 1 || seg.toLowerCase() !== nLower);
       // Only rebuild when a segment was dropped — otherwise leave the variant
       // untouched so commas inside a value ("Boxes of 2,000pcs") aren't re-spaced.
       if (cParts.length !== origLen) variant = cParts.join(', ') || null;
