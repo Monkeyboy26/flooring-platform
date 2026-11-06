@@ -371,16 +371,23 @@ export function fullProductName(sku) {
     } else {
       variant = formatVariantName(sku.variant_name);
     }
-    // Strip duplicate color from compound variants when it's already in product name
-    // e.g., name="Unique Infinity Beige", variant="Beige, 24x48, Cobblestone" → "24x48, Cobblestone"
+    // Strip duplicate color from compound variants when it's already in product name.
+    // The color can lead ("Beige, 24x48, Cobblestone" → "24x48, Cobblestone") or — e.g.
+    // MSI's "12x24 Matte, Praia Crema" — trail the size/finish. Drop the duplicate
+    // segment from whichever end it sits so the color isn't printed twice
+    // ("Praia Crema 12″ × 24″, Matte, Praia Crema Porcelain Tile").
     if (variant) {
-      const cParts = variant.split(',');
-      if (cParts.length > 1) {
-        const seg = cParts[0].trim().toLowerCase();
-        if (seg.length > 1 && (nLower === seg || nLower.endsWith(' ' + seg) || nLower.startsWith(seg + ' ') || nLower.includes(' ' + seg + ' '))) {
-          variant = cParts.slice(1).map(p => p.trim()).join(', ') || null;
-        }
-      }
+      let cParts = variant.split(',').map(p => p.trim()).filter(Boolean);
+      const origLen = cParts.length;
+      const segDupesName = (seg) => {
+        const s = seg.toLowerCase();
+        return s.length > 1 && (nLower === s || nLower.endsWith(' ' + s) || nLower.startsWith(s + ' ') || nLower.includes(' ' + s + ' '));
+      };
+      if (cParts.length > 1 && segDupesName(cParts[0])) cParts = cParts.slice(1);
+      if (cParts.length > 1 && segDupesName(cParts[cParts.length - 1])) cParts = cParts.slice(0, -1);
+      // Only rebuild when a segment was dropped — otherwise leave the variant
+      // untouched so commas inside a value ("Boxes of 2,000pcs") aren't re-spaced.
+      if (cParts.length !== origLen) variant = cParts.join(', ') || null;
       if (variant) {
         const lastNameWord = nLower.split(/\s+/).pop();
         const firstVarWord = variant.split(/[\s,]+/)[0].toLowerCase();

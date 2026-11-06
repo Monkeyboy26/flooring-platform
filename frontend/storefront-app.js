@@ -1646,13 +1646,15 @@
         variant = formatVariantName(sku.variant_name);
       }
       if (variant) {
-        const cParts = variant.split(",");
-        if (cParts.length > 1) {
-          const seg = cParts[0].trim().toLowerCase();
-          if (seg.length > 1 && (nLower === seg || nLower.endsWith(" " + seg) || nLower.startsWith(seg + " ") || nLower.includes(" " + seg + " "))) {
-            variant = cParts.slice(1).map((p) => p.trim()).join(", ") || null;
-          }
-        }
+        let cParts = variant.split(",").map((p) => p.trim()).filter(Boolean);
+        const origLen = cParts.length;
+        const segDupesName = (seg) => {
+          const s = seg.toLowerCase();
+          return s.length > 1 && (nLower === s || nLower.endsWith(" " + s) || nLower.startsWith(s + " ") || nLower.includes(" " + s + " "));
+        };
+        if (cParts.length > 1 && segDupesName(cParts[0])) cParts = cParts.slice(1);
+        if (cParts.length > 1 && segDupesName(cParts[cParts.length - 1])) cParts = cParts.slice(0, -1);
+        if (cParts.length !== origLen) variant = cParts.join(", ") || null;
         if (variant) {
           const lastNameWord = nLower.split(/\s+/).pop();
           const firstVarWord = variant.split(/[\s,]+/)[0].toLowerCase();
