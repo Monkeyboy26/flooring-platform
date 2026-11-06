@@ -789,8 +789,19 @@ app.get('/api/products/:id', optionalTradeAuth, async (req, res) => {
       SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, COALESCE(pk.sqft_per_pallet, pk.sqft_per_box * pk.boxes_per_pallet) as sqft_per_pallet, pk.weight_per_pallet_lbs,
         pr.cost, pr.retail_price, pr.retail_locked, pr.price_basis,
         inv.qty_on_hand, inv.qty_in_transit, inv.fresh_until,
-        CASE WHEN pk.sqft_per_box > 0 THEN ROUND(COALESCE(inv.qty_on_hand, 0) * pk.sqft_per_box) END as qty_on_hand_sqft,
-        CASE WHEN pk.sqft_per_box > 0 THEN ROUND(COALESCE(inv.qty_in_transit, 0) * pk.sqft_per_box) END as qty_in_transit_sqft,
+        -- Prefer the vendor's own per-warehouse sqft from the snapshot (MSI stores
+        -- exact sqft). Only derive when the snapshot carries no sqft at all, and
+        -- that derivation treats qty_on_hand as BOXES (ROCA/Bellezza convention).
+        -- MSI stores qty_on_hand in PIECES, so the old box-derivation inflated its
+        -- sqft by pieces_per_box (e.g. 1159 pcs * 16 = 18,544 vs the real 2,318).
+        COALESCE(
+          (SELECT SUM(qty_on_hand_sqft) FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW() AND qty_on_hand_sqft IS NOT NULL),
+          CASE WHEN pk.sqft_per_box > 0 THEN ROUND(COALESCE(inv.qty_on_hand, 0) * pk.sqft_per_box) END
+        ) as qty_on_hand_sqft,
+        COALESCE(
+          (SELECT SUM(qty_in_transit_sqft) FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW() AND qty_in_transit_sqft IS NOT NULL),
+          CASE WHEN pk.sqft_per_box > 0 THEN ROUND(COALESCE(inv.qty_in_transit, 0) * pk.sqft_per_box) END
+        ) as qty_in_transit_sqft,
         CASE
           WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
           WHEN inv.qty_on_hand > 10 THEN 'in_stock'
@@ -3337,7 +3348,14 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         pk.boxes_per_pallet, COALESCE(pk.sqft_per_pallet, pk.sqft_per_box * pk.boxes_per_pallet) as sqft_per_pallet, pk.weight_per_pallet_lbs,
         pk.roll_width_ft, pk.roll_length_ft,
         inv.qty_on_hand, inv.qty_in_transit, inv.fresh_until,
-        CASE WHEN pk.sqft_per_box > 0 THEN ROUND(COALESCE(inv.qty_on_hand, 0) * pk.sqft_per_box) END as qty_on_hand_sqft,
+        -- Prefer the vendor's own per-warehouse sqft from the snapshot; derive
+        -- (treating qty_on_hand as BOXES) only when no sqft was recorded. MSI
+        -- stores qty_on_hand in PIECES, so the box-derivation over-counted its
+        -- sqft by pieces_per_box (e.g. 1159 pcs * 16 = 18,544 vs the real 2,318).
+        COALESCE(
+          (SELECT SUM(qty_on_hand_sqft) FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW() - INTERVAL '7 days' AND qty_on_hand_sqft IS NOT NULL),
+          CASE WHEN pk.sqft_per_box > 0 THEN ROUND(COALESCE(inv.qty_on_hand, 0) * pk.sqft_per_box) END
+        ) as qty_on_hand_sqft,
         CASE
           WHEN inv.fresh_until IS NULL THEN 'unknown'
           WHEN inv.qty_on_hand > 10 THEN 'in_stock'
