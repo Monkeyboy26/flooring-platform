@@ -53,6 +53,8 @@ export async function run(pool, job, source) {
   let lastLogged = 0;
   let throttleHits = 0;      // count of 429 responses observed
   let dropped = 0;           // SKUs abandoned after exhausting retries
+  let cappedCells = 0;       // cells where MSI masked a large qty as ">N" (parsed to floor N)
+  let unknownCells = 0;      // cells MSI left un-rendered (template binding) → stored as unknown
 
   // Concurrent worker pool: fetch `concurrency` SKUs in parallel rather than
   // one-at-a-time. The old sequential loop spent ~27 min just sleeping between
@@ -121,7 +123,13 @@ export async function run(pool, job, source) {
 
         found++;
 
-        // Upsert inventory snapshot per region
+        cappedCells += data.capped;
+        unknownCells += data.unknown;
+
+        // Upsert inventory snapshot per region. A null qty means MSI didn't give
+        // us a parseable number for that cell (an un-rendered template binding) —
+        // COALESCE keeps the prior known value rather than clobbering it with a
+        // false 0 that would read as out-of-stock downstream.
         for (const region of data.regions) {
           await pool.query(`
             INSERT INTO inventory_snapshots (
@@ -129,10 +137,10 @@ export async function run(pool, job, source) {
               qty_on_hand_sqft, qty_in_transit_sqft, fresh_until
             ) VALUES ($1, $2, $3, $4, $5, $6, NOW() + INTERVAL '24 hours')
             ON CONFLICT (sku_id, warehouse) DO UPDATE SET
-              qty_on_hand = EXCLUDED.qty_on_hand,
-              qty_in_transit = EXCLUDED.qty_in_transit,
-              qty_on_hand_sqft = EXCLUDED.qty_on_hand_sqft,
-              qty_in_transit_sqft = EXCLUDED.qty_in_transit_sqft,
+              qty_on_hand = COALESCE(EXCLUDED.qty_on_hand, inventory_snapshots.qty_on_hand),
+              qty_in_transit = COALESCE(EXCLUDED.qty_in_transit, inventory_snapshots.qty_in_transit),
+              qty_on_hand_sqft = COALESCE(EXCLUDED.qty_on_hand_sqft, inventory_snapshots.qty_on_hand_sqft),
+              qty_in_transit_sqft = COALESCE(EXCLUDED.qty_in_transit_sqft, inventory_snapshots.qty_in_transit_sqft),
               fresh_until = EXCLUDED.fresh_until,
               snapshot_time = CURRENT_TIMESTAMP
           `, [
@@ -185,7 +193,7 @@ export async function run(pool, job, source) {
     await appendLog(pool, job.id, `${dropped} SKU(s) abandoned after exhausting ${maxRetries} retries under sustained rate limiting`);
   }
 
-  await appendLog(pool, job.id, `Inventory scrape complete. Checked: ${skus.length}, Found: ${found}, Updated: ${updated}, Errors: ${errors}, Throttled: ${throttleHits}, Dropped: ${dropped}`, {
+  await appendLog(pool, job.id, `Inventory scrape complete. Checked: ${skus.length}, Found: ${found}, Updated: ${updated}, Errors: ${errors}, Throttled: ${throttleHits}, Dropped: ${dropped}, Capped cells (>N → floor): ${cappedCells}, Unknown cells: ${unknownCells}`, {
     products_found: found,
     products_updated: updated
   });
@@ -193,9 +201,11 @@ export async function run(pool, job, source) {
 
 /**
  * Fetch inventory data from MSI's public API for a single SKU.
- * Returns { regions: [...] } when data is present, { throttled: true } on HTTP 429
- * (caller should back off and retry — the SKU is NOT missing data), or null when
- * there is genuinely no inventory record.
+ * Returns { regions: [...], capped, unknown } when data is present,
+ * { throttled: true } on HTTP 429 (caller should back off and retry — the SKU
+ * is NOT missing data), or null when there is genuinely no inventory record.
+ *
+ * `capped` / `unknown` are per-SKU cell counts for observability (see parseQty).
  */
 async function fetchInventory(skuCode) {
   const url = INVENTORY_API + encodeURIComponent(skuCode);
@@ -213,6 +223,7 @@ async function fetchInventory(skuCode) {
 
   // Parse the inventory table (class="tblwhse")
   const regions = [];
+  let capped = 0, unknown = 0;
   const rowRegex = /<tr>\s*<td[^>]*translate="no"[^>]*>([\s\S]*?)<\/td>\s*<td>([\s\S]*?)<\/td>\s*<td>([\s\S]*?)<\/td>\s*<td>([\s\S]*?)<\/td>\s*<td>([\s\S]*?)<\/td>\s*<\/tr>/g;
 
   let match;
@@ -220,20 +231,45 @@ async function fetchInventory(skuCode) {
     const geography = match[1].trim();
     if (!geography || geography.includes('GEOGRAPHY')) continue;
 
+    const raw = [match[2], match[3], match[4], match[5]];
+    const qty = raw.map(parseQty);
+    raw.forEach((cell, i) => {
+      if (qty[i] === null) unknown++;
+      else if (/&gt;|&lt;|[<>]/.test(cell)) capped++;
+    });
+
     regions.push({
       geography,
-      qtyInWhsePcs: parseIntSafe(match[2]),
-      qtyInTransitPcs: parseIntSafe(match[3]),
-      qtyInWhseSqft: parseIntSafe(match[4]),
-      qtyInTransitSqft: parseIntSafe(match[5])
+      qtyInWhsePcs: qty[0],
+      qtyInTransitPcs: qty[1],
+      qtyInWhseSqft: qty[2],
+      qtyInTransitSqft: qty[3]
     });
   }
 
   if (regions.length === 0) return null;
 
-  return { regions };
+  return { regions, capped, unknown };
 }
 
-function parseIntSafe(str) {
-  return parseInt((str || '').replace(/,/g, '').trim()) || 0;
+/**
+ * Parse a single MSI inventory cell into a quantity.
+ *
+ * MSI's public page masks large quantities behind a ">" cap (">5,000",
+ * ">15,000", ">1,500", ...) and occasionally leaves a cell as an un-rendered
+ * client-side template binding ("item.WhseQtyAvail"). The exact number above a
+ * cap is not exposed anywhere on the page.
+ *
+ *  - plain number ("3,507")   → 3507
+ *  - capped (">5,000")        → 5000  (correct lower bound; still reads in-stock
+ *                                      downstream, far better than the old 0)
+ *  - binding / junk / empty   → null  (unknown — caller stores NULL, not a false 0)
+ *
+ * The previous parseIntSafe collapsed the capped and binding cases to 0, so the
+ * best-stocked SKUs (~18% of cells) were recorded as out-of-stock.
+ */
+function parseQty(str) {
+  const digits = (str || '').replace(/&gt;|&lt;/g, '').replace(/[<>,\s]/g, '');
+  if (!/^\d+$/.test(digits)) return null;
+  return parseInt(digits, 10);
 }
