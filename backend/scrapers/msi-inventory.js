@@ -10,6 +10,11 @@ const DEFAULT_CONFIG = {
 const INVENTORY_API = 'https://www.msisurfaces.com/inventory/tiledetails/?handler=CatagoryPartial&ItemId=';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
+// The only MSI warehouse region we can fulfill from (Roma is in Anaheim, CA).
+// MSI's inventory table also lists East Coast / Southeast / Canada — those are
+// ignored (see fetchInventory). Must match MSI's row label exactly.
+const WEST_COAST_WAREHOUSE = 'West Coast / Northwest';
+
 /**
  * MSI Inventory scraper (public API).
  *
@@ -18,9 +23,11 @@ const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
  *
  * Endpoint: /inventory/tiledetails/?handler=CatagoryPartial&ItemId={SKU_CODE}
  *
- * Returns per SKU:
- *   - Packaging: sqft/pc, sqft/box, pcs/box, pcs/crate, weight/pc, thickness
- *   - Inventory by region: East Coast, Southeast, West Coast, Canada
+ * MSI's table lists four regions (East Coast, Southeast, West Coast, Canada),
+ * but we only record West Coast / Northwest — the only distribution center we
+ * can fulfill from (Roma is in Anaheim, CA). See WEST_COAST_WAREHOUSE.
+ *
+ * Stored per SKU (West Coast only):
  *     - Qty in warehouse (pcs + sqft)
  *     - Qty in transit (pcs + sqft)
  */
@@ -230,6 +237,13 @@ async function fetchInventory(skuCode) {
   while ((match = rowRegex.exec(html)) !== null) {
     const geography = match[1].trim();
     if (!geography || geography.includes('GEOGRAPHY')) continue;
+
+    // We fulfill from MSI's West Coast / Northwest distribution center only
+    // (Roma is in Anaheim, CA). Stock in the East Coast / Southeast / Canada
+    // warehouses isn't fulfillable, and the storefront stock badge SUMs
+    // qty_on_hand across every warehouse row — so recording those regions would
+    // show out-of-here items as in-stock. Ignore everything but the West Coast.
+    if (geography !== WEST_COAST_WAREHOUSE) continue;
 
     const raw = [match[2], match[3], match[4], match[5]];
     const qty = raw.map(parseQty);
