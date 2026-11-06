@@ -133,10 +133,13 @@ export async function run(pool, job, source) {
         cappedCells += data.capped;
         unknownCells += data.unknown;
 
-        // Upsert inventory snapshot per region. A null qty means MSI didn't give
-        // us a parseable number for that cell (an un-rendered template binding) —
-        // COALESCE keeps the prior known value rather than clobbering it with a
-        // false 0 that would read as out-of-stock downstream.
+        // Upsert inventory snapshot per region. A null qty means MSI left that
+        // cell as an un-rendered template binding (e.g. "item.WhseQtyAvail") —
+        // the real number is not exposed anywhere on the page, even in a full
+        // browser. Store it as NULL (not 0): downstream reads a NULL on-hand as
+        // 'unknown' and shows no stock claim, rather than a false "out of stock".
+        // We write MSI's reading verbatim (parseQty never yields a false 0, so
+        // there is no stale value to protect — a real 0 is a real out-of-stock).
         for (const region of data.regions) {
           await pool.query(`
             INSERT INTO inventory_snapshots (
@@ -144,10 +147,10 @@ export async function run(pool, job, source) {
               qty_on_hand_sqft, qty_in_transit_sqft, fresh_until
             ) VALUES ($1, $2, $3, $4, $5, $6, NOW() + INTERVAL '24 hours')
             ON CONFLICT (sku_id, warehouse) DO UPDATE SET
-              qty_on_hand = COALESCE(EXCLUDED.qty_on_hand, inventory_snapshots.qty_on_hand),
-              qty_in_transit = COALESCE(EXCLUDED.qty_in_transit, inventory_snapshots.qty_in_transit),
-              qty_on_hand_sqft = COALESCE(EXCLUDED.qty_on_hand_sqft, inventory_snapshots.qty_on_hand_sqft),
-              qty_in_transit_sqft = COALESCE(EXCLUDED.qty_in_transit_sqft, inventory_snapshots.qty_in_transit_sqft),
+              qty_on_hand = EXCLUDED.qty_on_hand,
+              qty_in_transit = EXCLUDED.qty_in_transit,
+              qty_on_hand_sqft = EXCLUDED.qty_on_hand_sqft,
+              qty_in_transit_sqft = EXCLUDED.qty_in_transit_sqft,
               fresh_until = EXCLUDED.fresh_until,
               snapshot_time = CURRENT_TIMESTAMP
           `, [
