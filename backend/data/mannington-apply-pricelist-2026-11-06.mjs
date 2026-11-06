@@ -159,8 +159,14 @@ async function main() {
   for (const s of notInList) csv.push(['DB_ONLY', s.vendor_sku, s.product_name, s.variant_name, s.status, s.cost, '', s.retail_price, s.price_basis, ''].map(esc).join(','));
   for (const f of listOnlyFields) csv.push(['LIST_ONLY_FIELD', f.color_code, f.series, f.desc, '', '', f.cost_sqft, '', '', f.series_code].map(esc).join(','));
   for (const r of renames) csv.push(['RENAME', r.vendor_sku, r.product_name, r.old_name, '', '', '', '', '', r.new_name].map(esc).join(','));
-  fs.writeFileSync(CSV_OUT, csv.join('\n') + '\n');
-  console.log(`\nWrote ${CSV_OUT} (${csv.length - 1} rows)`);
+  try {
+    fs.writeFileSync(CSV_OUT, csv.join('\n') + '\n');
+    console.log(`\nWrote ${CSV_OUT} (${csv.length - 1} rows)`);
+  } catch (e) {
+    // prod bind mount is read-only to the container user — CSV is provenance
+    // only (already committed from the local run), not required to apply
+    console.log(`\n(CSV not written: ${e.code} — fine on prod, file is in git)`);
+  }
 
   if (!APPLY) {
     console.log('\nDRY RUN — first 15 planned changes:');
