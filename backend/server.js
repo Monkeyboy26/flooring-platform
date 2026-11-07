@@ -11484,8 +11484,12 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
     let storedProductName, storedDescription;
     if (!isCustom) {
       const descParts = [sku.color, sku.variant_name && sku.variant_name !== sku.color ? sku.variant_name : null].filter(Boolean).join(' · ');
-      storedProductName = sku.collection
-        ? (descParts ? sku.collection + ' — ' + descParts : sku.collection)
+      // Base the stored name on the collection only when there's a color/variant to
+      // append (flooring: "Aspenwood — Amber" avoids the doubled display_name). With
+      // no descriptor the collection alone can be a generic accessory bucket
+      // ("Sink Collection"), so fall back to the real product name. [[sink-collection-name]]
+      storedProductName = (sku.collection && descParts)
+        ? sku.collection + ' — ' + descParts
         : (descParts ? sku.product_name + ' — ' + descParts : sku.product_name);
       storedDescription = descParts || null;
       if (isRug) storedDescription = rug.description;
@@ -22343,8 +22347,12 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
     let storedProductName, storedDescription;
     if (!isCustom) {
       const descParts = [sku.color, sku.variant_name && sku.variant_name !== sku.color ? sku.variant_name : null].filter(Boolean).join(' · ');
-      storedProductName = sku.collection
-        ? (descParts ? sku.collection + ' — ' + descParts : sku.collection)
+      // Base the stored name on the collection only when there's a color/variant to
+      // append (flooring: "Aspenwood — Amber" avoids the doubled display_name). With
+      // no descriptor the collection alone can be a generic accessory bucket
+      // ("Sink Collection"), so fall back to the real product name. [[sink-collection-name]]
+      storedProductName = (sku.collection && descParts)
+        ? sku.collection + ' — ' + descParts
         : (descParts ? sku.product_name + ' — ' + descParts : sku.product_name);
       storedDescription = descParts || null;
       if (isRug) storedDescription = rug.description;

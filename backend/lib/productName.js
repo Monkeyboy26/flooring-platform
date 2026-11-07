@@ -260,8 +260,17 @@ export function fullProductName(sku) {
   // e.g. Bellezza's "Marble Look", "Concrete & Industrial" are grouping concepts, not product names
   const TAXONOMY_COLLECTION_VENDORS = new Set(['BLZ']);
   const TAXONOMY_COLLECTION_VENDOR_NAMES = new Set(['BELLEZZA CERAMICA']);
+  // Some vendors file accessories under a generic bucket "collection" that just
+  // repeats the category and shares no identity with the product name (Genuine
+  // Materials' "Sink Collection" over "Rectangular White Ceramic Undermount Sink").
+  // Prefixing it both doubles the title and — because the bucket contains the
+  // category keyword "Sink" — suppresses the appendTypeSuffix re-add, yielding
+  // "Sink Collection Rectangular White Ceramic Undermount". Treat these bucket
+  // names as taxonomy so the title is just the product name (+ type suffix).
+  const TAXONOMY_COLLECTION_NAMES = new Set(['sink collection']);
   const skipCollectionInTitle = TAXONOMY_COLLECTION_VENDORS.has((sku.vendor_code || '').toUpperCase())
-    || TAXONOMY_COLLECTION_VENDOR_NAMES.has((sku.vendor_name || '').toUpperCase());
+    || TAXONOMY_COLLECTION_VENDOR_NAMES.has((sku.vendor_name || '').toUpperCase())
+    || TAXONOMY_COLLECTION_NAMES.has((col || '').toLowerCase().trim());
 
   // If collection name appears inside product name, remove it to avoid repetition
   // e.g. name="Marble Onice Supreme Marfil", col="Onice Supreme" → "Marble Marfil"

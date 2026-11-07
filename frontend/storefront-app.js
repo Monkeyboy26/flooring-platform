@@ -1558,7 +1558,8 @@
     }
     const TAXONOMY_COLLECTION_VENDORS = /* @__PURE__ */ new Set(["BLZ"]);
     const TAXONOMY_COLLECTION_VENDOR_NAMES = /* @__PURE__ */ new Set(["BELLEZZA CERAMICA"]);
-    const skipCollectionInTitle = TAXONOMY_COLLECTION_VENDORS.has((sku.vendor_code || "").toUpperCase()) || TAXONOMY_COLLECTION_VENDOR_NAMES.has((sku.vendor_name || "").toUpperCase());
+    const TAXONOMY_COLLECTION_NAMES = /* @__PURE__ */ new Set(["sink collection"]);
+    const skipCollectionInTitle = TAXONOMY_COLLECTION_VENDORS.has((sku.vendor_code || "").toUpperCase()) || TAXONOMY_COLLECTION_VENDOR_NAMES.has((sku.vendor_name || "").toUpperCase()) || TAXONOMY_COLLECTION_NAMES.has((col || "").toLowerCase().trim());
     let showCollection = "";
     if (col && name && !skipCollectionInTitle) {
       const colLower = col.toLowerCase();
