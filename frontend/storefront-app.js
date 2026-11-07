@@ -1654,7 +1654,11 @@
         };
         if (cParts.length > 1 && segDupesName(cParts[0])) cParts = cParts.slice(1);
         if (cParts.length > 1 && segDupesName(cParts[cParts.length - 1])) cParts = cParts.slice(0, -1);
-        if (cParts.length > 2) cParts = cParts.filter((seg, i) => i === 0 || i === cParts.length - 1 || seg.toLowerCase() !== nLower);
+        if (cParts.length > 2) cParts = cParts.filter((seg, i) => {
+          if (i === 0 || i === cParts.length - 1) return true;
+          const sl = seg.toLowerCase();
+          return sl !== nLower && !nLower.endsWith(" " + sl);
+        });
         if (cParts.length !== origLen) variant = cParts.join(", ") || null;
         if (variant) {
           const lastNameWord = nLower.split(/\s+/).pop();

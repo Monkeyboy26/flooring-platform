@@ -385,11 +385,17 @@ export function fullProductName(sku) {
       };
       if (cParts.length > 1 && segDupesName(cParts[0])) cParts = cParts.slice(1);
       if (cParts.length > 1 && segDupesName(cParts[cParts.length - 1])) cParts = cParts.slice(0, -1);
-      // A color baked mid-variant (MSI "24x48 Matte, Praia Crema, 8.1mm") is stripped
-      // only when the segment is the ENTIRE product name — a looser fragment match
-      // would drop a legit distinguishing value (Daltile "Sand and Stone" uses the
-      // words Sand/Stone as per-SKU variant segments).
-      if (cParts.length > 2) cParts = cParts.filter((seg, i) => i === 0 || i === cParts.length - 1 || seg.toLowerCase() !== nLower);
+      // A color/pattern baked mid-variant is stripped when the segment is the ENTIRE
+      // product name (MSI "24x48 Matte, Praia Crema, 8.1mm") OR the name's trailing
+      // word(s) (Daltile "Bee Hive Medley Cube Negative" + "…, Cube Negative, Hexagon").
+      // The name's tail is constant across its SKUs, so dropping it can't collapse two
+      // variants — whereas a mid-of-name fragment match would (Daltile "Sand and Stone"
+      // uses Sand/Stone as per-SKU segments, and its names end in Basin/Tundra/etc).
+      if (cParts.length > 2) cParts = cParts.filter((seg, i) => {
+        if (i === 0 || i === cParts.length - 1) return true;
+        const sl = seg.toLowerCase();
+        return sl !== nLower && !nLower.endsWith(' ' + sl);
+      });
       // Only rebuild when a segment was dropped — otherwise leave the variant
       // untouched so commas inside a value ("Boxes of 2,000pcs") aren't re-spaced.
       if (cParts.length !== origLen) variant = cParts.join(', ') || null;
