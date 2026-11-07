@@ -1834,7 +1834,16 @@
         }
       }
     }
-    const result = [brand, showCollection, productLine, orderedName, orderedVariant, subLineNumeral].filter(Boolean).join(" ");
+    let shownCollection = showCollection;
+    if (shownCollection) {
+      const brandForStrip = (sku.brand_name || ((sku.attributes || []).find((a) => a.slug === "brand") || {}).value || "").trim();
+      const bl = brandForStrip.toLowerCase();
+      const sc = shownCollection.toLowerCase();
+      if (bl && sc !== bl && sc.startsWith(bl) && /[\s—–-]/.test(shownCollection.charAt(brandForStrip.length) || "")) {
+        shownCollection = shownCollection.slice(brandForStrip.length).replace(/^[\s—–-]+/, "").trim();
+      }
+    }
+    const result = [brand, shownCollection, productLine, orderedName, orderedVariant, subLineNumeral].filter(Boolean).join(" ");
     return appendTypeSuffix(result, sku.category_name);
   }
   function productExtra(product, collection, color) {

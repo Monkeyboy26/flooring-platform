@@ -635,7 +635,22 @@ export function fullProductName(sku) {
       }
     }
   }
-  const result = [brand, showCollection, productLine, orderedName, orderedVariant, subLineNumeral].filter(Boolean).join(' ');
+  // The brand is rendered separately (card chip / PDP eyebrow / doc meta line), so a
+  // collection that LEADS with the brand name prints it twice — Genuine Materials'
+  // "Genuine Quartz — Clearance" under a "Genuine Quartz" chip, or "Thinmaxx Backing"
+  // under "Thinmaxx". Drop the leading brand from the shown collection. brand_name is
+  // the chip's source (present on storefront sku payloads); fall back to the brand
+  // attribute (line items via skuShapeFromLine carry it there). [[gm-brand-in-collection-dup]]
+  let shownCollection = showCollection;
+  if (shownCollection) {
+    const brandForStrip = (sku.brand_name || ((sku.attributes || []).find(a => a.slug === 'brand') || {}).value || '').trim();
+    const bl = brandForStrip.toLowerCase();
+    const sc = shownCollection.toLowerCase();
+    if (bl && sc !== bl && sc.startsWith(bl) && /[\s—–-]/.test(shownCollection.charAt(brandForStrip.length) || '')) {
+      shownCollection = shownCollection.slice(brandForStrip.length).replace(/^[\s—–-]+/, '').trim();
+    }
+  }
+  const result = [brand, shownCollection, productLine, orderedName, orderedVariant, subLineNumeral].filter(Boolean).join(' ');
   return appendTypeSuffix(result, sku.category_name);
 }
 
