@@ -29307,6 +29307,9 @@
  },
  "rolls": [
   {
+   "series": "Benchmark",
+   "pattern": "Deco",
+   "color": "Wrought Iron",
    "desc": "Deco Wrought Iron",
    "catalog": "358721",
    "style_code": "BM",
@@ -29317,6 +29320,9 @@
    "page": 1
   },
   {
+   "series": "Benchmark",
+   "pattern": "Havana",
+   "color": "Tobacco",
    "desc": "Havana Tobacco",
    "catalog": "285322",
    "style_code": "BM",
@@ -29327,6 +29333,9 @@
    "page": 1
   },
   {
+   "series": "Benchmark",
+   "pattern": "Muir's Point",
+   "color": "Riverstone Blend",
    "desc": "Muir's Point Riverstone Blend",
    "catalog": "61656",
    "style_code": "BM",
@@ -29337,6 +29346,9 @@
    "page": 1
   },
   {
+   "series": "Benchmark",
+   "pattern": "Muir's Point",
+   "color": "Natural Pumice",
    "desc": "Muir's Point Natural Pumice",
    "catalog": "61653",
    "style_code": "BM",
@@ -29347,6 +29359,9 @@
    "page": 1
   },
   {
+   "series": "Benchmark",
+   "pattern": "San Dona",
+   "color": "Mountain Mist",
    "desc": "San Dona* Mountain Mist",
    "catalog": "6177",
    "style_code": "BM",
@@ -29357,6 +29372,9 @@
    "page": 1
   },
   {
+   "series": "Benchmark",
+   "pattern": "San Dona",
+   "color": "Mountain Mist",
    "desc": "San Dona* Mountain Mist",
    "catalog": "6180",
    "style_code": "BM",
@@ -29367,6 +29385,9 @@
    "page": 1
   },
   {
+   "series": "Benchmark",
+   "pattern": "Muir's Point",
+   "color": "Riverstone Blend",
    "desc": "Muir's Point* Riverstone Blend",
    "catalog": "61613",
    "style_code": "BM",
@@ -29377,6 +29398,9 @@
    "page": 1
   },
   {
+   "series": "Benchmark",
+   "pattern": "Muir's Point",
+   "color": "Natural Pumice",
    "desc": "Muir's Point* Natural Pumice",
    "catalog": "61610",
    "style_code": "BM",
@@ -29387,6 +29411,9 @@
    "page": 1
   },
   {
+   "series": "Benchmark",
+   "pattern": "Hive",
+   "color": "Pollen",
    "desc": "Hive* Pollen",
    "catalog": "365422",
    "style_code": "BM",
@@ -29397,6 +29424,9 @@
    "page": 1
   },
   {
+   "series": "Benchmark",
+   "pattern": "Hive",
+   "color": "Pollen",
    "desc": "Hive* Pollen",
    "catalog": "358742",
    "style_code": "BM",
@@ -29407,6 +29437,9 @@
    "page": 1
   },
   {
+   "series": "Benchmark",
+   "pattern": "Havana",
+   "color": "Tobacco",
    "desc": "Havana* Tobacco",
    "catalog": "311535",
    "style_code": "BM",
@@ -29417,6 +29450,9 @@
    "page": 1
   },
   {
+   "series": "Benchmark",
+   "pattern": "Deco",
+   "color": "Wrought Iron",
    "desc": "Deco* Wrought Iron",
    "catalog": "365414",
    "style_code": "BM",
@@ -29427,6 +29463,9 @@
    "page": 1
   },
   {
+   "series": "Benchmark",
+   "pattern": "Carrara",
+   "color": "Pearl",
    "desc": "Carrara* Pearl",
    "catalog": "393480",
    "style_code": "BM",
@@ -29437,6 +29476,9 @@
    "page": 1
   },
   {
+   "series": "Benchmark",
+   "pattern": "Carrara",
+   "color": "Pearl",
    "desc": "Carrara* Pearl",
    "catalog": "393484",
    "style_code": "BM",
@@ -29447,6 +29489,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Chesapeake",
+   "color": "Ironbark",
    "desc": "Chesapeake* Ironbark",
    "catalog": "289082",
    "style_code": "IP",
@@ -29457,6 +29502,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Chesapeake",
+   "color": "Rock Elm",
    "desc": "Chesapeake* Rock Elm",
    "catalog": "289074",
    "style_code": "IP",
@@ -29467,6 +29515,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Chesapeake",
+   "color": "Sapele",
    "desc": "Chesapeake* Sapele",
    "catalog": "289089",
    "style_code": "IP",
@@ -29477,6 +29528,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Crossbar",
+   "color": "Grate",
    "desc": "Crossbar* Grate",
    "catalog": "289280",
    "style_code": "IP",
@@ -29487,6 +29541,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Crossbar",
+   "color": "Grid",
    "desc": "Crossbar* Grid",
    "catalog": "289273",
    "style_code": "IP",
@@ -29497,6 +29554,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Crossbar",
+   "color": "Iron",
    "desc": "Crossbar* Iron",
    "catalog": "289284",
    "style_code": "IP",
@@ -29507,6 +29567,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Granulaire",
+   "color": "Sesame Taupe/Ivory",
    "desc": "Granulaire* Sesame Taupe/Ivory",
    "catalog": "289345",
    "style_code": "IP",
@@ -29517,6 +29580,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Granulaire",
+   "color": "Taupestone Gray/Clay",
    "desc": "Granulaire* Taupestone Gray/Clay",
    "catalog": "289359",
    "style_code": "IP",
@@ -29527,6 +29593,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Hickory",
+   "color": "Bitternut",
    "desc": "Hickory* Bitternut",
    "catalog": "289250",
    "style_code": "IP",
@@ -29537,6 +29606,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Limestone Walk",
+   "color": "Sand Dollar",
    "desc": "Limestone Walk* Sand Dollar",
    "catalog": "289351",
    "style_code": "IP",
@@ -29547,6 +29619,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Limestone Walk",
+   "color": "Siltstone",
    "desc": "Limestone Walk* Siltstone",
    "catalog": "289337",
    "style_code": "IP",
@@ -29557,6 +29632,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Limestone Walk",
+   "color": "Soapstone",
    "desc": "Limestone Walk* Soapstone",
    "catalog": "289355",
    "style_code": "IP",
@@ -29567,6 +29645,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Maple Grove",
+   "color": "Box Elder",
    "desc": "Maple Grove* Box Elder",
    "catalog": "289006",
    "style_code": "IP",
@@ -29577,6 +29658,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Maple Grove",
+   "color": "Broadleaf",
    "desc": "Maple Grove* Broadleaf",
    "catalog": "289019",
    "style_code": "IP",
@@ -29587,6 +29671,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Maple Grove",
+   "color": "Soapberry",
    "desc": "Maple Grove* Soapberry",
    "catalog": "289029",
    "style_code": "IP",
@@ -29597,6 +29684,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Maple Grove",
+   "color": "Sugar",
    "desc": "Maple Grove* Sugar",
    "catalog": "289013",
    "style_code": "IP",
@@ -29607,6 +29697,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Wild Oak",
+   "color": "Acre",
    "desc": "Wild Oak* Acre",
    "catalog": "289231",
    "style_code": "IP",
@@ -29617,6 +29710,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Wild Oak",
+   "color": "Auburn",
    "desc": "Wild Oak* Auburn",
    "catalog": "165533",
    "style_code": "IP",
@@ -29627,6 +29723,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Wild Oak",
+   "color": "Sessile",
    "desc": "Wild Oak* Sessile",
    "catalog": "289237",
    "style_code": "IP",
@@ -29637,6 +29736,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Arizona Slate",
+   "color": "Prarie Beige",
    "desc": "Arizona Slate* Prarie Beige",
    "catalog": "165529",
    "style_code": "IP",
@@ -29647,6 +29749,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Acacia",
+   "color": "Baytree",
    "desc": "Acacia* Baytree",
    "catalog": "289045",
    "style_code": "IP",
@@ -29657,6 +29762,9 @@
    "page": 1
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Arizona Slate",
+   "color": "Canyon Sunstone",
    "desc": "Arizona Slate* Canyon Sunstone",
    "catalog": "165528",
    "style_code": "IP",
@@ -29667,6 +29775,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Acacia",
+   "color": "Myrtle",
    "desc": "Acacia* Myrtle",
    "catalog": "289055",
    "style_code": "IP",
@@ -29677,6 +29788,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Alloy",
+   "color": "Igneous",
    "desc": "Alloy* Igneous",
    "catalog": "289264",
    "style_code": "IP",
@@ -29687,6 +29801,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Alloy",
+   "color": "Ferrite",
    "desc": "Alloy* Ferrite",
    "catalog": "289268",
    "style_code": "IP",
@@ -29697,6 +29814,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Acacia",
+   "color": "Pepperwood",
    "desc": "Acacia* Pepperwood",
    "catalog": "289066",
    "style_code": "IP",
@@ -29707,6 +29827,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Alloy",
+   "color": "Ash",
    "desc": "Alloy* Ash",
    "catalog": "289261",
    "style_code": "IP",
@@ -29717,6 +29840,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Arizona Slate",
+   "color": "Praire Beige",
    "desc": "Arizona Slate* Praire Beige",
    "catalog": "293100",
    "style_code": "IPGB",
@@ -29727,6 +29853,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Arizona Slate",
+   "color": "Praire Beige",
    "desc": "Arizona Slate* Praire Beige",
    "catalog": "289409",
    "style_code": "IPGB",
@@ -29737,6 +29866,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Arizona Slate",
+   "color": "Canyon Sunstone",
    "desc": "Arizona Slate* Canyon Sunstone",
    "catalog": "293104",
    "style_code": "IPGB",
@@ -29747,6 +29879,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Arizona Slate",
+   "color": "Canyon Sunstone",
    "desc": "Arizona Slate* Canyon Sunstone",
    "catalog": "289412",
    "style_code": "IPGB",
@@ -29757,6 +29892,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Crossbar",
+   "color": "Grate",
    "desc": "Crossbar* Grate",
    "catalog": "289418",
    "style_code": "IPGB",
@@ -29767,6 +29905,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Crossbar",
+   "color": "Grate",
    "desc": "Crossbar* Grate",
    "catalog": "293110",
    "style_code": "IPGB",
@@ -29777,6 +29918,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Crossbar",
+   "color": "Grid",
    "desc": "Crossbar* Grid",
    "catalog": "289415",
    "style_code": "IPGB",
@@ -29787,6 +29931,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Crossbar",
+   "color": "Grid",
    "desc": "Crossbar* Grid",
    "catalog": "293107",
    "style_code": "IPGB",
@@ -29797,6 +29944,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Alloy",
+   "color": "Igneous",
    "desc": "Alloy* Igneous",
    "catalog": "293097",
    "style_code": "IPGB",
@@ -29807,6 +29957,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Alloy",
+   "color": "Igneous",
    "desc": "Alloy* Igneous",
    "catalog": "289406",
    "style_code": "IPGB",
@@ -29817,6 +29970,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Alloy",
+   "color": "Ash",
    "desc": "Alloy* Ash",
    "catalog": "293094",
    "style_code": "IPGB",
@@ -29827,6 +29983,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Alloy",
+   "color": "Ash",
    "desc": "Alloy* Ash",
    "catalog": "289403",
    "style_code": "IPGB",
@@ -29837,6 +29996,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Limestone Walk",
+   "color": "Siltstone",
    "desc": "Limestone Walk* Siltstone",
    "catalog": "289421",
    "style_code": "IPGB",
@@ -29847,6 +30009,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Limestone Walk",
+   "color": "Siltstone",
    "desc": "Limestone Walk* Siltstone",
    "catalog": "293113",
    "style_code": "IPGB",
@@ -29857,6 +30022,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Wild Oak",
+   "color": "Sessile",
    "desc": "Wild Oak* Sessile",
    "catalog": "293088",
    "style_code": "IPGB",
@@ -29867,6 +30035,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Wild Oak",
+   "color": "Sessile",
    "desc": "Wild Oak* Sessile",
    "catalog": "289397",
    "style_code": "IPGB",
@@ -29877,6 +30048,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Wild Oak",
+   "color": "Auburn",
    "desc": "Wild Oak* Auburn",
    "catalog": "293091",
    "style_code": "IPGB",
@@ -29887,6 +30061,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Wild Oak",
+   "color": "Auburn",
    "desc": "Wild Oak* Auburn",
    "catalog": "289400",
    "style_code": "IPGB",
@@ -29897,6 +30074,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Acacia",
+   "color": "Baytree",
    "desc": "Acacia* Baytree",
    "catalog": "289391",
    "style_code": "IPGB",
@@ -29907,6 +30087,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Acacia",
+   "color": "Baytree",
    "desc": "Acacia* Baytree",
    "catalog": "292998",
    "style_code": "IPGB",
@@ -29917,6 +30100,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Maple Grove",
+   "color": "Sugar",
    "desc": "Maple Grove* Sugar",
    "catalog": "292995",
    "style_code": "IPGB",
@@ -29927,6 +30113,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Maple Grove",
+   "color": "Sugar",
    "desc": "Maple Grove* Sugar",
    "catalog": "289388",
    "style_code": "IPGB",
@@ -29937,6 +30126,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Acacia",
+   "color": "Pepperwood",
    "desc": "Acacia* Pepperwood",
    "catalog": "289394",
    "style_code": "IPGB",
@@ -29947,6 +30139,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Maple Grove",
+   "color": "Box Elder",
    "desc": "Maple Grove* Box Elder",
    "catalog": "292991",
    "style_code": "IPGB",
@@ -29957,6 +30152,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Maple Grove",
+   "color": "Box Elder",
    "desc": "Maple Grove* Box Elder",
    "catalog": "289384",
    "style_code": "IPGB",
@@ -29967,6 +30165,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Acacia",
+   "color": "Pepperwood",
    "desc": "Acacia* Pepperwood",
    "catalog": "293001",
    "style_code": "IPGB",
@@ -29977,6 +30178,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Limestone Walk",
+   "color": "SoapStone",
    "desc": "Limestone Walk* SoapStone",
    "catalog": "293116",
    "style_code": "IPGB",
@@ -29987,6 +30191,9 @@
    "page": 2
   },
   {
+   "series": "Insight Plus",
+   "pattern": "Limestone Walk",
+   "color": "SoapStone",
    "desc": "Limestone Walk* SoapStone",
    "catalog": "289424",
    "style_code": "IPGB",
@@ -29997,6 +30204,9 @@
    "page": 2
   },
   {
+   "series": "Jump Start",
+   "pattern": "Woods Towne",
+   "color": "Cherry Spice",
    "desc": "Woods Towne Cherry Spice",
    "catalog": "9903",
    "style_code": "JS",
@@ -30007,6 +30217,9 @@
    "page": 2
   },
   {
+   "series": "Jump Start",
+   "pattern": "Havana",
+   "color": "Tobacco",
    "desc": "Havana Tobacco",
    "catalog": "179966",
    "style_code": "JS",
@@ -30017,6 +30230,9 @@
    "page": 3
   },
   {
+   "series": "Jump Start",
+   "pattern": "Havana",
+   "color": "Tobacco",
    "desc": "Havana* Tobacco",
    "catalog": "179973",
    "style_code": "JS",
@@ -30027,6 +30243,9 @@
    "page": 3
   },
   {
+   "series": "Jump Start",
+   "pattern": "Black Mountain",
+   "color": "Pebble",
    "desc": "Black Mountain* Pebble",
    "catalog": "391251",
    "style_code": "JS",
@@ -30037,6 +30256,9 @@
    "page": 3
   },
   {
+   "series": "Jump Start",
+   "pattern": "Woods Towne",
+   "color": "Cherry Spice",
    "desc": "Woods Towne* Cherry Spice",
    "catalog": "9900",
    "style_code": "JS",
@@ -30047,6 +30269,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Valencia",
+   "color": "Terrace",
    "desc": "Valencia Terrace",
    "catalog": "589624",
    "style_code": "LVS1",
@@ -30057,6 +30282,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Valencia",
+   "color": "Promenade",
    "desc": "Valencia Promenade",
    "catalog": "589634",
    "style_code": "LVS1",
@@ -30067,6 +30295,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Serena",
+   "color": "Sand Dune",
    "desc": "Serena Sand Dune",
    "catalog": "271767",
    "style_code": "LVS1",
@@ -30077,6 +30308,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Penny Lane",
+   "color": "Quartzite w/Granite",
    "desc": "Penny Lane Quartzite w/Granite",
    "catalog": "308693",
    "style_code": "LVS1",
@@ -30087,6 +30321,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Oceana",
+   "color": "Sand Dollar",
    "desc": "Oceana Sand Dollar",
    "catalog": "365438",
    "style_code": "LVS1",
@@ -30097,6 +30334,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Niagara",
+   "color": "Mist",
    "desc": "Niagara Mist",
    "catalog": "341596",
    "style_code": "LVS1",
@@ -30107,6 +30347,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Muir's Point",
+   "color": "Riverstone Blend",
    "desc": "Muir's Point Riverstone Blend",
    "catalog": "270983",
    "style_code": "LVS1",
@@ -30117,6 +30360,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Hive",
+   "color": "Swarm",
    "desc": "Hive Swarm",
    "catalog": "346603",
    "style_code": "LVS1",
@@ -30127,6 +30373,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Hive",
+   "color": "Pollen",
    "desc": "Hive Pollen",
    "catalog": "346593",
    "style_code": "LVS1",
@@ -30137,6 +30386,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Hive",
+   "color": "Honey",
    "desc": "Hive Honey",
    "catalog": "346597",
    "style_code": "LVS1",
@@ -30147,6 +30399,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Filigree",
+   "color": "Pewter",
    "desc": "Filigree Pewter",
    "catalog": "308818",
    "style_code": "LVS1",
@@ -30157,6 +30412,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Filigree",
+   "color": "Iron",
    "desc": "Filigree Iron",
    "catalog": "308822",
    "style_code": "LVS1",
@@ -30167,6 +30425,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Coral Bay",
+   "color": "Daybreak",
    "desc": "Coral Bay Daybreak",
    "catalog": "271782",
    "style_code": "LVS1",
@@ -30177,6 +30438,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "City Plaza",
+   "color": "Quartzite",
    "desc": "City Plaza Quartzite",
    "catalog": "271785",
    "style_code": "LVS1",
@@ -30187,6 +30451,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Carrara",
+   "color": "Ivory",
    "desc": "Carrara Ivory",
    "catalog": "392495",
    "style_code": "LVS1",
@@ -30197,6 +30464,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Capri",
+   "color": "Alabaster",
    "desc": "Capri Alabaster",
    "catalog": "271833",
    "style_code": "LVS1",
@@ -30207,6 +30477,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Valencia",
+   "color": "Promenade",
    "desc": "Valencia Promenade",
    "catalog": "589636",
    "style_code": "LVS2",
@@ -30217,6 +30490,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Penny Lane",
+   "color": "Quartzite w/Granite",
    "desc": "Penny Lane Quartzite w/Granite",
    "catalog": "308982",
    "style_code": "LVS3",
@@ -30227,6 +30503,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Patina",
+   "color": "Ash",
    "desc": "Patina Ash",
    "catalog": "363489",
    "style_code": "LVS3",
@@ -30237,6 +30516,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Serena",
+   "color": "Sand Dune",
    "desc": "Serena Sand Dune",
    "catalog": "273787",
    "style_code": "LVS3",
@@ -30247,6 +30529,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Filigree",
+   "color": "Pewter",
    "desc": "Filigree Pewter",
    "catalog": "309000",
    "style_code": "LVS3",
@@ -30257,6 +30542,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Hive",
+   "color": "Honey",
    "desc": "Hive Honey",
    "catalog": "346918",
    "style_code": "LVS3",
@@ -30267,6 +30555,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Filigree",
+   "color": "Iron",
    "desc": "Filigree Iron",
    "catalog": "309003",
    "style_code": "LVS3",
@@ -30277,6 +30568,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Hive",
+   "color": "Pollen",
    "desc": "Hive Pollen",
    "catalog": "346912",
    "style_code": "LVS3",
@@ -30287,6 +30581,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Hive",
+   "color": "Swarm",
    "desc": "Hive Swarm",
    "catalog": "346921",
    "style_code": "LVS3",
@@ -30297,6 +30594,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Oceana",
+   "color": "Sand Dollar",
    "desc": "Oceana Sand Dollar",
    "catalog": "365500",
    "style_code": "LVS3",
@@ -30307,6 +30607,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Coral Bay",
+   "color": "Daybreak",
    "desc": "Coral Bay Daybreak",
    "catalog": "273805",
    "style_code": "LVS3",
@@ -30317,6 +30620,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Niagara",
+   "color": "Mist",
    "desc": "Niagara Mist",
    "catalog": "346903",
    "style_code": "LVS3",
@@ -30327,6 +30633,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "City Plaza",
+   "color": "Quartzite",
    "desc": "City Plaza Quartzite",
    "catalog": "273808",
    "style_code": "LVS3",
@@ -30337,6 +30646,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Valencia",
+   "color": "Promenade",
    "desc": "Valencia Promenade",
    "catalog": "589638",
    "style_code": "LVS3",
@@ -30347,6 +30659,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Valencia",
+   "color": "Terrace",
    "desc": "Valencia Terrace",
    "catalog": "589632",
    "style_code": "LVS3",
@@ -30357,6 +30672,9 @@
    "page": 3
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Capri",
+   "color": "Alabaster",
    "desc": "Capri Alabaster",
    "catalog": "274286",
    "style_code": "LVS3",
@@ -30367,6 +30685,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Capri",
+   "color": "Basalt",
    "desc": "Capri Basalt",
    "catalog": "274288",
    "style_code": "LVS3",
@@ -30377,6 +30698,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Muir's Point",
+   "color": "Riverstone Blend",
    "desc": "Muir's Point Riverstone Blend",
    "catalog": "270803",
    "style_code": "LVS3",
@@ -30387,6 +30711,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Carrara",
+   "color": "Ivory",
    "desc": "Carrara Ivory",
    "catalog": "392521",
    "style_code": "LVS3",
@@ -30397,6 +30724,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Tapestry",
+   "color": "Linen",
    "desc": "Tapestry* Linen",
    "catalog": "365943",
    "style_code": "LVS1",
@@ -30407,6 +30737,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Coral Bay",
+   "color": "Seashell",
    "desc": "Coral Bay* Seashell",
    "catalog": "271781",
    "style_code": "LVS1",
@@ -30417,6 +30750,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Tapestry",
+   "color": "Wool",
    "desc": "Tapestry* Wool",
    "catalog": "365944",
    "style_code": "LVS1",
@@ -30427,6 +30763,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Coral Bay",
+   "color": "Overcast",
    "desc": "Coral Bay* Overcast",
    "catalog": "443642",
    "style_code": "LVS1",
@@ -30437,6 +30776,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Cambridge",
+   "color": "Limestone",
    "desc": "Cambridge* Limestone",
    "catalog": "271147",
    "style_code": "LVS1",
@@ -30447,6 +30789,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Twill",
+   "color": "Linen",
    "desc": "Twill* Linen",
    "catalog": "509481",
    "style_code": "LVS1",
@@ -30457,6 +30802,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "City Plaza",
+   "color": "Stone",
    "desc": "City Plaza* Stone",
    "catalog": "443643",
    "style_code": "LVS1",
@@ -30467,6 +30815,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Lattice",
+   "color": "Elderberry",
    "desc": "Lattice* Elderberry",
    "catalog": "346607",
    "style_code": "LVS1",
@@ -30477,6 +30828,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Twill",
+   "color": "Wool",
    "desc": "Twill* Wool",
    "catalog": "509489",
    "style_code": "LVS1",
@@ -30487,6 +30841,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Versailles",
+   "color": "Brioche",
    "desc": "Versailles* Brioche",
    "catalog": "597538",
    "style_code": "LVS1",
@@ -30497,6 +30854,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "City Plaza",
+   "color": "Calico",
    "desc": "City Plaza* Calico",
    "catalog": "271784",
    "style_code": "LVS1",
@@ -30507,6 +30867,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Black Mountain Oak",
+   "color": "Coal",
    "desc": "Black Mountain Oak* Coal",
    "catalog": "271800",
    "style_code": "LVS1",
@@ -30517,6 +30880,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Newport",
+   "color": "Kindle",
    "desc": "Newport* Kindle",
    "catalog": "271809",
    "style_code": "LVS1",
@@ -30527,6 +30893,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Carrara",
+   "color": "Pearl",
    "desc": "Carrara* Pearl",
    "catalog": "392496",
    "style_code": "LVS1",
@@ -30537,6 +30906,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Chaumont",
+   "color": "Iron Gate",
    "desc": "Chaumont* Iron Gate",
    "catalog": "304836",
    "style_code": "LVS1",
@@ -30547,6 +30919,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Beach Haven",
+   "color": "Breakwater",
    "desc": "Beach Haven* Breakwater",
    "catalog": "271765",
    "style_code": "LVS1",
@@ -30557,6 +30932,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Hexx",
+   "color": "Charm",
    "desc": "Hexx* Charm",
    "catalog": "509213",
    "style_code": "LVS1",
@@ -30567,6 +30945,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Beach Haven",
+   "color": "Mist",
    "desc": "Beach Haven* Mist",
    "catalog": "271766",
    "style_code": "LVS1",
@@ -30577,6 +30958,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Oceana",
+   "color": "Shell",
    "desc": "Oceana* Shell",
    "catalog": "365440",
    "style_code": "LVS1",
@@ -30587,6 +30971,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Deco",
+   "color": "Pewter",
    "desc": "Deco* Pewter",
    "catalog": "443644",
    "style_code": "LVS1",
@@ -30597,6 +30984,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Versailles",
+   "color": "Palace",
    "desc": "Versailles* Palace",
    "catalog": "597535",
    "style_code": "LVS1",
@@ -30607,6 +30997,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Tapestry",
+   "color": "Denim",
    "desc": "Tapestry* Denim",
    "catalog": "365945",
    "style_code": "LVS1",
@@ -30617,6 +31010,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Deco",
+   "color": "Wrought Iron",
    "desc": "Deco* Wrought Iron",
    "catalog": "346604",
    "style_code": "LVS1",
@@ -30627,6 +31023,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Stone Harbor",
+   "color": "Fog",
    "desc": "Stone Harbor* Fog",
    "catalog": "271848",
    "style_code": "LVS1",
@@ -30637,6 +31036,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Muir's Point",
+   "color": "Natural Pumice",
    "desc": "Muir's Point* Natural Pumice",
    "catalog": "270919",
    "style_code": "LVS1",
@@ -30647,6 +31049,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Serena",
+   "color": "Volcanic Ash",
    "desc": "Serena* Volcanic Ash",
    "catalog": "271769",
    "style_code": "LVS1",
@@ -30657,6 +31062,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Capri",
+   "color": "Marble",
    "desc": "Capri* Marble",
    "catalog": "271837",
    "style_code": "LVS1",
@@ -30667,6 +31075,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Hexx",
+   "color": "Cauldron",
    "desc": "Hexx* Cauldron",
    "catalog": "509205",
    "style_code": "LVS1",
@@ -30677,6 +31088,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Patina",
+   "color": "Ash",
    "desc": "Patina* Ash",
    "catalog": "363470",
    "style_code": "LVS1",
@@ -30687,6 +31101,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Penny Lane",
+   "color": "White Quartz w/Basal",
    "desc": "Penny Lane* White Quartz w/Basal",
    "catalog": "443645",
    "style_code": "LVS1",
@@ -30697,6 +31114,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Havana",
+   "color": "Tobacco",
    "desc": "Havana* Tobacco",
    "catalog": "271814",
    "style_code": "LVS1",
@@ -30707,6 +31127,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Versailles",
+   "color": "Pearl",
    "desc": "Versailles* Pearl",
    "catalog": "597541",
    "style_code": "LVS1",
@@ -30717,6 +31140,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Capri",
+   "color": "Basalt",
    "desc": "Capri* Basalt",
    "catalog": "271841",
    "style_code": "LVS1",
@@ -30727,6 +31153,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Black Mountain Oak",
+   "color": "Fireside",
    "desc": "Black Mountain Oak* Fireside",
    "catalog": "271799",
    "style_code": "LVS1",
@@ -30737,6 +31166,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Serena",
+   "color": "Pebble Beach",
    "desc": "Serena* Pebble Beach",
    "catalog": "271768",
    "style_code": "LVS1",
@@ -30747,6 +31179,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Filigree",
+   "color": "Iron",
    "desc": "Filigree* Iron",
    "catalog": "367098",
    "style_code": "LVS2",
@@ -30757,6 +31192,9 @@
    "page": 4
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Twill",
+   "color": "Linen",
    "desc": "Twill* Linen",
    "catalog": "509485",
    "style_code": "LVS2",
@@ -30767,6 +31205,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Twill",
+   "color": "Linen",
    "desc": "Twill* Linen",
    "catalog": "509483",
    "style_code": "LVS2",
@@ -30777,6 +31218,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Twill",
+   "color": "Wool",
    "desc": "Twill* Wool",
    "catalog": "509493",
    "style_code": "LVS2",
@@ -30787,6 +31231,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Twill",
+   "color": "Wool",
    "desc": "Twill* Wool",
    "catalog": "509491",
    "style_code": "LVS2",
@@ -30797,6 +31244,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Beach Haven",
+   "color": "Breakwater",
    "desc": "Beach Haven* Breakwater",
    "catalog": "272977",
    "style_code": "LVS2",
@@ -30807,6 +31257,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Valencia",
+   "color": "Terrace",
    "desc": "Valencia* Terrace",
    "catalog": "589630",
    "style_code": "LVS2",
@@ -30817,6 +31270,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Versailles",
+   "color": "Brioche",
    "desc": "Versailles* Brioche",
    "catalog": "597539",
    "style_code": "LVS2",
@@ -30827,6 +31283,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Versailles",
+   "color": "Palace",
    "desc": "Versailles* Palace",
    "catalog": "597536",
    "style_code": "LVS2",
@@ -30837,6 +31296,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Versailles",
+   "color": "Pearl",
    "desc": "Versailles* Pearl",
    "catalog": "597555",
    "style_code": "LVS2",
@@ -30847,6 +31309,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Oceana",
+   "color": "Sand Dollar",
    "desc": "Oceana* Sand Dollar",
    "catalog": "384272",
    "style_code": "LVS2",
@@ -30857,6 +31322,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Patina",
+   "color": "Ash",
    "desc": "Patina* Ash",
    "catalog": "363479",
    "style_code": "LVS2",
@@ -30867,6 +31335,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Oceana",
+   "color": "Sand Dollar",
    "desc": "Oceana* Sand Dollar",
    "catalog": "365479",
    "style_code": "LVS2",
@@ -30877,6 +31348,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Newport",
+   "color": "Kindle",
    "desc": "Newport* Kindle",
    "catalog": "273012",
    "style_code": "LVS2",
@@ -30887,6 +31361,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Oceana",
+   "color": "Shell",
    "desc": "Oceana* Shell",
    "catalog": "365480",
    "style_code": "LVS2",
@@ -30897,6 +31374,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Muir's Point",
+   "color": "Riverstone Blend",
    "desc": "Muir's Point* Riverstone Blend",
    "catalog": "270876",
    "style_code": "LVS2",
@@ -30907,6 +31387,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Beach Haven",
+   "color": "Mist",
    "desc": "Beach Haven* Mist",
    "catalog": "272978",
    "style_code": "LVS2",
@@ -30917,6 +31400,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Oceana",
+   "color": "Shell",
    "desc": "Oceana* Shell",
    "catalog": "384273",
    "style_code": "LVS2",
@@ -30927,6 +31413,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Niagara",
+   "color": "Mist",
    "desc": "Niagara* Mist",
    "catalog": "346855",
    "style_code": "LVS2",
@@ -30937,6 +31426,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Tapestry",
+   "color": "Wool",
    "desc": "Tapestry* Wool",
    "catalog": "384278",
    "style_code": "LVS2",
@@ -30947,6 +31439,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Tapestry",
+   "color": "Wool",
    "desc": "Tapestry* Wool",
    "catalog": "366026",
    "style_code": "LVS2",
@@ -30957,6 +31452,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Tapestry",
+   "color": "Linen",
    "desc": "Tapestry* Linen",
    "catalog": "384276",
    "style_code": "LVS2",
@@ -30967,6 +31465,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Tapestry",
+   "color": "Linen",
    "desc": "Tapestry* Linen",
    "catalog": "366025",
    "style_code": "LVS2",
@@ -30977,6 +31478,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Tapestry",
+   "color": "Denim",
    "desc": "Tapestry* Denim",
    "catalog": "384279",
    "style_code": "LVS2",
@@ -30987,6 +31491,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Tapestry",
+   "color": "Denim",
    "desc": "Tapestry* Denim",
    "catalog": "366027",
    "style_code": "LVS2",
@@ -30997,6 +31504,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Stone Harbor",
+   "color": "Fog",
    "desc": "Stone Harbor* Fog",
    "catalog": "273105",
    "style_code": "LVS2",
@@ -31007,6 +31517,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Serena",
+   "color": "Volcanic Ash",
    "desc": "Serena* Volcanic Ash",
    "catalog": "272981",
    "style_code": "LVS2",
@@ -31017,6 +31530,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Serena",
+   "color": "Sand Dune",
    "desc": "Serena* Sand Dune",
    "catalog": "272979",
    "style_code": "LVS2",
@@ -31027,6 +31543,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Serena",
+   "color": "Pebble Beach",
    "desc": "Serena* Pebble Beach",
    "catalog": "272980",
    "style_code": "LVS2",
@@ -31037,6 +31556,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Penny Lane",
+   "color": "White Quartz w/Basal",
    "desc": "Penny Lane* White Quartz w/Basal",
    "catalog": "454910",
    "style_code": "LVS2",
@@ -31047,6 +31569,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Penny Lane",
+   "color": "White Quartz w/Basal",
    "desc": "Penny Lane* White Quartz w/Basal",
    "catalog": "443649",
    "style_code": "LVS2",
@@ -31057,6 +31582,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Penny Lane",
+   "color": "Quartzite w/Granite",
    "desc": "Penny Lane* Quartzite w/Granite",
    "catalog": "367079",
    "style_code": "LVS2",
@@ -31067,6 +31595,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Penny Lane",
+   "color": "Quartzite w/Granite",
    "desc": "Penny Lane* Quartzite w/Granite",
    "catalog": "308952",
    "style_code": "LVS2",
@@ -31077,6 +31608,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Havana",
+   "color": "Tobacco",
    "desc": "Havana* Tobacco",
    "catalog": "273015",
    "style_code": "LVS2",
@@ -31087,6 +31621,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Filigree",
+   "color": "Pewter",
    "desc": "Filigree* Pewter",
    "catalog": "367095",
    "style_code": "LVS2",
@@ -31097,6 +31634,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Filigree",
+   "color": "Pewter",
    "desc": "Filigree* Pewter",
    "catalog": "308970",
    "style_code": "LVS2",
@@ -31107,6 +31647,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Carrara",
+   "color": "Ivory",
    "desc": "Carrara* Ivory",
    "catalog": "427401",
    "style_code": "LVS2",
@@ -31117,6 +31660,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Filigree",
+   "color": "Iron",
    "desc": "Filigree* Iron",
    "catalog": "308973",
    "style_code": "LVS2",
@@ -31127,6 +31673,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Black Mountain Oak",
+   "color": "Fireside",
    "desc": "Black Mountain Oak* Fireside",
    "catalog": "273004",
    "style_code": "LVS2",
@@ -31137,6 +31686,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Carrara",
+   "color": "Pearl",
    "desc": "Carrara* Pearl",
    "catalog": "427402",
    "style_code": "LVS2",
@@ -31147,6 +31699,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Chaumont",
+   "color": "Iron Gate",
    "desc": "Chaumont* Iron Gate",
    "catalog": "304969",
    "style_code": "LVS2",
@@ -31157,6 +31712,9 @@
    "page": 5
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Hexx",
+   "color": "Cauldron",
    "desc": "Hexx* Cauldron",
    "catalog": "509209",
    "style_code": "LVS2",
@@ -31167,6 +31725,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Hexx",
+   "color": "Cauldron",
    "desc": "Hexx* Cauldron",
    "catalog": "509207",
    "style_code": "LVS2",
@@ -31177,6 +31738,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Hexx",
+   "color": "Charm",
    "desc": "Hexx* Charm",
    "catalog": "509217",
    "style_code": "LVS2",
@@ -31187,6 +31751,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Hexx",
+   "color": "Charm",
    "desc": "Hexx* Charm",
    "catalog": "509215",
    "style_code": "LVS2",
@@ -31197,6 +31764,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Capri",
+   "color": "Marble",
    "desc": "Capri* Marble",
    "catalog": "273101",
    "style_code": "LVS2",
@@ -31207,6 +31777,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Black Mountain Oak",
+   "color": "Coal",
    "desc": "Black Mountain Oak* Coal",
    "catalog": "273005",
    "style_code": "LVS2",
@@ -31217,6 +31790,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Hive",
+   "color": "Honey",
    "desc": "Hive* Honey",
    "catalog": "346868",
    "style_code": "LVS2",
@@ -31227,6 +31803,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Hive",
+   "color": "Honey",
    "desc": "Hive* Honey",
    "catalog": "367326",
    "style_code": "LVS2",
@@ -31237,6 +31816,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Hive",
+   "color": "Pollen",
    "desc": "Hive* Pollen",
    "catalog": "346865",
    "style_code": "LVS2",
@@ -31247,6 +31829,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Hive",
+   "color": "Pollen",
    "desc": "Hive* Pollen",
    "catalog": "367324",
    "style_code": "LVS2",
@@ -31257,6 +31842,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Hive",
+   "color": "Swarm",
    "desc": "Hive* Swarm",
    "catalog": "346871",
    "style_code": "LVS2",
@@ -31267,6 +31855,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Hive",
+   "color": "Swarm",
    "desc": "Hive* Swarm",
    "catalog": "367329",
    "style_code": "LVS2",
@@ -31277,6 +31868,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Lattice",
+   "color": "Elderberry",
    "desc": "Lattice* Elderberry",
    "catalog": "346883",
    "style_code": "LVS2",
@@ -31287,6 +31881,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Capri",
+   "color": "Basalt",
    "desc": "Capri* Basalt",
    "catalog": "273102",
    "style_code": "LVS2",
@@ -31297,6 +31894,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Lattice",
+   "color": "Elderberry",
    "desc": "Lattice* Elderberry",
    "catalog": "367335",
    "style_code": "LVS2",
@@ -31307,6 +31907,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Capri",
+   "color": "Alabaster",
    "desc": "Capri* Alabaster",
    "catalog": "273100",
    "style_code": "LVS2",
@@ -31317,6 +31920,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Deco",
+   "color": "Wrought Iron",
    "desc": "Deco* Wrought Iron",
    "catalog": "367331",
    "style_code": "LVS2",
@@ -31327,6 +31933,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Deco",
+   "color": "Wrought Iron",
    "desc": "Deco* Wrought Iron",
    "catalog": "346874",
    "style_code": "LVS2",
@@ -31337,6 +31946,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Cambridge",
+   "color": "Limestone",
    "desc": "Cambridge* Limestone",
    "catalog": "270884",
    "style_code": "LVS2",
@@ -31347,6 +31959,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Deco",
+   "color": "Pewter",
    "desc": "Deco* Pewter",
    "catalog": "454915",
    "style_code": "LVS2",
@@ -31357,6 +31972,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "City Plaza",
+   "color": "Stone",
    "desc": "City Plaza* Stone",
    "catalog": "454916",
    "style_code": "LVS2",
@@ -31367,6 +31985,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "City Plaza",
+   "color": "Stone",
    "desc": "City Plaza* Stone",
    "catalog": "443647",
    "style_code": "LVS2",
@@ -31377,6 +31998,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Coral Bay",
+   "color": "Daybreak",
    "desc": "Coral Bay* Daybreak",
    "catalog": "272986",
    "style_code": "LVS2",
@@ -31387,6 +32011,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Coral Bay",
+   "color": "Overcast",
    "desc": "Coral Bay* Overcast",
    "catalog": "443646",
    "style_code": "LVS2",
@@ -31397,6 +32024,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "City Plaza",
+   "color": "Quartzite",
    "desc": "City Plaza* Quartzite",
    "catalog": "272989",
    "style_code": "LVS2",
@@ -31407,6 +32037,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Deco",
+   "color": "Pewter",
    "desc": "Deco* Pewter",
    "catalog": "443648",
    "style_code": "LVS2",
@@ -31417,6 +32050,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "City Plaza",
+   "color": "Calico",
    "desc": "City Plaza* Calico",
    "catalog": "272988",
    "style_code": "LVS2",
@@ -31427,6 +32063,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Coral Bay",
+   "color": "Overcast",
    "desc": "Coral Bay* Overcast",
    "catalog": "454914",
    "style_code": "LVS2",
@@ -31437,6 +32076,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Coral Bay",
+   "color": "Seashell",
    "desc": "Coral Bay* Seashell",
    "catalog": "272985",
    "style_code": "LVS2",
@@ -31447,6 +32089,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Carrara",
+   "color": "Ivory",
    "desc": "Carrara* Ivory",
    "catalog": "392508",
    "style_code": "LVS2",
@@ -31457,6 +32102,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Carrara",
+   "color": "Pearl",
    "desc": "Carrara* Pearl",
    "catalog": "392510",
    "style_code": "LVS2",
@@ -31467,6 +32115,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Muir's Point",
+   "color": "Natural Pumice",
    "desc": "Muir's Point* Natural Pumice",
    "catalog": "270875",
    "style_code": "LVS2",
@@ -31477,6 +32128,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Hexx",
+   "color": "Cauldron",
    "desc": "Hexx* Cauldron",
    "catalog": "509211",
    "style_code": "LVS3",
@@ -31487,6 +32141,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Havana",
+   "color": "Tobacco",
    "desc": "Havana* Tobacco",
    "catalog": "274268",
    "style_code": "LVS3",
@@ -31497,6 +32154,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Penny Lane",
+   "color": "White Quartz w/Basal",
    "desc": "Penny Lane* White Quartz w/Basal",
    "catalog": "443653",
    "style_code": "LVS3",
@@ -31507,6 +32167,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Beach Haven",
+   "color": "Breakwater",
    "desc": "Beach Haven* Breakwater",
    "catalog": "273785",
    "style_code": "LVS3",
@@ -31517,6 +32180,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Serena",
+   "color": "Pebble Beach",
    "desc": "Serena* Pebble Beach",
    "catalog": "273788",
    "style_code": "LVS3",
@@ -31527,6 +32193,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Tapestry",
+   "color": "Wool",
    "desc": "Tapestry* Wool",
    "catalog": "366045",
    "style_code": "LVS3",
@@ -31537,6 +32206,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "City Plaza",
+   "color": "Stone",
    "desc": "City Plaza* Stone",
    "catalog": "443651",
    "style_code": "LVS3",
@@ -31547,6 +32219,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Tapestry",
+   "color": "Linen",
    "desc": "Tapestry* Linen",
    "catalog": "366044",
    "style_code": "LVS3",
@@ -31557,6 +32232,9 @@
    "page": 6
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Oceana",
+   "color": "Shell",
    "desc": "Oceana* Shell",
    "catalog": "365501",
    "style_code": "LVS3",
@@ -31567,6 +32245,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Black Mountain Oak",
+   "color": "Coal",
    "desc": "Black Mountain Oak* Coal",
    "catalog": "274255",
    "style_code": "LVS3",
@@ -31577,6 +32258,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Beach Haven",
+   "color": "Mist",
    "desc": "Beach Haven* Mist",
    "catalog": "273786",
    "style_code": "LVS3",
@@ -31587,6 +32271,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Newport",
+   "color": "Kindle",
    "desc": "Newport* Kindle",
    "catalog": "274265",
    "style_code": "LVS3",
@@ -31597,6 +32284,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Lattice",
+   "color": "Elderberry",
    "desc": "Lattice* Elderberry",
    "catalog": "346952",
    "style_code": "LVS3",
@@ -31607,6 +32297,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Muir's Point",
+   "color": "Natural Pumice",
    "desc": "Muir's Point* Natural Pumice",
    "catalog": "270802",
    "style_code": "LVS3",
@@ -31617,6 +32310,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Versailles",
+   "color": "Pearl",
    "desc": "Versailles* Pearl",
    "catalog": "597542",
    "style_code": "LVS3",
@@ -31627,6 +32323,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Cambridge",
+   "color": "Limestone",
    "desc": "Cambridge* Limestone",
    "catalog": "270813",
    "style_code": "LVS3",
@@ -31637,6 +32336,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Versailles",
+   "color": "Palace",
    "desc": "Versailles* Palace",
    "catalog": "597537",
    "style_code": "LVS3",
@@ -31647,6 +32349,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Twill",
+   "color": "Linen",
    "desc": "Twill* Linen",
    "catalog": "509487",
    "style_code": "LVS3",
@@ -31657,6 +32362,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "City Plaza",
+   "color": "Calico",
    "desc": "City Plaza* Calico",
    "catalog": "273807",
    "style_code": "LVS3",
@@ -31667,6 +32375,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Versailles",
+   "color": "Brioche",
    "desc": "Versailles* Brioche",
    "catalog": "597540",
    "style_code": "LVS3",
@@ -31677,6 +32388,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Capri",
+   "color": "Marble",
    "desc": "Capri* Marble",
    "catalog": "274287",
    "style_code": "LVS3",
@@ -31687,6 +32401,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Twill",
+   "color": "Wool",
    "desc": "Twill* Wool",
    "catalog": "509495",
    "style_code": "LVS3",
@@ -31697,6 +32414,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Carrara",
+   "color": "Pearl",
    "desc": "Carrara* Pearl",
    "catalog": "392522",
    "style_code": "LVS3",
@@ -31707,6 +32427,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Chaumont",
+   "color": "Iron Gate",
    "desc": "Chaumont* Iron Gate",
    "catalog": "305052",
    "style_code": "LVS3",
@@ -31717,6 +32440,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Hexx",
+   "color": "Charm",
    "desc": "Hexx* Charm",
    "catalog": "509219",
    "style_code": "LVS3",
@@ -31727,6 +32453,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Deco",
+   "color": "Pewter",
    "desc": "Deco* Pewter",
    "catalog": "443652",
    "style_code": "LVS3",
@@ -31737,6 +32466,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Stone Harbor",
+   "color": "Fog",
    "desc": "Stone Harbor* Fog",
    "catalog": "274291",
    "style_code": "LVS3",
@@ -31747,6 +32479,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Serena",
+   "color": "Volcanic Ash",
    "desc": "Serena* Volcanic Ash",
    "catalog": "273789",
    "style_code": "LVS3",
@@ -31757,6 +32492,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Deco",
+   "color": "Wrought Iron",
    "desc": "Deco* Wrought Iron",
    "catalog": "346924",
    "style_code": "LVS3",
@@ -31767,6 +32505,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Black Mountain Oak",
+   "color": "Fireside",
    "desc": "Black Mountain Oak* Fireside",
    "catalog": "274254",
    "style_code": "LVS3",
@@ -31777,6 +32518,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Coral Bay",
+   "color": "Seashell",
    "desc": "Coral Bay* Seashell",
    "catalog": "273804",
    "style_code": "LVS3",
@@ -31787,6 +32531,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Tapestry",
+   "color": "Denim",
    "desc": "Tapestry* Denim",
    "catalog": "366046",
    "style_code": "LVS3",
@@ -31797,6 +32544,9 @@
    "page": 7
   },
   {
+   "series": "LUXURY VINYL SHEET",
+   "pattern": "Coral Bay",
+   "color": "Overcast",
    "desc": "Coral Bay* Overcast",
    "catalog": "443650",
    "style_code": "LVS3",
@@ -31807,6 +32557,9 @@
    "page": 7
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Hexx",
+   "color": "Charm",
    "desc": "Hexx* Charm",
    "catalog": "484724",
    "style_code": "TC",
@@ -31817,6 +32570,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Hexx",
+   "color": "Cauldron",
    "desc": "Hexx* Cauldron",
    "catalog": "484706",
    "style_code": "TC",
@@ -31827,6 +32583,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Hexx",
+   "color": "Cauldron",
    "desc": "Hexx* Cauldron",
    "catalog": "484723",
    "style_code": "TC",
@@ -31837,6 +32596,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Dunham",
+   "color": "Quartz",
    "desc": "Dunham* Quartz",
    "catalog": "469410",
    "style_code": "TC",
@@ -31847,6 +32609,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Dunham",
+   "color": "Quartz",
    "desc": "Dunham* Quartz",
    "catalog": "469393",
    "style_code": "TC",
@@ -31857,6 +32622,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Dunham",
+   "color": "Mica",
    "desc": "Dunham* Mica",
    "catalog": "469411",
    "style_code": "TC",
@@ -31867,6 +32635,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Dunham",
+   "color": "Mica",
    "desc": "Dunham* Mica",
    "catalog": "469394",
    "style_code": "TC",
@@ -31877,6 +32648,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Dunham",
+   "color": "Feldspar",
    "desc": "Dunham* Feldspar",
    "catalog": "469412",
    "style_code": "TC",
@@ -31887,6 +32661,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Dunham",
+   "color": "Feldspar",
    "desc": "Dunham* Feldspar",
    "catalog": "469395",
    "style_code": "TC",
@@ -31897,6 +32674,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Dunham",
+   "color": "Clay",
    "desc": "Dunham* Clay",
    "catalog": "469409",
    "style_code": "TC",
@@ -31907,6 +32687,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Dunham",
+   "color": "Clay",
    "desc": "Dunham* Clay",
    "catalog": "469392",
    "style_code": "TC",
@@ -31917,6 +32700,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Barrel Oak",
+   "color": "Loire",
    "desc": "Barrel Oak* Loire",
    "catalog": "469408",
    "style_code": "TC",
@@ -31927,6 +32713,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Barrel Oak",
+   "color": "Loire",
    "desc": "Barrel Oak* Loire",
    "catalog": "469391",
    "style_code": "TC",
@@ -31937,6 +32726,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Barrel Oak",
+   "color": "Champagne",
    "desc": "Barrel Oak* Champagne",
    "catalog": "469405",
    "style_code": "TC",
@@ -31947,6 +32739,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Barrel Oak",
+   "color": "Champagne",
    "desc": "Barrel Oak* Champagne",
    "catalog": "469388",
    "style_code": "TC",
@@ -31957,6 +32752,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Barrel Oak",
+   "color": "Bordeaux",
    "desc": "Barrel Oak* Bordeaux",
    "catalog": "469407",
    "style_code": "TC",
@@ -31967,6 +32765,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Barrel Oak",
+   "color": "Bordeaux",
    "desc": "Barrel Oak* Bordeaux",
    "catalog": "469390",
    "style_code": "TC",
@@ -31977,6 +32778,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Barrel Oak",
+   "color": "Alsace",
    "desc": "Barrel Oak* Alsace",
    "catalog": "469406",
    "style_code": "TC",
@@ -31987,6 +32791,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Barrel Oak",
+   "color": "Alsace",
    "desc": "Barrel Oak* Alsace",
    "catalog": "469389",
    "style_code": "TC",
@@ -31997,6 +32804,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Ridgewood",
+   "color": "Field Maple",
    "desc": "Ridgewood* Field Maple",
    "catalog": "469385",
    "style_code": "TC",
@@ -32007,6 +32817,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Ridgewood",
+   "color": "Field Maple",
    "desc": "Ridgewood* Field Maple",
    "catalog": "469402",
    "style_code": "TC",
@@ -32017,6 +32830,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Ridgewood",
+   "color": "Red Maple",
    "desc": "Ridgewood* Red Maple",
    "catalog": "469387",
    "style_code": "TC",
@@ -32027,6 +32843,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Ridgewood",
+   "color": "Red Maple",
    "desc": "Ridgewood* Red Maple",
    "catalog": "469404",
    "style_code": "TC",
@@ -32037,6 +32856,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Ridgewood",
+   "color": "Silver Maple",
    "desc": "Ridgewood* Silver Maple",
    "catalog": "469386",
    "style_code": "TC",
@@ -32047,6 +32869,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Ridgewood",
+   "color": "Silver Maple",
    "desc": "Ridgewood* Silver Maple",
    "catalog": "469403",
    "style_code": "TC",
@@ -32057,6 +32882,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Ridgewood",
+   "color": "Vine Maple",
    "desc": "Ridgewood* Vine Maple",
    "catalog": "469384",
    "style_code": "TC",
@@ -32067,6 +32895,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Textile",
+   "color": "Cotton",
    "desc": "Textile* Cotton",
    "catalog": "469398",
    "style_code": "TC",
@@ -32077,6 +32908,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Textile",
+   "color": "Cotton",
    "desc": "Textile* Cotton",
    "catalog": "469414",
    "style_code": "TC",
@@ -32087,6 +32921,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Textile",
+   "color": "Flax",
    "desc": "Textile* Flax",
    "catalog": "469396",
    "style_code": "TC",
@@ -32097,6 +32934,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Textile",
+   "color": "Flax",
    "desc": "Textile* Flax",
    "catalog": "469413",
    "style_code": "TC",
@@ -32107,6 +32947,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Textile",
+   "color": "Hemp",
    "desc": "Textile* Hemp",
    "catalog": "469399",
    "style_code": "TC",
@@ -32117,6 +32960,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Textile",
+   "color": "Hemp",
    "desc": "Textile* Hemp",
    "catalog": "469415",
    "style_code": "TC",
@@ -32127,6 +32973,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Textile",
+   "color": "Jute",
    "desc": "Textile* Jute",
    "catalog": "469400",
    "style_code": "TC",
@@ -32137,6 +32986,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Textile",
+   "color": "Jute",
    "desc": "Textile* Jute",
    "catalog": "469416",
    "style_code": "TC",
@@ -32147,6 +32999,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Twill",
+   "color": "Linen",
    "desc": "Twill* Linen",
    "catalog": "484726",
    "style_code": "TC",
@@ -32157,6 +33012,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Twill",
+   "color": "Linen",
    "desc": "Twill* Linen",
    "catalog": "484722",
    "style_code": "TC",
@@ -32167,6 +33025,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Twill",
+   "color": "Wool",
    "desc": "Twill* Wool",
    "catalog": "484725",
    "style_code": "TC",
@@ -32177,6 +33038,9 @@
    "page": 8
   },
   {
+   "series": "Mannington on Main - Towne Centre",
+   "pattern": "Twill",
+   "color": "Wool",
    "desc": "Twill* Wool",
    "catalog": "484721",
    "style_code": "TC",
@@ -32187,6 +33051,9 @@
    "page": 8
   },
   {
+   "series": "PRIME",
+   "pattern": "Havana",
+   "color": "Tobacco",
    "desc": "Havana Tobacco",
    "catalog": "178936",
    "style_code": "SPR",
@@ -32197,6 +33064,9 @@
    "page": 9
   },
   {
+   "series": "PRIME",
+   "pattern": "Avalon",
+   "color": "Dusk",
    "desc": "Avalon* Dusk",
    "catalog": "545814",
    "style_code": "SPR",
@@ -32207,6 +33077,9 @@
    "page": 9
   },
   {
+   "series": "PRIME",
+   "pattern": "Black Mountain Oak",
+   "color": "Coal",
    "desc": "Black Mountain Oak* Coal",
    "catalog": "324704",
    "style_code": "SPR",
@@ -32217,6 +33090,9 @@
    "page": 9
   },
   {
+   "series": "PRIME",
+   "pattern": "Colorado",
+   "color": "Slate",
    "desc": "Colorado* Slate",
    "catalog": "282536",
    "style_code": "SPR",
@@ -32227,6 +33103,9 @@
    "page": 9
   },
   {
+   "series": "PRIME",
+   "pattern": "Deco",
+   "color": "Wrought Iron",
    "desc": "Deco* Wrought Iron",
    "catalog": "387555",
    "style_code": "SPR",
@@ -32237,6 +33116,9 @@
    "page": 9
   },
   {
+   "series": "PRIME",
+   "pattern": "Grange",
+   "color": "Seed",
    "desc": "Grange* Seed",
    "catalog": "545812",
    "style_code": "SPR",
@@ -32247,6 +33129,9 @@
    "page": 9
   },
   {
+   "series": "PRIME",
+   "pattern": "Grange",
+   "color": "Wheat",
    "desc": "Grange* Wheat",
    "catalog": "545810",
    "style_code": "SPR",
@@ -32257,6 +33142,9 @@
    "page": 9
   },
   {
+   "series": "PRIME",
+   "pattern": "Havana",
+   "color": "Smoked Habanero",
    "desc": "Havana* Smoked Habanero",
    "catalog": "178934",
    "style_code": "SPR",
@@ -32267,6 +33155,9 @@
    "page": 9
   },
   {
+   "series": "PRIME",
+   "pattern": "Hive",
+   "color": "Pollen",
    "desc": "Hive* Pollen",
    "catalog": "387559",
    "style_code": "SPR",
@@ -32277,6 +33168,9 @@
    "page": 9
   },
   {
+   "series": "PRIME",
+   "pattern": "Millcreek",
+   "color": "Saddle",
    "desc": "Millcreek* Saddle",
    "catalog": "387550",
    "style_code": "SPR",
@@ -32287,6 +33181,9 @@
    "page": 9
   },
   {
+   "series": "PRIME",
+   "pattern": "Muir's Point",
+   "color": "Riverstone Blend",
    "desc": "Muir's Point* Riverstone Blend",
    "catalog": "324707",
    "style_code": "SPR",
@@ -32297,6 +33194,9 @@
    "page": 9
   },
   {
+   "series": "PRIME",
+   "pattern": "Provincial",
+   "color": "Steel",
    "desc": "Provincial* Steel",
    "catalog": "545816",
    "style_code": "SPR",
@@ -32307,6 +33207,9 @@
    "page": 9
   },
   {
+   "series": "PRIME",
+   "pattern": "Verona",
+   "color": "Alabaster",
    "desc": "Verona* Alabaster",
    "catalog": "542897",
    "style_code": "SPR",
@@ -32317,6 +33220,9 @@
    "page": 9
   },
   {
+   "series": "PRIME",
+   "pattern": "Verona",
+   "color": "Crema",
    "desc": "Verona* Crema",
    "catalog": "542899",
    "style_code": "SPR",
@@ -32327,6 +33233,9 @@
    "page": 9
   },
   {
+   "series": "PRIME",
+   "pattern": "Verona",
+   "color": "Marble",
    "desc": "Verona* Marble",
    "catalog": "542893",
    "style_code": "SPR",
@@ -32337,6 +33246,9 @@
    "page": 9
   },
   {
+   "series": "PRIME",
+   "pattern": "Verona",
+   "color": "Piazza",
    "desc": "Verona* Piazza",
    "catalog": "542895",
    "style_code": "SPR",

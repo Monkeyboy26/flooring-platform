@@ -112,16 +112,34 @@ def parse_cartons(path):
                     rec['trims'].append({'catalog': cat, 'price': price, 'label': label, 'col': col_i})
     return fields, trims, conflicts
 
+# 'Installation Method' FIRST: that line also contains 'Required Adhesive' —
+# matching the latter would capture the installation text as a series name
+SERIES_MARKERS = ('Installation Method', 'Required Seam', 'Required Adhesive', 'Seaming Options', 'Adhesive Options')
+
 def parse_rolls(path):
     rows = []
     series = None
+    pat_cx = col_cx = None  # header column centers for Pattern / Color Description
     with pdfplumber.open(path) as pdf:
         for pageno, page in enumerate(pdf.pages, 1):
             words = page.extract_words()
             for line in group_lines(words):
                 toks = [w['text'] for w in line]
                 text = ' '.join(toks)
-                if 'Installation Method' in text or 'Required' in text:
+                marker = next((m for m in SERIES_MARKERS if m in text), None)
+                if marker:
+                    head = text.split(marker)[0].strip()
+                    if head:
+                        series = head
+                    continue
+                if 'Pattern' in toks and 'Catalog' in text:
+                    pat_cx = col_cx = None
+                    for w in line:  # sorted by x0; first 'Color' right of Pattern = Color Description
+                        cx = (w['x0'] + w['x1']) / 2
+                        if w['text'] == 'Pattern':
+                            pat_cx = cx
+                        elif w['text'] == 'Color' and col_cx is None and pat_cx is not None:
+                            col_cx = cx
                     continue
                 mny = [i for i, t in enumerate(toks) if MONEY.match(t)]
                 size_i = [i for i, t in enumerate(toks) if re.match(r"^\d{1,2}'$", t)]
@@ -135,9 +153,19 @@ def parse_rolls(path):
                 catalog, style, color = toks[si - 3], toks[si - 2], toks[si - 1]
                 if not CATALOG.match(catalog) and CATALOG.match(toks[si - 2]):
                     continue
+                # split pattern vs color-desc by nearest header column center
+                pattern_parts, color_parts = [], []
+                for w in line[:si - 3]:
+                    cx = (w['x0'] + w['x1']) / 2
+                    if pat_cx is not None and col_cx is not None and abs(cx - col_cx) < abs(cx - pat_cx):
+                        color_parts.append(w['text'])
+                    else:
+                        pattern_parts.append(w['text'])
                 rows.append({
-                    'desc': ' '.join(toks[:si - 3]), 'catalog': catalog, 'style_code': style,
-                    'color_code': color, 'size': toks[si], 'roll_sf': money(toks[mny[0]]),
+                    'series': series, 'pattern': ' '.join(pattern_parts).rstrip('*').strip(),
+                    'color': ' '.join(color_parts), 'desc': ' '.join(toks[:si - 3]),
+                    'catalog': catalog, 'style_code': style, 'color_code': color,
+                    'size': toks[si], 'roll_sf': money(toks[mny[0]]),
                     'cut_sf': money(toks[mny[1]]) if len(mny) > 1 else None, 'page': pageno,
                 })
     return rows
