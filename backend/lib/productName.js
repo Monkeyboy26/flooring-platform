@@ -351,8 +351,10 @@ export function fullProductName(sku) {
     const vNorm = vLower.replace(/-/g, ' ');
     const pLower = rawName.toLowerCase();
     const nLower = name.toLowerCase();
-    if (vNorm === pLower || vNorm === nLower) {
-      // variant_name is identical to product_name (modulo hyphens/case)
+    if (vNorm === pLower || vNorm === nLower || vNorm === pLower.replace(/-/g, ' ') || vNorm === nLower.replace(/-/g, ' ')) {
+      // variant_name is identical to product_name (modulo hyphens/case). Hyphens are
+      // normalized on BOTH sides so a name carrying a hyphenated measure ("3-7/8\"")
+      // still matches an identical variant (ET "Victorian Base 3-7/8\" (16 LF)").
       variant = null;
     } else if (vNorm.startsWith(pLower + ' ') || vLower.startsWith(pLower + ',') || vLower.startsWith(pLower + '-')) {
       // variant_name starts with product_name + separator → strip prefix, keep the rest
@@ -370,6 +372,29 @@ export function fullProductName(sku) {
       variant = null;
     } else {
       variant = formatVariantName(sku.variant_name);
+    }
+    // The collection shows as the title prefix, so a variant repeating it prints the
+    // value twice (EMS "Winter Frost" + "Winter Frost 12x12"; ELS "Stainless Steel
+    // Sinks" + "Stainless Steel"; EMS "Black Silk" + "Black Silk"). Strip the shown
+    // collection from the variant the same way the product name is stripped.
+    if (variant && showCollection) {
+      const cLow = showCollection.toLowerCase();
+      const cNorm = cLow.replace(/-/g, ' ');
+      const vl = variant.toLowerCase();
+      const vlN = vl.replace(/-/g, ' ');
+      // When the variant IS the full color and the collection is only a prefix of it
+      // (collection "Calacata" / color "Calacata Oro"), stripping would truncate the
+      // color to a fragment and defeat the size-supplement path — leave it be.
+      const _colorVal = (sku.attributes || []).find(a => a.slug === 'color');
+      const variantEqColor = _colorVal && _colorVal.value && vl === _colorVal.value.toLowerCase();
+      if (vl === cLow || vlN === cNorm) {
+        variant = null;
+      } else if (!variantEqColor && (vlN.startsWith(cNorm + ' ') || vl.startsWith(cLow + ',') || vl.startsWith(cLow + '-'))) {
+        const suffix = variant.replace(new RegExp('^' + cLow.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[\\s,\\-]+', 'i'), '').trim();
+        variant = suffix ? formatVariantName(suffix) : null;
+      } else if (cNorm.length > 3 && cNorm.startsWith(vlN + ' ')) {
+        variant = null;
+      }
     }
     // Strip duplicate color from compound variants when it's already in product name.
     // The color can lead ("Beige, 24x48, Cobblestone" → "24x48, Cobblestone") or — e.g.
@@ -436,7 +461,7 @@ export function fullProductName(sku) {
   if (sku.attributes) {
     const colorAttr = (sku.attributes || []).find(a => a.slug === 'color');
     const variantIsColor = colorAttr && variant && variant.toLowerCase() === formatVariantName(colorAttr.value).toLowerCase();
-    const variantIsEmpty = !variant && colorAttr && rawName.toLowerCase().includes(colorAttr.value.toLowerCase());
+    const variantIsEmpty = !variant && colorAttr && (rawName.toLowerCase().includes(colorAttr.value.toLowerCase()) || (showCollection && showCollection.toLowerCase().includes(colorAttr.value.toLowerCase())));
     if (variantIsColor || variantIsEmpty) {
       const rawSizeAttr = sku.sell_by !== 'roll' ? (sku.attributes || []).find(a => a.slug === 'size') : null;
       // Skip roll dimensions (e.g. "12x150FT"), plank dimensions with decimals (e.g. "4.96x48.04", "9.06 Wide"),

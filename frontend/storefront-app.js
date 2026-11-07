@@ -1630,7 +1630,7 @@
       const vNorm = vLower.replace(/-/g, " ");
       const pLower = rawName.toLowerCase();
       const nLower = name.toLowerCase();
-      if (vNorm === pLower || vNorm === nLower) {
+      if (vNorm === pLower || vNorm === nLower || vNorm === pLower.replace(/-/g, " ") || vNorm === nLower.replace(/-/g, " ")) {
         variant = null;
       } else if (vNorm.startsWith(pLower + " ") || vLower.startsWith(pLower + ",") || vLower.startsWith(pLower + "-")) {
         const suffix = sku.variant_name.replace(new RegExp("^" + rawName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "[\\s,\\-]+", "i"), "").trim();
@@ -1644,6 +1644,22 @@
         variant = null;
       } else {
         variant = formatVariantName(sku.variant_name);
+      }
+      if (variant && showCollection) {
+        const cLow = showCollection.toLowerCase();
+        const cNorm = cLow.replace(/-/g, " ");
+        const vl = variant.toLowerCase();
+        const vlN = vl.replace(/-/g, " ");
+        const _colorVal = (sku.attributes || []).find((a) => a.slug === "color");
+        const variantEqColor = _colorVal && _colorVal.value && vl === _colorVal.value.toLowerCase();
+        if (vl === cLow || vlN === cNorm) {
+          variant = null;
+        } else if (!variantEqColor && (vlN.startsWith(cNorm + " ") || vl.startsWith(cLow + ",") || vl.startsWith(cLow + "-"))) {
+          const suffix = variant.replace(new RegExp("^" + cLow.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "[\\s,\\-]+", "i"), "").trim();
+          variant = suffix ? formatVariantName(suffix) : null;
+        } else if (cNorm.length > 3 && cNorm.startsWith(vlN + " ")) {
+          variant = null;
+        }
       }
       if (variant) {
         let cParts = variant.split(",").map((p) => p.trim()).filter(Boolean);
@@ -1688,7 +1704,7 @@
     if (sku.attributes) {
       const colorAttr = (sku.attributes || []).find((a) => a.slug === "color");
       const variantIsColor = colorAttr && variant && variant.toLowerCase() === formatVariantName(colorAttr.value).toLowerCase();
-      const variantIsEmpty = !variant && colorAttr && rawName.toLowerCase().includes(colorAttr.value.toLowerCase());
+      const variantIsEmpty = !variant && colorAttr && (rawName.toLowerCase().includes(colorAttr.value.toLowerCase()) || showCollection && showCollection.toLowerCase().includes(colorAttr.value.toLowerCase()));
       if (variantIsColor || variantIsEmpty) {
         const rawSizeAttr = sku.sell_by !== "roll" ? (sku.attributes || []).find((a) => a.slug === "size") : null;
         const rawSizeVal = rawSizeAttr ? (rawSizeAttr.value || "").trim() : "";
