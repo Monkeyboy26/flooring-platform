@@ -10862,12 +10862,16 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    // Auto-generate POs when order becomes confirmed (idempotency guard)
+    // Auto-generate POs when order becomes confirmed. generatePurchaseOrders is
+    // idempotent at the ORDER-LINE level (skips lines already on a live PO, appends
+    // uncovered lines to a vendor's open draft), so run it unconditionally. The old
+    // "skip if ANY PO already exists" guard stranded order lines whenever a PO was
+    // present: an item manually added to a still-pending online-deposit order cuts a
+    // PO for just that line, and confirming then skipped generation so the estimate's
+    // original materials never got a PO (RD-10127 — the Sintera prefab countertop never
+    // reached Genuine Materials). [[po-confirm-coarse-guard-strands-lines]]
     if (status === 'confirmed') {
-      const existing = await client.query('SELECT id FROM purchase_orders WHERE order_id = $1 LIMIT 1', [id]);
-      if (existing.rows.length === 0) {
-        await generatePurchaseOrders(id, client);
-      }
+      await generatePurchaseOrders(id, client);
     }
 
     // Cascade PO cancellation when order is cancelled
@@ -21451,12 +21455,16 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    // Auto-generate POs when order becomes confirmed (idempotency guard)
+    // Auto-generate POs when order becomes confirmed. generatePurchaseOrders is
+    // idempotent at the ORDER-LINE level (skips lines already on a live PO, appends
+    // uncovered lines to a vendor's open draft), so run it unconditionally. The old
+    // "skip if ANY PO already exists" guard stranded order lines whenever a PO was
+    // present: an item manually added to a still-pending online-deposit order cuts a
+    // PO for just that line, and confirming then skipped generation so the estimate's
+    // original materials never got a PO (RD-10127 — the Sintera prefab countertop never
+    // reached Genuine Materials). [[po-confirm-coarse-guard-strands-lines]]
     if (status === 'confirmed') {
-      const existing = await client.query('SELECT id FROM purchase_orders WHERE order_id = $1 LIMIT 1', [id]);
-      if (existing.rows.length === 0) {
-        await generatePurchaseOrders(id, client);
-      }
+      await generatePurchaseOrders(id, client);
     }
 
     // Cascade PO cancellation when order is cancelled
