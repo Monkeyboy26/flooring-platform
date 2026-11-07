@@ -646,8 +646,17 @@ export function fullProductName(sku) {
     const brandForStrip = (sku.brand_name || ((sku.attributes || []).find(a => a.slug === 'brand') || {}).value || '').trim();
     const bl = brandForStrip.toLowerCase();
     const sc = shownCollection.toLowerCase();
-    if (bl && sc !== bl && sc.startsWith(bl) && /[\s—–-]/.test(shownCollection.charAt(brandForStrip.length) || '')) {
-      shownCollection = shownCollection.slice(brandForStrip.length).replace(/^[\s—–-]+/, '').trim();
+    if (bl && sc !== bl) {
+      // Leading brand: "Genuine Quartz — Clearance" → "Clearance".
+      if (sc.startsWith(bl) && /[\s—–-]/.test(shownCollection.charAt(brandForStrip.length) || '')) {
+        shownCollection = shownCollection.slice(brandForStrip.length).replace(/^[\s—–-]+/, '').trim();
+      }
+      // "(Brand)" disambiguator parenthetical: "Porcelain Top (AtlasPlan)" / "(Florim)"
+      // under an "AtlasPlan"/"Florim" chip → "Porcelain Top". The collection landing
+      // page keeps the parenthetical (shown raw, not via this builder); only titles,
+      // where the chip already carries the brand, are de-duplicated.
+      const esc = brandForStrip.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      shownCollection = shownCollection.replace(new RegExp('\\s*\\(\\s*' + esc + '\\s*\\)', 'ig'), '').replace(/\s{2,}/g, ' ').trim();
     }
   }
   const result = [brand, shownCollection, productLine, orderedName, orderedVariant, subLineNumeral].filter(Boolean).join(' ');

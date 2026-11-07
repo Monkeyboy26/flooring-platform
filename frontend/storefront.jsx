@@ -1902,8 +1902,17 @@
         const brandForStrip = (sku.brand_name || ((sku.attributes || []).find(a => a.slug === 'brand') || {}).value || '').trim();
         const bl = brandForStrip.toLowerCase();
         const sc = shownCollection.toLowerCase();
-        if (bl && sc !== bl && sc.startsWith(bl) && /[\s—–-]/.test(shownCollection.charAt(brandForStrip.length) || '')) {
-          shownCollection = shownCollection.slice(brandForStrip.length).replace(/^[\s—–-]+/, '').trim();
+        if (bl && sc !== bl) {
+          // Leading brand: "Genuine Quartz — Clearance" → "Clearance".
+          if (sc.startsWith(bl) && /[\s—–-]/.test(shownCollection.charAt(brandForStrip.length) || '')) {
+            shownCollection = shownCollection.slice(brandForStrip.length).replace(/^[\s—–-]+/, '').trim();
+          }
+          // "(Brand)" disambiguator parenthetical: "Porcelain Top (AtlasPlan)" / "(Florim)"
+          // under an "AtlasPlan"/"Florim" chip → "Porcelain Top". The collection landing
+          // page keeps the parenthetical (shown raw, not via this builder); only titles,
+          // where the chip already carries the brand, are de-duplicated.
+          const esc = brandForStrip.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          shownCollection = shownCollection.replace(new RegExp('\\s*\\(\\s*' + esc + '\\s*\\)', 'ig'), '').replace(/\s{2,}/g, ' ').trim();
         }
       }
       const result = [brand, shownCollection, productLine, orderedName, orderedVariant, subLineNumeral].filter(Boolean).join(' ');
@@ -8667,6 +8676,15 @@
       // their pre-existing generic size pills untouched (this stays false for them).
       const slabSizeIsPrefab = _slabSize.isPrefab && slabSizeItems.length > 0;
 
+      // When the slab Size selector is shown it owns the size, so the title +
+      // breadcrumb must not repeat it ("Sintera Calacatta La Brisa Jumbo Slab" over a
+      // Size selector that also says "Jumbo Slab"). Strip the size variant_name AND the
+      // size attribute — nulling variant_name alone reverts the title to the raw
+      // dimension ("… 127″ × 64″ × 3/4″"). [[pdp-slab-size-duplication]]
+      const titleSku = slabSizeItems.length > 0
+        ? { ...sku, variant_name: null, attributes: (sku.attributes || []).filter(a => a.slug !== 'size') }
+        : sku;
+
       return (
         <>
           <div className="pdp-section-nav" ref={navRef}>
@@ -8684,7 +8702,7 @@
               <a href="#" onClick={e => { e.preventDefault(); goBack(); }}>Shop</a>
               <span className="pdp-crumb"></span>
               {sku.category_name && <><a href="#" onClick={e => { e.preventDefault(); goBack(); }}>{sku.category_name}</a><span className="pdp-crumb"></span></>}
-              <span style={{ color: 'var(--stone-900)' }}>{fullProductName(sku)}</span>
+              <span style={{ color: 'var(--stone-900)' }}>{fullProductName(titleSku)}</span>
             </div>
 
             <div className="sku-detail-main" ref={sectionRefs.details}>
@@ -8834,7 +8852,7 @@
               {/* Title row with wishlist heart */}
               <div className="pdp-title-row">
                 <h1 className="sku-detail-title-row">
-                  {fullProductName(sku)}
+                  {fullProductName(titleSku)}
                 </h1>
                 <button className={'pdp-wishlist-heart' + (wishlist.includes(sku.sku_id) ? ' active' : '')} onClick={() => toggleWishlist(sku.sku_id)} aria-label={wishlist.includes(sku.sku_id) ? 'Remove from wishlist' : 'Add to wishlist'}>
                   <svg viewBox="0 0 24 24" fill={wishlist.includes(sku.sku_id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" style={{ width: 18, height: 18 }}>
