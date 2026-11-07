@@ -1716,7 +1716,15 @@
         const nameLowerDedup = name.toLowerCase();
         const normDim = (s) => String(s).toLowerCase().replace(/["″”'’\s]/g, "").replace(/×/g, "x");
         const nameDimNorm = normDim(name);
-        const extras = [patternAttr, sizeAttr].filter(Boolean).filter((a) => !nameLowerDedup.includes(a.value.toLowerCase()) && !(a === sizeAttr && nameDimNorm.includes(normDim(a.value)))).map((a) => a.value);
+        const extras = [patternAttr, sizeAttr].filter(Boolean).filter((a) => {
+          if (nameLowerDedup.includes(a.value.toLowerCase())) return false;
+          if (a === sizeAttr) {
+            const nd = normDim(a.value);
+            const core = nd.replace(/\(.*$/, "");
+            if (nameDimNorm.includes(nd) || core.length >= 4 && nameDimNorm.includes(core)) return false;
+          }
+          return true;
+        }).map((a) => a.value);
         if (extras.length > 0) {
           const sizePart = extras.join(" ");
           const colorVal = variantIsColor ? variant : null;

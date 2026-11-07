@@ -1734,8 +1734,19 @@
           const nameDimNorm = normDim(name);
           const extras = [patternAttr, sizeAttr]
             .filter(Boolean)
-            .filter(a => !nameLowerDedup.includes(a.value.toLowerCase())
-              && !(a === sizeAttr && nameDimNorm.includes(normDim(a.value))))
+            .filter(a => {
+              if (nameLowerDedup.includes(a.value.toLowerCase())) return false;
+              if (a === sizeAttr) {
+                // A size attr carrying a modifier ("108x26x3/4 (2\" miter)") is still a dup
+                // when the name already has the bare dimension (e.g. a stored line name that
+                // bakes in the cut). Strip the trailing "(…)" before comparing so the
+                // dimension isn't printed twice on documents.
+                const nd = normDim(a.value);
+                const core = nd.replace(/\(.*$/, '');
+                if (nameDimNorm.includes(nd) || (core.length >= 4 && nameDimNorm.includes(core))) return false;
+              }
+              return true;
+            })
             .map(a => a.value);
           if (extras.length > 0) {
             const sizePart = extras.join(' ');

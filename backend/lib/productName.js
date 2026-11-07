@@ -505,8 +505,19 @@ export function fullProductName(sku) {
         .filter(Boolean)
         // placeholder attr values (Emser feeds pattern "N/A") must never reach a title
         .filter(a => a.value && !/^(n\/?\s?a|none|null|-|not applicable)$/i.test(String(a.value).trim()))
-        .filter(a => !nameLowerDedup.includes(a.value.toLowerCase())
-          && !(a === sizeAttr && nameDimNorm.includes(normDim(a.value))))
+        .filter(a => {
+          if (nameLowerDedup.includes(a.value.toLowerCase())) return false;
+          if (a === sizeAttr) {
+            // A size attr carrying a modifier ("108x26x3/4 (2\" miter)") is still a dup
+            // when the name already has the bare dimension — e.g. a stored order-line name
+            // that bakes in the cut ("…108x26x3/4 Prefab"). Strip the trailing "(…)" before
+            // comparing so the dimension isn't printed twice on documents. [[doc-slab-size-2x]]
+            const nd = normDim(a.value);
+            const core = nd.replace(/\(.*$/, '');
+            if (nameDimNorm.includes(nd) || (core.length >= 4 && nameDimNorm.includes(core))) return false;
+          }
+          return true;
+        })
         .map(a => a.value);
       if (extras.length > 0) {
         const sizePart = extras.join(' ');
