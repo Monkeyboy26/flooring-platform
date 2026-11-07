@@ -88,7 +88,7 @@ def parse_cartons(path):
                     'section': section, 'series': series, 'series_code': series_code,
                     'desc': desc, 'color_code': color_code, 'catalog': catalog,
                     'cost_sqft': money(toks[i_sqft]), 'carton_price': money(toks[i_carton]),
-                    'page': pageno,
+                    'page': pageno, 'trims': [],
                 }
                 fields.append(rec)
                 # trim catalogs: words AFTER the carton-price x position matching 6-7 digits,
@@ -100,7 +100,7 @@ def parse_cartons(path):
                     if not trim_cols:
                         continue
                     cx = (w['x0'] + w['x1']) / 2
-                    dist, price, label = min(((abs(cx - c), p, lbl) for c, p, lbl in trim_cols), key=lambda t: t[0])
+                    col_i, (dist, price, label) = min(enumerate((abs(cx - c), p, lbl) for c, p, lbl in trim_cols), key=lambda t: t[1][0])
                     if dist > 40:  # not plausibly under a trim column
                         continue
                     if price <= 0:
@@ -109,6 +109,7 @@ def parse_cartons(path):
                     if cat in trims and abs(trims[cat]['price'] - price) > 0.005:
                         conflicts.append({'catalog': cat, 'a': trims[cat], 'b': {'price': price, 'series': series, 'page': pageno}})
                     trims[cat] = {'price': price, 'label': label, 'series': series, 'series_code': series_code, 'page': pageno}
+                    rec['trims'].append({'catalog': cat, 'price': price, 'label': label, 'col': col_i})
     return fields, trims, conflicts
 
 def parse_rolls(path):
