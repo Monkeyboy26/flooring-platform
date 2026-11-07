@@ -18445,7 +18445,12 @@
                   {parseFloat(order.tax_amount || 0) > 0 && (() => {
                     // Rate derived from stored amounts so it reads the exact destination
                     // rate (e.g. 8.375%), not the DECIMAL(5,4)-rounded tax_rate column.
-                    const taxable = Math.max(0, parseFloat(order.subtotal || 0) - parseFloat(order.discount_amount || 0));
+                    // Divide by the TAXABLE base (materials only) — labor is non-taxable,
+                    // so dividing tax by the full subtotal understated the rate (a job with
+                    // $1300 labor + $625 taxable prefab printed "Tax · 2.516%" instead of 7.75%).
+                    const taxBase = items.filter(i => i && !i.is_sample && i.item_type !== 'labor')
+                      .reduce((s, i) => s + parseFloat(i.subtotal || 0), 0);
+                    const taxable = Math.max(0, taxBase - parseFloat(order.discount_amount || 0));
                     const pct = taxable > 0 ? (parseFloat(order.tax_amount) / taxable * 100) : 0;
                     return <RovRow l={'Tax · ' + pct.toFixed(3).replace(/\.?0+$/, '') + '%'} v={'$' + parseFloat(order.tax_amount).toFixed(2)} />;
                   })()}
