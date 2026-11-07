@@ -8676,15 +8676,6 @@
       // their pre-existing generic size pills untouched (this stays false for them).
       const slabSizeIsPrefab = _slabSize.isPrefab && slabSizeItems.length > 0;
 
-      // When the slab Size selector is shown it owns the size, so the title +
-      // breadcrumb must not repeat it ("Sintera Calacatta La Brisa Jumbo Slab" over a
-      // Size selector that also says "Jumbo Slab"). Strip the size variant_name AND the
-      // size attribute — nulling variant_name alone reverts the title to the raw
-      // dimension ("… 127″ × 64″ × 3/4″"). [[pdp-slab-size-duplication]]
-      const titleSku = slabSizeItems.length > 0
-        ? { ...sku, variant_name: null, attributes: (sku.attributes || []).filter(a => a.slug !== 'size') }
-        : sku;
-
       return (
         <>
           <div className="pdp-section-nav" ref={navRef}>
@@ -8702,7 +8693,7 @@
               <a href="#" onClick={e => { e.preventDefault(); goBack(); }}>Shop</a>
               <span className="pdp-crumb"></span>
               {sku.category_name && <><a href="#" onClick={e => { e.preventDefault(); goBack(); }}>{sku.category_name}</a><span className="pdp-crumb"></span></>}
-              <span style={{ color: 'var(--stone-900)' }}>{fullProductName(titleSku)}</span>
+              <span style={{ color: 'var(--stone-900)' }}>{fullProductName(sku)}</span>
             </div>
 
             <div className="sku-detail-main" ref={sectionRefs.details}>
@@ -8852,7 +8843,7 @@
               {/* Title row with wishlist heart */}
               <div className="pdp-title-row">
                 <h1 className="sku-detail-title-row">
-                  {fullProductName(titleSku)}
+                  {fullProductName(sku)}
                 </h1>
                 <button className={'pdp-wishlist-heart' + (wishlist.includes(sku.sku_id) ? ' active' : '')} onClick={() => toggleWishlist(sku.sku_id)} aria-label={wishlist.includes(sku.sku_id) ? 'Remove from wishlist' : 'Add to wishlist'}>
                   <svg viewBox="0 0 24 24" fill={wishlist.includes(sku.sku_id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" style={{ width: 18, height: 18 }}>
@@ -10664,7 +10655,9 @@
               {!isCarpetSku && sqftPerBox > 0 && (
                 <div className="packaging-info">
                   <div className="pdp-pkg-cell">
-                    <span className="pdp-pkg-cell-label">{isSlabUnit ? 'Slab Size' : (isSoldPerPiece(sku) ? 'Piece Size' : 'Coverage')}</span>
+                    {/* Area in sqft — labelled "Coverage" so it doesn't repeat the
+                        "Slab Size" dimension card (which carries 127″ × 64″ × 3/4″). */}
+                    <span className="pdp-pkg-cell-label">{isSlabUnit ? 'Coverage' : (isSoldPerPiece(sku) ? 'Piece Size' : 'Coverage')}</span>
                     <span className="pdp-pkg-cell-value">{sqftPerBox} sqft{(isSlabUnit || isSoldPerPiece(sku)) ? '' : '/' + boxLabel}</span>
                   </div>
                   {!isSlabUnit && parseInt(sku.pieces_per_box) > 1 && (
