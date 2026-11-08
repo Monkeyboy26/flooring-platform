@@ -8358,10 +8358,15 @@
       // carpet calculator and carpet never gets this one. Covers both roll-priced
       // (per-sqyd cut price) and per-sqft box SKUs.
       const isSheetVinyl = isSqftNoBox && sku && isSheetVinylSku(sku);
-      const vinylRollPriced = isSheetVinyl && isRollPriced(sku);
+      // Roll semantics whenever the SKU is per-sqyd, even if cut_price is not
+      // populated (fall back to retail_price, which is also per sqyd) — a
+      // per-sqyd price must NEVER be multiplied by square feet directly.
+      const vinylRollPriced = isSheetVinyl && (isRollPriced(sku) || isSoldPerSqyd(sku));
+      const sheetSqydPrice = vinylRollPriced
+        ? parseFloat(sku.cut_price != null ? sku.cut_price : sku.retail_price) : 0;
       const sheetRollWidthFt = isSheetVinyl
         ? (parseFloat(sku.roll_width_ft) || parseRollWidthFt(sku.product_name || '')) : 0;
-      const sheetPerSqftPrice = vinylRollPriced ? parseFloat(sku.cut_price) / 9 : effectivePrice;
+      const sheetPerSqftPrice = vinylRollPriced ? sheetSqydPrice / 9 : effectivePrice;
       const sheetMode = isSheetVinyl
         ? (carpetInputMode === 'linear' && sheetRollWidthFt <= 0 ? 'dimensions' : carpetInputMode)
         : null;
@@ -8515,7 +8520,7 @@
               sku_id: sku.sku_id,
               sqft_needed: sheetSqft,
               num_boxes: 1,
-              unit_price: parseFloat(sku.cut_price),
+              unit_price: sheetSqydPrice,
               subtotal: sheetSubtotal.toFixed(2),
               sell_by: 'roll',
               price_tier: 'cut'
@@ -11078,7 +11083,7 @@
                       <div className="calc-summary-row">
                         <span>Price</span>
                         <span>{vinylRollPriced
-                          ? '$' + parseFloat(sku.cut_price).toFixed(2) + '/sqyd \u00b7 $' + sheetPerSqftPrice.toFixed(2) + '/sqft'
+                          ? '$' + sheetSqydPrice.toFixed(2) + '/sqyd \u00b7 $' + sheetPerSqftPrice.toFixed(2) + '/sqft'
                           : '$' + sheetPerSqftPrice.toFixed(2) + '/sqft'}</span>
                       </div>
                       <div className="calc-summary-total"><span>Subtotal</span><span>${sheetSubtotal.toFixed(2)}</span></div>

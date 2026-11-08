@@ -179,7 +179,7 @@ export default function createCartRoutes(ctx) {
       let validatedSubtotal = subtotal || 0;
       if (!is_sample && sku_id) {
         const dbPrice = await pool.query(
-          `SELECT pr.retail_price, pr.price_basis, pk.sqft_per_box, pk.pieces_per_box
+          `SELECT pr.retail_price, pr.price_basis, pr.cut_price, pr.roll_price, pk.sqft_per_box, pk.pieces_per_box
            FROM pricing pr
            LEFT JOIN packaging pk ON pk.sku_id = pr.sku_id
            WHERE pr.sku_id = $1`, [sku_id]);
@@ -191,6 +191,19 @@ export default function createCartRoutes(ctx) {
           const priceBasis = dbPrice.rows[0].price_basis;
           const sqftBox = parseFloat(dbPrice.rows[0].sqft_per_box) || 0;
           const pcsBox = parseFloat(dbPrice.rows[0].pieces_per_box) || 0;
+          if (sell_by === 'roll') {
+            // Roll goods (carpet / sheet vinyl): unit_price is PER SQYD (cut or
+            // roll tier) and the line total is sqyd x price — never retail x qty.
+            // The old generic override compared the per-sqyd cut price to
+            // retail_price and clobbered the subtotal to one "unit" of retail
+            // (90 sqft of sheet stored as a single $21 line).
+            const cut = parseFloat(dbPrice.rows[0].cut_price);
+            const roll = parseFloat(dbPrice.rows[0].roll_price);
+            const tierPrice = (price_tier === 'roll' && roll > 0) ? roll : (cut > 0 ? cut : dbRetail);
+            validatedUnitPrice = tierPrice;
+            const sqyd = (parseFloat(sqft_needed) || 0) / 9;
+            validatedSubtotal = parseFloat((tierPrice * sqyd * (parseInt(num_boxes) || 1)).toFixed(2));
+          } else {
           // Convert per-unit price to per-sqft when sell_by is box
           if (sell_by === 'box' && priceBasis === 'per_unit' && sqftBox > 0 && pcsBox > 0) {
             dbRetail = dbRetail / (sqftBox / pcsBox);
@@ -206,6 +219,7 @@ export default function createCartRoutes(ctx) {
             } else {
               validatedSubtotal = parseFloat((dbRetail * num_boxes).toFixed(2));
             }
+          }
           }
         }
       }
@@ -260,7 +274,7 @@ export default function createCartRoutes(ctx) {
         const existing = await pool.query('SELECT sku_id, sell_by FROM cart_items WHERE id = $1 AND session_id = $2', [id, session_id]);
         if (existing.rows.length && existing.rows[0].sku_id) {
           const dbPrice = await pool.query(
-            `SELECT pr.retail_price, pr.price_basis, pk.sqft_per_box, pk.pieces_per_box
+            `SELECT pr.retail_price, pr.price_basis, pr.cut_price, pr.roll_price, pk.sqft_per_box, pk.pieces_per_box
              FROM pricing pr
              LEFT JOIN packaging pk ON pk.sku_id = pr.sku_id
              WHERE pr.sku_id = $1`, [existing.rows[0].sku_id]);
@@ -270,6 +284,16 @@ export default function createCartRoutes(ctx) {
             const sqftBox = parseFloat(dbPrice.rows[0].sqft_per_box) || 0;
             const pcsBox = parseFloat(dbPrice.rows[0].pieces_per_box) || 0;
             const itemSellBy = existing.rows[0].sell_by;
+            if (itemSellBy === 'roll') {
+              // Roll goods: per-sqyd tier price, total = sqyd x price (see POST)
+              const cut = parseFloat(dbPrice.rows[0].cut_price);
+              const roll = parseFloat(dbPrice.rows[0].roll_price);
+              const tierPrice = (price_tier === 'roll' && roll > 0) ? roll : (cut > 0 ? cut : dbRetail);
+              validatedUnitPrice = tierPrice;
+              const sqftRow = sqft_needed != null ? parseFloat(sqft_needed)
+                : parseFloat((await pool.query('SELECT sqft_needed FROM cart_items WHERE id = $1', [id])).rows[0]?.sqft_needed) || 0;
+              validatedSubtotal = parseFloat((tierPrice * (sqftRow / 9) * (parseInt(num_boxes) || 1)).toFixed(2));
+            } else {
             if (itemSellBy === 'box' && priceBasis === 'per_unit' && sqftBox > 0 && pcsBox > 0) {
               dbRetail = dbRetail / (sqftBox / pcsBox);
             }
@@ -283,6 +307,7 @@ export default function createCartRoutes(ctx) {
               } else if (num_boxes) {
                 validatedSubtotal = parseFloat((dbRetail * num_boxes).toFixed(2));
               }
+            }
             }
           }
         }
