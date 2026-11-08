@@ -11,11 +11,15 @@
 //   skus: vendor_sku = catalog # (unique per color+width), sell_by='roll',
 //     variant_name "{color}, {width} Sheet". attrs: color / size / material.
 //     packaging.roll_width_ft = 6 or 12.
-//   pricing: cost = cut (falls back to roll) per SQFT; base retail via
-//     upsertPricing house rules (1.70x keystone, charm-9, covering floor).
-//     cut_/roll_cost + cut_/roll_price written DIRECTLY (1.70x nickel-rounded)
-//     — NOT through upsertPricing's cut/roll params, whose carpet floor adds
-//     $9/sqyd margin and would be catastrophic on per-sqft sheet prices.
+//   pricing: per SQYD (list prices x9) — the entire roll pipeline (storefront
+//     sheet/carpet calculators, cart math, rep/admin) treats sell_by='roll' as
+//     per-sqyd (EF/SHAW/PC/TW convention); storing the list's native per-sqft
+//     numbers made the calculator/cart divide by 9 (9x undercharge, fixed by
+//     mannington-sheet-pricing-to-sqyd-2026-11-08.mjs). cost = cut (falls back
+//     to roll) x9; base retail via upsertPricing house rules with explicit
+//     per_sqyd basis; cut_/roll_price written directly at 1.70x nickel with the
+//     carpet $1/sqft-margin floor (cost+9/sqyd). Roll-only lines get cut = roll
+//     (isRollPriced() keys on cut_price).
 //
 // Insert-only + idempotent (ON CONFLICT by natural keys); created rows recorded in
 //   products_mann_sheet_onboard_20261106 / skus_mann_sheet_onboard_20261106.
@@ -59,6 +63,12 @@ function collectionFor(row) {
 }
 const slugify = s => s.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const nickel170 = c => Math.round(Math.round(c * 1.70 / 0.05) * 0.05 * 100) / 100;
+const CARPET_MIN_MARGIN_SQYD = 9; // $1/sqft x 9 — house rule, see base.js carpetFloor
+const rollRetail = costSqyd => {
+  const p = nickel170(costSqyd);
+  const min = costSqyd + CARPET_MIN_MARGIN_SQYD;
+  return p < min ? Math.round(Math.ceil(min / 0.05) * 0.05 * 100) / 100 : p;
+};
 
 async function main() {
   const { rolls } = JSON.parse(fs.readFileSync(SRC, 'utf8'));
@@ -117,12 +127,14 @@ async function main() {
          RETURNING id`,
         [prod.id, r.catalog, `MANN-${r.catalog}`, variantName]);
       createdSkus.push(sku.id);
-      // base cost = cut (what a partial order costs us), falls back to roll-only lines
-      const baseCost = r.cut_sf ?? r.roll_sf;
-      await upsertPricing(pool, sku.id, { cost: baseCost, retail_price: baseCost * 2, price_basis: 'per_sqft' });
+      // per-sqyd: list is per-sqft, roll pipeline expects sqyd — x9 everything.
+      // base cost = cut (what a partial order costs us); roll-only lines cut=roll
+      const cutSqyd = +(((r.cut_sf ?? r.roll_sf)) * 9).toFixed(2);
+      const rollSqyd = +(r.roll_sf * 9).toFixed(2);
+      await upsertPricing(pool, sku.id, { cost: cutSqyd, retail_price: cutSqyd * 2, price_basis: 'per_sqyd' });
       await pool.query(
         `UPDATE pricing SET cut_cost=$2, cut_price=$3, roll_cost=$4, roll_price=$5 WHERE sku_id=$1`,
-        [sku.id, r.cut_sf ?? null, r.cut_sf ? nickel170(r.cut_sf) : null, r.roll_sf, nickel170(r.roll_sf)]);
+        [sku.id, cutSqyd, rollRetail(cutSqyd), rollSqyd, rollRetail(rollSqyd)]);
       const widthFt = parseInt(r.size, 10);
       await pool.query(
         `INSERT INTO packaging (sku_id, roll_width_ft) VALUES ($1, $2) ON CONFLICT (sku_id) DO UPDATE SET roll_width_ft=$2`,
