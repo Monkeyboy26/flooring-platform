@@ -36705,6 +36705,10 @@ app.get('/api/merchant-feed.xml', async (req, res) => {
               AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW())
              THEN pr.sale_price ELSE NULL END AS active_sale_price,
         pk.sqft_per_box,
+        -- Best-stocked fresh warehouse qty (mirrors the storefront stock badge);
+        -- NULL = no fresh snapshot = unknown (most of the special-order catalog).
+        (SELECT MAX(CASE WHEN i.fresh_until > NOW() THEN i.qty_on_hand END)
+           FROM inventory_snapshots i WHERE i.sku_id = s.id) AS fresh_qty,
         COALESCE(si.url, pi.url, sli.url, pli.url) AS image_url,
         attrs.attributes
       FROM skus s
@@ -36791,6 +36795,18 @@ app.get('/api/merchant-feed.xml', async (req, res) => {
         }
       }
 
+      // Availability from live inventory when KNOWN, else a special-order default.
+      // Reuses the storefront's stock logic (fresh snapshot qty >0 → in_stock, =0 →
+      // out_of_stock). Unknown (no fresh snapshot — most of the special-order
+      // catalog) stays in_stock but carries an honest multi-week handling time
+      // instead of implying immediate availability. Known-stocked items get a
+      // short handling window (they still transit vendor → showroom).
+      const freshQty = r.fresh_qty;  // null = unknown
+      let availability = 'in_stock', minHandle = null, maxHandle = null;
+      if (freshQty == null)   { minHandle = 14; maxHandle = 28; }   // special order ~2–4 weeks
+      else if (freshQty <= 0) { availability = 'out_of_stock'; }     // known empty
+      else                    { minHandle = 3;  maxHandle = 10; }    // known on hand
+
       xml += '    <item>\n';
       xml += `      <g:id>${xe(r.sku_id)}</g:id>\n`;
       // Group color/size variants of the same product so Shopping clusters them
@@ -36801,13 +36817,20 @@ app.get('/api/merchant-feed.xml', async (req, res) => {
       xml += `      <g:link>${xe(link)}</g:link>\n`;
       xml += `      <g:image_link>${xe(image)}</g:image_link>\n`;
       xml += '      <g:condition>new</g:condition>\n';
-      xml += '      <g:availability>in_stock</g:availability>\n';
+      xml += `      <g:availability>${availability}</g:availability>\n`;
       // Pick-up-later: order online, collect at the Anaheim showroom. Most of the
       // catalog is special-order (vendor → store), so the honest readiness SLA is
       // multi-week. pickup_method is intentionally omitted (optional since 2024-09;
-      // Google recommends not sending it). Requires availability=in_stock (above) +
-      // the linked Business Profile store, both already in place.
-      xml += '      <g:pickup_sla>multi-week</g:pickup_sla>\n';
+      // Google recommends not sending it). pickup_sla requires availability=in_stock,
+      // so it's skipped for out-of-stock items; the linked Business Profile store is
+      // already in place.
+      if (availability === 'in_stock') xml += '      <g:pickup_sla>multi-week</g:pickup_sla>\n';
+      // Honest fulfillment lead time: keeps special-order items a strong in_stock
+      // listing while telling Google/shoppers they ship in weeks, not days.
+      if (maxHandle != null) {
+        xml += `      <g:min_handling_time>${minHandle}</g:min_handling_time>\n`;
+        xml += `      <g:max_handling_time>${maxHandle}</g:max_handling_time>\n`;
+      }
       xml += `      <g:price>${price.toFixed(2)} USD</g:price>\n`;
       if (salePrice != null && salePrice < price) {
         xml += `      <g:sale_price>${salePrice.toFixed(2)} USD</g:sale_price>\n`;
