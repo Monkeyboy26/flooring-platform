@@ -11603,6 +11603,11 @@
                   Print Receipt
                 </button>
               )}
+              {order && (
+                <button className="rof-quick-btn" onClick={() => window.open('/api/rep/orders/' + order.id + '/invoice?preview=true', '_blank')}>
+                  View Invoice
+                </button>
+              )}
               <button className="rof-quick-btn" onClick={() => navigate('orders')}>
                 All Orders
               </button>
