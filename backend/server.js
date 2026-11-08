@@ -36651,12 +36651,47 @@ app.get('/api/merchant-feed.xml', async (req, res) => {
       'carved wood', 'organizers', 'moulding', 'transitions & moldings', 'trim & accessories',
     ]);
 
+    // Map our merchandising categories to the closest VALID Google Product Taxonomy
+    // node. google_product_category is optional: when we can't confidently map a
+    // category we OMIT it and let Google auto-classify from the title/description —
+    // far better than the old blanket "Flooring & Carpet" that mislabeled ~35% of
+    // the feed (cabinet hardware, vanities, countertops, mirrors). The strings below
+    // are exact Google taxonomy paths; an invalid string causes a disapproval, so
+    // only confident mappings are listed and everything else falls through to omit.
+    const GPC_FLOORING   = 'Hardware > Building Materials > Flooring & Carpet';
+    const GPC_COUNTERTOP = 'Hardware > Building Materials > Countertops';
+    const GPC_VANITY     = 'Furniture > Bathroom Vanities';
+    const GPC_CABINET_HW = 'Hardware > Hardware Accessories > Cabinet Hardware';
+    const GPC_MIRROR     = 'Home & Garden > Decor > Mirrors';
+    const GPC_BY_CATEGORY = new Map([
+      // Flooring, tile, stone, carpet & other surfaces
+      ['porcelain tile', GPC_FLOORING], ['mosaic tile', GPC_FLOORING], ['ceramic tile', GPC_FLOORING],
+      ['lvp (plank)', GPC_FLOORING], ['lvt (tile)', GPC_FLOORING], ['engineered hardwood', GPC_FLOORING],
+      ['solid hardwood', GPC_FLOORING], ['natural stone', GPC_FLOORING], ['backsplash & wall tile', GPC_FLOORING],
+      ['talavera (mexican tile)', GPC_FLOORING], ['wood look tile', GPC_FLOORING], ['sheet vinyl', GPC_FLOORING],
+      ['laminate', GPC_FLOORING], ['porcelain slabs', GPC_FLOORING], ['stacked stone', GPC_FLOORING],
+      ['pavers', GPC_FLOORING], ['pool tile', GPC_FLOORING], ['pool coping', GPC_FLOORING],
+      ['decorative tile', GPC_FLOORING], ['large format tile', GPC_FLOORING], ['vct', GPC_FLOORING],
+      ['fluted tile', GPC_FLOORING], ['borders & liners', GPC_FLOORING], ['terrazzo tile', GPC_FLOORING],
+      ['medallions & inlays', GPC_FLOORING], ['carpet', GPC_FLOORING], ['broadloom carpet', GPC_FLOORING],
+      ['carpet tile', GPC_FLOORING],
+      // Countertops / slab surfaces
+      ['quartz countertops', GPC_COUNTERTOP], ['prefabricated countertops', GPC_COUNTERTOP],
+      ['granite countertops', GPC_COUNTERTOP], ['marble countertops', GPC_COUNTERTOP],
+      ['quartzite countertops', GPC_COUNTERTOP], ['sintered & zero-silica surfaces', GPC_COUNTERTOP],
+      // Furniture, cabinet hardware & decor
+      ['vanities', GPC_VANITY],
+      ['decorative hardware', GPC_CABINET_HW], ['functional hardware', GPC_CABINET_HW],
+      ['mirrors', GPC_MIRROR],
+    ]);
+
     const { rows } = await pool.query(`
       SELECT
         s.id              AS sku_id,
         s.variant_name, s.variant_type, s.vendor_sku, s.sell_by,
         COALESCE(p.display_name, p.name) AS product_name,
         p.collection,
+        p.id              AS product_id,
         p.slug            AS product_slug,
         p.description_short, p.description_long, p.meta_description,
         c.name            AS category_name,
@@ -36746,8 +36781,21 @@ app.get('/api/merchant-feed.xml', async (req, res) => {
 
       const link = `${baseUrl}/shop/${encodeURIComponent(r.category_slug)}/${encodeURIComponent(r.product_slug)}`;
 
+      // Variant attributes (color/size/material/pattern) are already loaded by the
+      // query above — surface them so Google can match attribute-specific searches
+      // ("beige porcelain tile 24x48"). First value per slug wins.
+      const attrMap = {};
+      if (Array.isArray(r.attributes)) {
+        for (const a of r.attributes) {
+          if (a && a.slug && a.value != null && attrMap[a.slug] == null) attrMap[a.slug] = String(a.value).trim();
+        }
+      }
+
       xml += '    <item>\n';
       xml += `      <g:id>${xe(r.sku_id)}</g:id>\n`;
+      // Group color/size variants of the same product so Shopping clusters them
+      // (shows swatches) instead of listing near-duplicate standalone items.
+      if (r.product_id) xml += `      <g:item_group_id>${xe(r.product_id)}</g:item_group_id>\n`;
       xml += `      <g:title>${xe(title.slice(0, 150))}</g:title>\n`;
       xml += `      <g:description>${xe(desc)}</g:description>\n`;
       xml += `      <g:link>${xe(link)}</g:link>\n`;
@@ -36771,9 +36819,17 @@ app.get('/api/merchant-feed.xml', async (req, res) => {
       xml += `      <g:brand>${xe(brand)}</g:brand>\n`;
       if (r.vendor_sku) xml += `      <g:mpn>${xe(r.vendor_sku)}</g:mpn>\n`;
       xml += '      <g:identifier_exists>no</g:identifier_exists>\n';
-      // All flooring/tile/countertop maps to Google's building-materials flooring node.
-      xml += '      <g:google_product_category>Hardware &gt; Building Materials &gt; Flooring &amp; Carpet</g:google_product_category>\n';
+      // Per-category Google taxonomy node; omit when unmapped so Google auto-classifies
+      // from the title/description (better than forcing non-flooring items — hardware,
+      // vanities, countertops, mirrors — into the flooring node). See GPC_BY_CATEGORY.
+      const gpc = r.category_name ? GPC_BY_CATEGORY.get(r.category_name.trim().toLowerCase()) : null;
+      if (gpc) xml += `      <g:google_product_category>${xe(gpc)}</g:google_product_category>\n`;
       if (r.category_name) xml += `      <g:product_type>${xe(r.category_name)}</g:product_type>\n`;
+      // Attribute fields Google matches shopping queries against (already loaded above).
+      if (attrMap.color)    xml += `      <g:color>${xe(attrMap.color.slice(0, 100))}</g:color>\n`;
+      if (attrMap.material) xml += `      <g:material>${xe(attrMap.material.slice(0, 200))}</g:material>\n`;
+      if (attrMap.size)     xml += `      <g:size>${xe(attrMap.size.slice(0, 100))}</g:size>\n`;
+      if (attrMap.pattern)  xml += `      <g:pattern>${xe(attrMap.pattern.slice(0, 100))}</g:pattern>\n`;
       // Parcel-shippable hardware/decor → "parcel" label (flat-rate policy); rest = freight.
       if (r.category_name && PARCEL_CATS.has(r.category_name.trim().toLowerCase())) {
         xml += '      <g:shipping_label>parcel</g:shipping_label>\n';
