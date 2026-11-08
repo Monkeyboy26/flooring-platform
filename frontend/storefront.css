@@ -5,6 +5,18 @@ html { overflow-x: clip; }
 *:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .skip-nav { position: absolute; left: -9999px; top: auto; width: 1px; height: 1px; overflow: hidden; z-index: 10001; background: var(--stone-900); color: #fff; padding: 0.75rem 1.5rem; font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; text-decoration: none; border-radius: 0 0 var(--radius-md) 0; }
 .skip-nav:focus { position: fixed; left: 0; top: 0; width: auto; height: auto; }
+
+/* Metric-matched fallback font — makes the fallback reserve the SAME line-box
+   height as real Inter so the display=swap handoff causes zero vertical layout
+   shift (the dominant cold-load CLS source). size-adjust was measured empirically
+   in-browser against line-height:normal: Inter renders 105.2% the height of Arial,
+   and Arial scales linearly under size-adjust (verified fallback delta ~0px).
+   NOTE: a Cormorant-Garamond→Georgia fallback was tried too, but size-adjust
+   scales Georgia non-linearly in Chrome (106.6% inflated the line box ~22%,
+   worse than plain Georgia), so headings keep their original plain-Georgia
+   fallback. Doing the heading properly needs self-hosted, preloaded fonts. */
+@font-face { font-family: 'Inter Fallback'; src: local('Arial'); size-adjust: 105.2%; }
+
 :root {
   --stone-50: #fafaf9; --stone-100: #f5f5f4; --stone-200: #e7e5e4;
   --stone-300: #d6d3d1; --stone-400: #a8a29e; --stone-500: #78716c;
@@ -15,9 +27,9 @@ html { overflow-x: clip; }
   --sage-light: #a3b48e; --sage-dark: #6b7f55; --terracotta-light: #d99570; --terracotta-dark: #b06a45;
   --cream-warm: #f8f5f0; --cream-cool: #f5f5f2;
   --font-heading: 'Cormorant Garamond', Georgia, serif;
-  --font-body: 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', 'Inter Fallback', system-ui, sans-serif;
   --roma-serif: 'Cormorant Garamond', Georgia, serif;
-  --roma-sans: 'Inter', system-ui, sans-serif;
+  --roma-sans: 'Inter', 'Inter Fallback', system-ui, sans-serif;
   --color-rose: #e11d48;
   --color-rose-dark: #a04438;
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
@@ -563,7 +575,7 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 
 /* ── FORMULARY HOMEPAGE ── */
 .form-eyebrow { font-family: var(--font-body); font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.24em; color: var(--gold); font-weight: 500; margin-bottom: 1.25rem; }
-.form-hero { position: relative; text-align: center; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 120px 3rem 110px; background: url('/uploads/homepage/hero.jpg') center/cover no-repeat; }
+.form-hero { position: relative; text-align: center; min-height: 100vh; min-height: 100svh; display: flex; align-items: center; justify-content: center; padding: 120px 3rem 110px; background: url('/uploads/homepage/hero.jpg') center/cover no-repeat; }
 .form-hero::before { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,0.65); pointer-events: none; }
 .form-hero-inner { max-width: 720px; margin: 0 auto; position: relative; z-index: 1; }
 .form-hero-headline { font-family: var(--font-heading); font-size: 3.25rem; font-weight: 300; line-height: 1.2; color: white; margin-bottom: 2.5rem; letter-spacing: -0.01em; text-shadow: 0 1px 8px rgba(0,0,0,0.3); }
@@ -2076,6 +2088,13 @@ button.avail-pill:hover, button.avail-pill.open { filter: brightness(0.92); }
 /* ── SKELETON LOADERS ── */
 .skeleton-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .skeleton-card-img { width: 100%; aspect-ratio: 1; background: var(--stone-100); border-radius: 4px; animation: pulse 1.5s ease-in-out infinite; }
+/* Featured grids render portrait 4/5 cards (.form-specimen-card-image /
+   .shop-featured-card-image). Match the skeleton placeholder to that aspect so
+   the swap from skeleton → real cards doesn't grow the grid and shove the
+   content below it down (a real homepage CLS source). Browse/trade/account
+   skeletons stand in for ~square cards and stay at the default aspect-ratio:1. */
+.form-section .skeleton-card-img,
+.shop-landing-section .skeleton-card-img { aspect-ratio: 4 / 5; }
 .skeleton-bar { height: 14px; background: var(--stone-100); border-radius: 2px; animation: pulse 1.5s ease-in-out infinite; margin-top: 0.75rem; }
 .skeleton-bar-short { width: 60%; }
 .skeleton-bar-medium { width: 40%; }
