@@ -99,6 +99,22 @@ export async function run(pool, job, source) {
   // vendor image replaced between nightly runs is re-measured.
   const imgStatsCache = new Map();
 
+  // Known room-scene images (by CDN filename), from an offline vision pass.
+  // Atlas Concorde names room scenes plainly (e.g. "tarmac__54213.jpg",
+  // "ivory_2__74872.jpg") with no lifestyle keyword, so isLifestyleUrl() can't
+  // catch them and they leak into productShots — becoming a SKU's primary.
+  // This persistent allow-list routes them to lifestyle instead. Re-scrapes
+  // hard-delete+reinsert media, so the guard must live outside media_assets.
+  // Extend via: INSERT INTO bosphorus_scene_images(filename) VALUES (...).
+  const sceneFilenames = new Set();
+  try {
+    const sc = await pool.query('SELECT filename FROM bosphorus_scene_images');
+    for (const r of sc.rows) sceneFilenames.add(r.filename);
+    if (sceneFilenames.size) {
+      await appendLog(pool, job.id, `Loaded ${sceneFilenames.size} known room-scene images to demote`);
+    }
+  } catch { /* table may not exist on fresh installs — guard is optional */ }
+
   // ── Attempt authenticated session for pricing ──
   let cookies = null;
   try {
@@ -340,7 +356,7 @@ export async function run(pool, job, source) {
           const firstSwatchEntry = firstVariant.colorId
             ? productData.swatchImagesByColorId.get(firstVariant.colorId) : null;
           let { productShots: sliderProductShots, lifestyle: sliderLifestyle } =
-            classifySliderImages(relevantNeutral, null);
+            classifySliderImages(relevantNeutral, null, sceneFilenames);
           // Strip ?v= cache-busters so re-scrapes dedup (see normalizeImgUrl).
           sliderProductShots = (sliderProductShots || []).map(normalizeImgUrl);
           sliderLifestyle = (sliderLifestyle || []).map(normalizeImgUrl);
@@ -533,7 +549,7 @@ export async function run(pool, job, source) {
               ? normalizeImgUrl(swatchEntry.full || swatchEntry.thumb) : null;
 
             let { productShots: colorShots, lifestyle: colorLifestyle } =
-              classifySliderImages(filteredColorImages, swatchEntry);
+              classifySliderImages(filteredColorImages, swatchEntry, sceneFilenames);
             // Strip ?v= cache-busters so re-scrapes dedup (see normalizeImgUrl).
             colorShots = (colorShots || []).map(normalizeImgUrl);
             colorLifestyle = (colorLifestyle || []).map(normalizeImgUrl);
@@ -1430,7 +1446,7 @@ function groupVariantsBySizeFinish(productData) {
  * Classify slider images into product shots vs lifestyle, excluding duplicates of the swatch.
  * If no swatch and no product shots, promotes the first lifestyle image.
  */
-function classifySliderImages(sliderImages, swatchEntry) {
+function classifySliderImages(sliderImages, swatchEntry, sceneFilenames) {
   const swatchUrl = swatchEntry ? (swatchEntry.full || swatchEntry.thumb) : null;
   const swatchBase = swatchUrl ? swatchUrl.split('?')[0] : null;
   const productShots = [];
@@ -1438,7 +1454,10 @@ function classifySliderImages(sliderImages, swatchEntry) {
   for (const img of sliderImages) {
     const imgBase = img.split('?')[0];
     if (swatchBase && imgBase === swatchBase) continue;
-    if (isLifestyleUrl(img)) {
+    // Vision-flagged room scene (filename carries no lifestyle keyword), or a
+    // keyword-detected lifestyle URL → lifestyle. Otherwise a product shot.
+    const fname = imgBase.split('/').pop();
+    if ((sceneFilenames && sceneFilenames.has(fname)) || isLifestyleUrl(img)) {
       lifestyle.push(img);
     } else {
       productShots.push(img);
