@@ -35,7 +35,7 @@ export const CATEGORY_OVERRIDES = {
   'rosso verona':            'porcelain-tile',   // Marmorea 24x24 tile twin
   'blue forest':             'porcelain-tile',   // 24x48 (60x120cm) rectified porcelain tile, 2/box
   'palma':                   'porcelain-tile',   // 24x48 (60x120cm) rectified porcelain tile, 2/box
-  'natural terrazzo':        'natural-stone',    // real terrazzo, not a porcelain look (owner 2026-09-02)
+  'natural terrazzo':        'terrazzo-tile',    // real terrazzo — lives with the other terrazzo tile (owner 2026-11-08)
   // Slab-named porcelain/stone TILES (2026-09-05): the dealer price list has
   // same-named slabs, but these website pages are product_cat-porcelain /
   // floor-tile (verified on live site). Real slab pages live at
