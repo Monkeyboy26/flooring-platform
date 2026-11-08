@@ -3861,6 +3861,25 @@
           "finish": "Tumbled"
         },
         "desc": "6\" x 6\" Crema Marfil Tile, Tumbled,Discount,no exchange,no return 7mm thickness"
+      },
+      {
+        "vendor_sku": "Tile-Terrazzo-CM-12x12-5/8-P(D)",
+        "internal_sku": "SP-Tile-Terrazzo-CM-12x12-5-8-P-D",
+        "variant_name": "12x12x5/8, Polished",
+        "sell_by": "unit",
+        "variant_type": null,
+        "cost": 5.01,
+        "retail": 7.99,
+        "price_basis": "per_sqft",
+        "status": "active",
+        "packaging": {
+          "sqft_per_box": 1.0,
+          "pieces_per_box": 1
+        },
+        "attrs": {
+          "finish": "Polished"
+        },
+        "desc": "Polished Crema Marfil Tiles 12\" x 12 \" x 5/8\""
       }
     ]
   },
@@ -7662,25 +7681,6 @@
           "finish": "Polished"
         },
         "desc": "Terrazzo Silver Tile 6\"x12\"x3/8\" Polished {1SF=2pcs}"
-      },
-      {
-        "vendor_sku": "Tile-Terrazzo-CM-12x12-5/8-P(D)",
-        "internal_sku": "SP-Tile-Terrazzo-CM-12x12-5-8-P-D",
-        "variant_name": "Crema Marfil, 12x12x5/8, Polished",
-        "sell_by": "unit",
-        "variant_type": null,
-        "cost": 5.01,
-        "retail": 7.99,
-        "price_basis": "per_sqft",
-        "status": "active",
-        "packaging": {
-          "sqft_per_box": 1.0,
-          "pieces_per_box": 1
-        },
-        "attrs": {
-          "finish": "Polished"
-        },
-        "desc": "Polished Crema Marfil Tiles 12\" x 12 \" x 5/8\""
       },
       {
         "vendor_sku": "Tile-Terrazzo-LG-12x24x5/8-H(D)",
