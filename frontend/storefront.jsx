@@ -3445,6 +3445,14 @@
               showToast('Added to cart', 'success');
               setCartDrawerOpen(true);
               track('add_to_cart', { sku_id: item.sku_id, is_sample: !!item.is_sample });
+              if (item.is_sample) {
+                // Distinct sample-INTENT event. The existing `sample_request` event
+                // only fires on completed sample checkout (and misses rep/admin-created
+                // requests), so the browse→sample-added→checkout funnel was invisible.
+                // Fired here (not per-CTA) so every sample path — PDP + QuickView — counts.
+                track('sample_request_started', { sku_id: item.sku_id });
+                gaEvent('generate_lead', { lead_source: 'sample_request_started' });
+              }
               gaEvent('add_to_cart', { currency: 'USD', value: parseFloat(data.item.subtotal || 0) || 0, items: [gaItem(data.item)] });
             }
           })
@@ -5953,6 +5961,21 @@
         onClose();
       };
 
+      const handleRequestSample = () => {
+        // Mirror the PDP sample add so browse/QuickView requests a sample directly
+        // instead of bouncing to the detail page (an extra click + page load). The
+        // sample-intent analytics event fires inside addToCart for is_sample lines.
+        addToCart({
+          product_id: activeSku.product_id,
+          sku_id: activeSku.sku_id,
+          num_boxes: 1,
+          unit_price: 0,
+          subtotal: '0.00',
+          is_sample: true
+        });
+        onClose();
+      };
+
       const handleVariantHover = (sib) => {
         setMedia([{ url: sib.primary_image, asset_type: 'primary' }]);
         setImgIndex(0);
@@ -6118,12 +6141,12 @@
                   <button className="qv-btn-primary" onClick={qvIsOutOfStock ? undefined : handleAdd} disabled={qvIsOutOfStock}>
                     {qvIsOutOfStock ? 'Out of Stock' : ('Add to cart' + (qty > 1 ? ' \u00B7 $' + (effectivePrice * qty).toFixed(2) : ''))}
                   </button>
-                  <button className="qv-btn-secondary" onClick={() => { onViewDetail(activeSku.sku_id, activeSku.product_name); onClose(); }}>Order sample</button>
+                  <button className="qv-btn-secondary" onClick={handleRequestSample}>Order sample</button>
                 </div>
               ) : (
                 <div className="quick-view-actions qv-sqft-actions">
                   <button className="qv-btn-primary" onClick={() => { onViewDetail(activeSku.sku_id, activeSku.product_name); onClose(); }}>Calculate coverage</button>
-                  <button className="qv-btn-secondary" onClick={() => { onViewDetail(activeSku.sku_id, activeSku.product_name); onClose(); }}>Order sample</button>
+                  <button className="qv-btn-secondary" onClick={handleRequestSample}>Order sample</button>
                 </div>
               )}
 

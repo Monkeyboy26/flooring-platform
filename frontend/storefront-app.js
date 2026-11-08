@@ -3031,6 +3031,10 @@
           showToast("Added to cart", "success");
           setCartDrawerOpen(true);
           track("add_to_cart", { sku_id: item.sku_id, is_sample: !!item.is_sample });
+          if (item.is_sample) {
+            track("sample_request_started", { sku_id: item.sku_id });
+            gaEvent("generate_lead", { lead_source: "sample_request_started" });
+          }
           gaEvent("add_to_cart", { currency: "USD", value: parseFloat(data.item.subtotal || 0) || 0, items: [gaItem(data.item)] });
         }
       }).catch((err) => console.error(err));
@@ -5056,6 +5060,17 @@
       }
       onClose();
     };
+    const handleRequestSample = () => {
+      addToCart({
+        product_id: activeSku.product_id,
+        sku_id: activeSku.sku_id,
+        num_boxes: 1,
+        unit_price: 0,
+        subtotal: "0.00",
+        is_sample: true
+      });
+      onClose();
+    };
     const handleVariantHover = (sib) => {
       setMedia([{ url: sib.primary_image, asset_type: "primary" }]);
       setImgIndex(0);
@@ -5101,16 +5116,10 @@
         onClick: () => !sib._isCurrent && handleVariantClick(sib)
       },
       sib.primary_image ? /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(sib.primary_image, 120), alt: sib.variant_name, decoding: "async", width: 44, height: 44 }) : /* @__PURE__ */ React.createElement("div", { className: "qv-swatch-placeholder" }, formatVariantName(sib.variant_name))
-    )))), activeSku.description_short && /* @__PURE__ */ React.createElement("p", { className: "qv-description" }, activeSku.description_short), activeSku.stock_status && activeSku.stock_status !== "unknown" && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "0.75rem" } }, /* @__PURE__ */ React.createElement(StockBadge, { status: activeSku.stock_status, vendorHasInventory: activeSku.vendor_has_inventory, qtyOnHand: activeSku.qty_on_hand, qtyOnHandSqft: activeSku.qty_on_hand_sqft, sellBy: activeSku.sell_by })), isUnit ? /* @__PURE__ */ React.createElement("div", { className: "quick-view-actions" }, !qvIsOutOfStock && /* @__PURE__ */ React.createElement("div", { className: "qv-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setQty((q) => Math.max(1, q - 1)) }, "\u2212"), /* @__PURE__ */ React.createElement("div", { className: "qv-qty-display" }, qty), /* @__PURE__ */ React.createElement("button", { onClick: () => setQty((q) => q + 1) }, "+")), /* @__PURE__ */ React.createElement("button", { className: "qv-btn-primary", onClick: qvIsOutOfStock ? void 0 : handleAdd, disabled: qvIsOutOfStock }, qvIsOutOfStock ? "Out of Stock" : "Add to cart" + (qty > 1 ? " \xB7 $" + (effectivePrice * qty).toFixed(2) : "")), /* @__PURE__ */ React.createElement("button", { className: "qv-btn-secondary", onClick: () => {
+    )))), activeSku.description_short && /* @__PURE__ */ React.createElement("p", { className: "qv-description" }, activeSku.description_short), activeSku.stock_status && activeSku.stock_status !== "unknown" && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "0.75rem" } }, /* @__PURE__ */ React.createElement(StockBadge, { status: activeSku.stock_status, vendorHasInventory: activeSku.vendor_has_inventory, qtyOnHand: activeSku.qty_on_hand, qtyOnHandSqft: activeSku.qty_on_hand_sqft, sellBy: activeSku.sell_by })), isUnit ? /* @__PURE__ */ React.createElement("div", { className: "quick-view-actions" }, !qvIsOutOfStock && /* @__PURE__ */ React.createElement("div", { className: "qv-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setQty((q) => Math.max(1, q - 1)) }, "\u2212"), /* @__PURE__ */ React.createElement("div", { className: "qv-qty-display" }, qty), /* @__PURE__ */ React.createElement("button", { onClick: () => setQty((q) => q + 1) }, "+")), /* @__PURE__ */ React.createElement("button", { className: "qv-btn-primary", onClick: qvIsOutOfStock ? void 0 : handleAdd, disabled: qvIsOutOfStock }, qvIsOutOfStock ? "Out of Stock" : "Add to cart" + (qty > 1 ? " \xB7 $" + (effectivePrice * qty).toFixed(2) : "")), /* @__PURE__ */ React.createElement("button", { className: "qv-btn-secondary", onClick: handleRequestSample }, "Order sample")) : /* @__PURE__ */ React.createElement("div", { className: "quick-view-actions qv-sqft-actions" }, /* @__PURE__ */ React.createElement("button", { className: "qv-btn-primary", onClick: () => {
       onViewDetail(activeSku.sku_id, activeSku.product_name);
       onClose();
-    } }, "Order sample")) : /* @__PURE__ */ React.createElement("div", { className: "quick-view-actions qv-sqft-actions" }, /* @__PURE__ */ React.createElement("button", { className: "qv-btn-primary", onClick: () => {
-      onViewDetail(activeSku.sku_id, activeSku.product_name);
-      onClose();
-    } }, "Calculate coverage"), /* @__PURE__ */ React.createElement("button", { className: "qv-btn-secondary", onClick: () => {
-      onViewDetail(activeSku.sku_id, activeSku.product_name);
-      onClose();
-    } }, "Order sample")), activeSku.prop65_warning && /* @__PURE__ */ React.createElement("div", { className: "prop65-warning prop65-compact" }, /* @__PURE__ */ React.createElement("span", { className: "prop65-icon", "aria-hidden": "true" }, "\u26A0"), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("strong", null, "WARNING:"), " Cancer and Reproductive Harm \u2014", " ", /* @__PURE__ */ React.createElement("a", { href: "https://www.P65Warnings.ca.gov", target: "_blank", rel: "noopener noreferrer" }, "www.P65Warnings.ca.gov"))), /* @__PURE__ */ React.createElement("div", { className: "qv-footer" }, /* @__PURE__ */ React.createElement("div", { className: "qv-footer-links" }, /* @__PURE__ */ React.createElement("button", { className: "qv-footer-link", onClick: () => {
+    } }, "Calculate coverage"), /* @__PURE__ */ React.createElement("button", { className: "qv-btn-secondary", onClick: handleRequestSample }, "Order sample")), activeSku.prop65_warning && /* @__PURE__ */ React.createElement("div", { className: "prop65-warning prop65-compact" }, /* @__PURE__ */ React.createElement("span", { className: "prop65-icon", "aria-hidden": "true" }, "\u26A0"), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("strong", null, "WARNING:"), " Cancer and Reproductive Harm \u2014", " ", /* @__PURE__ */ React.createElement("a", { href: "https://www.P65Warnings.ca.gov", target: "_blank", rel: "noopener noreferrer" }, "www.P65Warnings.ca.gov"))), /* @__PURE__ */ React.createElement("div", { className: "qv-footer" }, /* @__PURE__ */ React.createElement("div", { className: "qv-footer-links" }, /* @__PURE__ */ React.createElement("button", { className: "qv-footer-link", onClick: () => {
       if (typeof toggleWishlist === "function") toggleWishlist(activeSku.sku_id);
     }, title: "Save to wishlist" }, /* @__PURE__ */ React.createElement("span", { className: "qv-link-icon" }, "\u2661"), " Save")), /* @__PURE__ */ React.createElement("button", { className: "qv-detail-link", onClick: () => {
       onViewDetail(activeSku.sku_id, activeSku.product_name);

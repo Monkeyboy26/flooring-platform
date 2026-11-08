@@ -16,7 +16,7 @@ function isBotRequest(req) {
 const ALLOWED_EVENT_TYPES = new Set([
   'page_view', 'product_view', 'add_to_cart', 'remove_from_cart', 'checkout_started',
   'order_completed', 'search', 'filter_toggle', 'sort_change', 'category_select',
-  'collection_select', 'wishlist_add', 'wishlist_remove', 'sample_request',
+  'collection_select', 'wishlist_add', 'wishlist_remove', 'sample_request', 'sample_request_started',
   'trade_signup_start', 'trade_signup_complete', 'trade_login', 'customer_login',
   'quick_view_open', 'image_gallery', 'scroll_depth', 'time_on_page',
   'cart_drawer_open', 'page_change'
