@@ -164,11 +164,56 @@ async function main() {
   for (const root of ROOTS) await crawl(root.pid, root.name, root.styles, seen, assets);
   console.log(`DAM assets discovered: ${assets.length} (folders crawled: ${seen.size})`);
 
+  // ---- public web sources (no session) ----
+  // mannington.com index pages embed every color's typed image set as
+  // TransformedImages/{stem}.jpeg (public CDN render of the DAM TIFs); the
+  // Mannington-on-Main product-line pages (Towne Centre / Insight Plus /
+  // Glass Back — none of which exist in the DAM) inline wp-content swatches
+  // named {Pattern}_{Color}_{code}.jpg or {Pattern}-{Color}-Swatch.png.
+  const WEB_PAGES = [
+    { url: 'https://www.mannington.com/residential/products/resilient', styles: ['BM', 'JS'] },
+    { url: 'https://www.mannington.com/residential/products/luxury-vinyl-sheet/platinum', styles: ['LVS1', 'LVS2', 'LVS3'] },
+    { url: 'https://www.mannington.com/residential/products/luxury-vinyl-sheet/gold', styles: ['LVS1', 'LVS2', 'LVS3'] },
+    { url: 'https://www.mannington.com/residential/products/luxury-vinyl-sheet/silver', styles: ['LVS1', 'LVS2', 'LVS3'] },
+    { url: 'https://manningtononmain.com/product-line/towne-centre/', styles: ['TC'] },
+    { url: 'https://manningtononmain.com/product-line/insight-plus/', styles: ['IP'] },
+    { url: 'https://manningtononmain.com/product-line/insight-plus-glass-back/', styles: ['IPGB'] },
+  ];
+  const webSeen = new Set();
+  for (const pg of WEB_PAGES) {
+    let html = '';
+    try {
+      const r = await fetch(pg.url, { headers: { 'User-Agent': UA } });
+      if (!r.ok) { console.warn(`  ! web source ${pg.url}: ${r.status}`); continue; }
+      html = await r.text();
+    } catch (e) { console.warn(`  ! web source ${pg.url}: ${e.message}`); continue; }
+    const urls = new Set();
+    for (const m of html.matchAll(/https?:\/\/manningtonprod\.pimcoreclient\.com\/TransformedImages\/([^"'¨\s]+?\.jpeg)/g)) {
+      urls.add(['https://manningtonprod.pimcoreclient.com/TransformedImages/' + m[1], m[1]]);
+    }
+    for (const m of html.matchAll(/https?:\/\/manningtononmain\.com\/wp-content\/uploads\/[^"'\s]+?\.(?:jpe?g|png|webp)/g)) {
+      const u = m[0];
+      if (/-\d+x\d+\.(jpe?g|png|webp)$/.test(u)) continue; // skip wp thumbnails
+      urls.add([u, u.split('/').pop()]);
+    }
+    let added = 0;
+    for (const [u, fname] of urls) {
+      const key = fname.toLowerCase();
+      if (webSeen.has(key)) continue;
+      webSeen.add(key);
+      assets.push({ id: null, url: u, filename: fname, folder: pg.url, styles: pg.styles });
+      added++;
+    }
+    console.log(`  web source ${pg.url}: +${added} images`);
+  }
+  console.log(`Total assets incl. web: ${assets.length}`);
+
   // match assets → color rows
   const matches = []; // {asset, rows, type}
   let unmatched = 0;
   const unmatchedSamples = [];
   for (const a of assets) {
+    if (/\.(eps|ai|pdf|svg)$/i.test(a.filename)) continue; // sharp can't rasterize these
     const { tokens, type } = classify(a.filename);
     if (type === 'social') continue;
     let rows = null;
@@ -212,12 +257,49 @@ async function main() {
   console.log(`Matched: ${matches.length}, unmatched: ${unmatched}`);
   if (unmatched) console.log('  unmatched samples:', unmatchedSamples.slice(0, 10).join(' | '));
 
-  // group per color key, pick assets (cap per type to keep PDPs sane)
+  // Tier families share the DESIGN: LVS1/2/3 are Platinum/Gold/Silver wear
+  // tiers of the same visual (Mannington's own files list all three codes:
+  // 130261-100261-080261-rs-capri-marble), and IPGB is the glass-back build
+  // of the same Insight Plus patterns. An image matched to any tier attaches
+  // to every tier's SKUs of that pattern+color. Unrelated series (Benchmark
+  // vs Prime reusing a pattern name) do NOT share.
+  const shareGroup = st => /^LVS/.test(st) ? 'LVS' : (st === 'IPGB' ? 'IP' : st);
+  const designKey = r => `${shareGroup(r.style_code)}|${slug(r.pattern)}|${slug(r.color)}`;
+  const byDesign = new Map(); // designKey -> all rolls rows of that design
+  for (const r of rolls) {
+    const k = designKey(r);
+    (byDesign.get(k) ?? byDesign.set(k, []).get(k)).push(r);
+  }
+
+  // group per design, pick assets (cap per type to keep PDPs sane)
   const byColor = new Map();
   for (const m of matches) {
-    const key = (m.rows[0].style_code + m.rows[0].color_code).toLowerCase();
-    (byColor.get(key) ?? byColor.set(key, []).get(key)).push(m);
+    const family = byDesign.get(designKey(m.rows[0])) || m.rows;
+    (byColor.get(designKey(m.rows[0])) ?? byColor.set(designKey(m.rows[0]), []).get(designKey(m.rows[0])))
+      .push({ ...m, rows: family });
   }
+
+  // Last-resort cross-series inherit: Mannington reuses designs across brands
+  // (Prime = "Sobella Prime" dealer label of the LVS/Resilient designs —
+  // retailers sell "Prime Deco Wrought Iron" with the same photography). A
+  // design with NO images of its own borrows the matched set of a same
+  // pattern+color design from any other series.
+  const matchedByName = new Map();
+  for (const [k, ms] of byColor) {
+    const nk = `${slug(ms[0].rows[0].pattern)}|${slug(ms[0].rows[0].color)}`;
+    if (!matchedByName.has(nk)) matchedByName.set(nk, ms);
+  }
+  let inherited = 0;
+  for (const [dk, rows] of byDesign) {
+    if (byColor.has(dk)) continue;
+    const nk = `${slug(rows[0].pattern)}|${slug(rows[0].color)}`;
+    const donor = matchedByName.get(nk);
+    if (donor) {
+      byColor.set(dk, donor.map(m => ({ ...m, rows })));
+      inherited++;
+    }
+  }
+  if (inherited) console.log(`Cross-series inherit: ${inherited} designs borrow same pattern+color images`);
   console.log(`Colors with images: ${byColor.size} of ${byStyleColor.size}`);
   if (DRY_RUN) {
     for (const [k, ms] of [...byColor].slice(0, 12)) {
@@ -246,13 +328,20 @@ async function main() {
       if (chosen.filter(c => c.at === at).length >= caps[at]) continue;
       chosen.push({ ...m, at });
     }
+    // canonical file key: lowest style+color key in the design family, but
+    // prefer a tier key whose file already exists from an earlier run
+    const famKeys = [...new Set(ms[0].rows.map(r =>
+      (r.color_code.toUpperCase().startsWith(r.style_code.toUpperCase())
+        ? r.color_code : r.style_code + r.color_code.replace(/GB$/i, '')).toLowerCase()))].sort();
     const sortCounters = {};
     for (const c of chosen) {
       const n = (sortCounters[c.at] = (sortCounters[c.at] ?? -1) + 1);
-      const fname = `${key}-${c.at}${n ? `-${n}` : ''}.webp`;
+      const suffix = `-${c.at}${n ? `-${n}` : ''}.webp`;
+      const existingKey = famKeys.find(k => fs.existsSync(path.join(OUT_DIR, `${k}${suffix}`)));
+      const fname = `${existingKey || famKeys[0]}${suffix}`;
       const localPath = path.join(OUT_DIR, fname);
       const url = `${URL_PREFIX}/${fname}`;
-      const originalUrl = `${DAM}/dam/asset/downloadOriginal?id=${c.asset.id}`;
+      const originalUrl = c.asset.url || `${DAM}/dam/asset/downloadOriginal?id=${c.asset.id}`;
       if (!NO_DOWNLOAD && !fs.existsSync(localPath)) {
         try {
           const resp = await get(originalUrl);
