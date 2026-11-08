@@ -572,7 +572,11 @@ app.get('/api/img', imgLimiter, async (req, res) => {
         return outputBuffer;
       })();
       imgInflight.set(cacheKey, work);
-      work.finally(() => imgInflight.delete(cacheKey));
+      // .finally() returns a NEW promise that re-rejects when `work` rejects
+      // (e.g. Sharp fails on a corrupt/dead source image). The awaiting request
+      // already handles that rejection in its try/catch; this cleanup branch must
+      // swallow it too, or it surfaces as an unhandled rejection (Sentry noise).
+      work.finally(() => imgInflight.delete(cacheKey)).catch(() => {});
     }
 
     const outputBuffer = await imgInflight.get(cacheKey);
