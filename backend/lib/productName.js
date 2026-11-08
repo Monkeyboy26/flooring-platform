@@ -267,7 +267,9 @@ export function fullProductName(sku) {
   // category keyword "Sink" — suppresses the appendTypeSuffix re-add, yielding
   // "Sink Collection Rectangular White Ceramic Undermount". Treat these bucket
   // names as taxonomy so the title is just the product name (+ type suffix).
-  const TAXONOMY_COLLECTION_NAMES = new Set(['sink collection']);
+  // "Terrazzo In-Stock" is a pricelist-section label whose "In-Stock" words
+  // defeat the token-echo check (names already say "… Terrazzo Tile").
+  const TAXONOMY_COLLECTION_NAMES = new Set(['sink collection', 'terrazzo in-stock']);
   const skipCollectionInTitle = TAXONOMY_COLLECTION_VENDORS.has((sku.vendor_code || '').toUpperCase())
     || TAXONOMY_COLLECTION_VENDOR_NAMES.has((sku.vendor_name || '').toUpperCase())
     || TAXONOMY_COLLECTION_NAMES.has((col || '').toLowerCase().trim());
