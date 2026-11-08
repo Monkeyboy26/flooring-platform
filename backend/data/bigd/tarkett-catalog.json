@@ -1,0 +1,5909 @@
+[
+ {
+  "name": "Starry Night",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002323",
+    "internal_sku": "BIGD-350002323",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Starry Night",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Ginger Spice",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002325",
+    "internal_sku": "BIGD-350002325",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Ginger Spice",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Dunes",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002326",
+    "internal_sku": "BIGD-350002326",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Dunes",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Palm",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002328",
+    "internal_sku": "BIGD-350002328",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Palm",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Pebble Beach",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002329",
+    "internal_sku": "BIGD-350002329",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Pebble Beach",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Pure White",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002480",
+    "internal_sku": "BIGD-350002480",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Pure White",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Buttermilk",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002500",
+    "internal_sku": "BIGD-350002500",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Buttermilk",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Almond",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002501",
+    "internal_sku": "BIGD-350002501",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Almond",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Adobe",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002503",
+    "internal_sku": "BIGD-350002503",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Adobe",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Copper",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002504",
+    "internal_sku": "BIGD-350002504",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Copper",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Pewter",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002509",
+    "internal_sku": "BIGD-350002509",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Pewter",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Deep Plum",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002513",
+    "internal_sku": "BIGD-350002513",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Deep Plum",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Steel Works",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002522",
+    "internal_sku": "BIGD-350002522",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Steel Works",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Dark Forest",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002524",
+    "internal_sku": "BIGD-350002524",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Dark Forest",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Green Grape",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002526",
+    "internal_sku": "BIGD-350002526",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Green Grape",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Military Tan",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002527",
+    "internal_sku": "BIGD-350002527",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Military Tan",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Doeskin Brown",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002528",
+    "internal_sku": "BIGD-350002528",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Doeskin Brown",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Winter Storm",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002530",
+    "internal_sku": "BIGD-350002530",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Winter Storm",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "True Being",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002533",
+    "internal_sku": "BIGD-350002533",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "True Being",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Sandstone",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002556",
+    "internal_sku": "BIGD-350002556",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Sandstone",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Shooting Star",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002557",
+    "internal_sku": "BIGD-350002557",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Shooting Star",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Matador",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002565",
+    "internal_sku": "BIGD-350002565",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Matador",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Sky Vista",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002568",
+    "internal_sku": "BIGD-350002568",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Sky Vista",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Ebony",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002569",
+    "internal_sku": "BIGD-350002569",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Ebony",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Earth",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002571",
+    "internal_sku": "BIGD-350002571",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Earth",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Cloudy",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002572",
+    "internal_sku": "BIGD-350002572",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Cloudy",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Desert Storm",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002573",
+    "internal_sku": "BIGD-350002573",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Desert Storm",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Seafoam",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002575",
+    "internal_sku": "BIGD-350002575",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Seafoam",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Blue Drop",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002579",
+    "internal_sku": "BIGD-350002579",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Blue Drop",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Mineral White",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002580",
+    "internal_sku": "BIGD-350002580",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Mineral White",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Ivory Tower",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002582",
+    "internal_sku": "BIGD-350002582",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Ivory Tower",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Meadow",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002588",
+    "internal_sku": "BIGD-350002588",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Meadow",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Mushroom",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002593",
+    "internal_sku": "BIGD-350002593",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Mushroom",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Turquoise",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002594",
+    "internal_sku": "BIGD-350002594",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Turquoise",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Amberlight",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002597",
+    "internal_sku": "BIGD-350002597",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Amberlight",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Deep Water",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002598",
+    "internal_sku": "BIGD-350002598",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Deep Water",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Limoncello",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002700",
+    "internal_sku": "BIGD-350002700",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Limoncello",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Golden Maize",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002701",
+    "internal_sku": "BIGD-350002701",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Golden Maize",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Orange Tango",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002702",
+    "internal_sku": "BIGD-350002702",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Orange Tango",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Red Rose",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002703",
+    "internal_sku": "BIGD-350002703",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Red Rose",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Bold Crimson",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002704",
+    "internal_sku": "BIGD-350002704",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Bold Crimson",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Teal Royale",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002705",
+    "internal_sku": "BIGD-350002705",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Teal Royale",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Groovin Green",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002706",
+    "internal_sku": "BIGD-350002706",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Groovin Green",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Hunt Club",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002707",
+    "internal_sku": "BIGD-350002707",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Hunt Club",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Imperial",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002708",
+    "internal_sku": "BIGD-350002708",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Imperial",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Bright Blue",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002709",
+    "internal_sku": "BIGD-350002709",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Bright Blue",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Mariner",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002710",
+    "internal_sku": "BIGD-350002710",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Mariner",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Very Navy",
+  "collection": "Tarkett VCT Standard",
+  "category_slug": "vct",
+  "description": "Standard VCT II vinyl composition tile, 12x12x1/8, 150 PSI static load.",
+  "skus": [
+   {
+    "vendor_sku": "350002711",
+    "internal_sku": "BIGD-350002711",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 1.41,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Very Navy",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Stone White",
+  "collection": "Tarkett VCT Premium Quartz",
+  "category_slug": "vct",
+  "description": "Premium Quartz vinyl composition tile, 12x12x1/8.",
+  "skus": [
+   {
+    "vendor_sku": "350002600",
+    "internal_sku": "BIGD-350002600",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 2.13,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Stone White",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Stone Taupe",
+  "collection": "Tarkett VCT Premium Quartz",
+  "category_slug": "vct",
+  "description": "Premium Quartz vinyl composition tile, 12x12x1/8.",
+  "skus": [
+   {
+    "vendor_sku": "350002601",
+    "internal_sku": "BIGD-350002601",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 2.13,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Stone Taupe",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Stone Grey",
+  "collection": "Tarkett VCT Premium Quartz",
+  "category_slug": "vct",
+  "description": "Premium Quartz vinyl composition tile, 12x12x1/8.",
+  "skus": [
+   {
+    "vendor_sku": "350002602",
+    "internal_sku": "BIGD-350002602",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 2.13,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Stone Grey",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Daylight",
+  "collection": "Tarkett VCT Premium Slip Resistant",
+  "category_slug": "vct",
+  "description": "Premium Slip Resistant vinyl composition tile, 12x12x1/8.",
+  "skus": [
+   {
+    "vendor_sku": "350002873",
+    "internal_sku": "BIGD-350002873",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 5.36,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Daylight",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Sunlight",
+  "collection": "Tarkett VCT Premium Slip Resistant",
+  "category_slug": "vct",
+  "description": "Premium Slip Resistant vinyl composition tile, 12x12x1/8.",
+  "skus": [
+   {
+    "vendor_sku": "350002875",
+    "internal_sku": "BIGD-350002875",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 5.36,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Sunlight",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Twilight",
+  "collection": "Tarkett VCT Premium Slip Resistant",
+  "category_slug": "vct",
+  "description": "Premium Slip Resistant vinyl composition tile, 12x12x1/8.",
+  "skus": [
+   {
+    "vendor_sku": "350002880",
+    "internal_sku": "BIGD-350002880",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 5.36,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Twilight",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Solid White",
+  "collection": "Tarkett VCT Premium Solid",
+  "category_slug": "vct",
+  "description": "Premium Solid Color vinyl composition tile, 12x12x1/8. Recommended for accents and borders.",
+  "skus": [
+   {
+    "vendor_sku": "350002060",
+    "internal_sku": "BIGD-350002060",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 5.36,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Solid White",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Solid Red",
+  "collection": "Tarkett VCT Premium Solid",
+  "category_slug": "vct",
+  "description": "Premium Solid Color vinyl composition tile, 12x12x1/8. Recommended for accents and borders.",
+  "skus": [
+   {
+    "vendor_sku": "350002065",
+    "internal_sku": "BIGD-350002065",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 5.36,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Solid Red",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Solid Black",
+  "collection": "Tarkett VCT Premium Solid",
+  "category_slug": "vct",
+  "description": "Premium Solid Color vinyl composition tile, 12x12x1/8. Recommended for accents and borders.",
+  "skus": [
+   {
+    "vendor_sku": "350002069",
+    "internal_sku": "BIGD-350002069",
+    "variant_name": "12\"x12\"",
+    "sell_by": "box",
+    "cost": 5.36,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": 45
+    },
+    "attrs": {
+     "color": "Solid Black",
+     "size": "12\"x12\"",
+     "thickness": "1/8\""
+    }
+   }
+  ]
+ },
+ {
+  "name": "Afterglow",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176052",
+    "internal_sku": "BIGD-251176052",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Afterglow",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175040",
+    "internal_sku": "BIGD-251175040",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Afterglow",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Barley",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176059",
+    "internal_sku": "BIGD-251176059",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Barley",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175047",
+    "internal_sku": "BIGD-251175047",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Barley",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Blossom",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176065",
+    "internal_sku": "BIGD-251176065",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Blossom",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175053",
+    "internal_sku": "BIGD-251175053",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Blossom",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Coastline",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176051",
+    "internal_sku": "BIGD-251176051",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Coastline",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175039",
+    "internal_sku": "BIGD-251175039",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Coastline",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Gulfstream",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176062",
+    "internal_sku": "BIGD-251176062",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Gulfstream",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175050",
+    "internal_sku": "BIGD-251175050",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Gulfstream",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Harbor",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176061",
+    "internal_sku": "BIGD-251176061",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Harbor",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175049",
+    "internal_sku": "BIGD-251175049",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Harbor",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Kingston",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176050",
+    "internal_sku": "BIGD-251176050",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Kingston",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175038",
+    "internal_sku": "BIGD-251175038",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Kingston",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Landmark",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176060",
+    "internal_sku": "BIGD-251176060",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Landmark",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175048",
+    "internal_sku": "BIGD-251175048",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Landmark",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Nightfall",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176047",
+    "internal_sku": "BIGD-251176047",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Nightfall",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175035",
+    "internal_sku": "BIGD-251175035",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Nightfall",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Overcast",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176055",
+    "internal_sku": "BIGD-251176055",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Overcast",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175043",
+    "internal_sku": "BIGD-251175043",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Overcast",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Palace",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176046",
+    "internal_sku": "BIGD-251176046",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Palace",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175034",
+    "internal_sku": "BIGD-251175034",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Palace",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Paradise",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176063",
+    "internal_sku": "BIGD-251176063",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Paradise",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175051",
+    "internal_sku": "BIGD-251175051",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Paradise",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Royale",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176048",
+    "internal_sku": "BIGD-251176048",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Royale",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175036",
+    "internal_sku": "BIGD-251175036",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Royale",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Starcrossed",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176054",
+    "internal_sku": "BIGD-251176054",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Starcrossed",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175042",
+    "internal_sku": "BIGD-251175042",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Starcrossed",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Sunset",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176053",
+    "internal_sku": "BIGD-251176053",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Sunset",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175041",
+    "internal_sku": "BIGD-251175041",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Sunset",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Vapor",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176056",
+    "internal_sku": "BIGD-251176056",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Vapor",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175044",
+    "internal_sku": "BIGD-251175044",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Vapor",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Villawhite",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176058",
+    "internal_sku": "BIGD-251176058",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Villawhite",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175046",
+    "internal_sku": "BIGD-251175046",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Villawhite",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Watermist",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176049",
+    "internal_sku": "BIGD-251176049",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Watermist",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175037",
+    "internal_sku": "BIGD-251175037",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Watermist",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Windfresh",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176057",
+    "internal_sku": "BIGD-251176057",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Windfresh",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175045",
+    "internal_sku": "BIGD-251175045",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Windfresh",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Zinnia",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176064",
+    "internal_sku": "BIGD-251176064",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Zinnia",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175052",
+    "internal_sku": "BIGD-251175052",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Zinnia",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Bisque",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176003",
+    "internal_sku": "BIGD-251176003",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Bisque",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175003",
+    "internal_sku": "BIGD-251175003",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Bisque",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Greige",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176001",
+    "internal_sku": "BIGD-251176001",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Greige",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175001",
+    "internal_sku": "BIGD-251175001",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Greige",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Taupe",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176002",
+    "internal_sku": "BIGD-251176002",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Taupe",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175002",
+    "internal_sku": "BIGD-251175002",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Taupe",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Nimbus",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176024",
+    "internal_sku": "BIGD-251176024",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Nimbus",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175006",
+    "internal_sku": "BIGD-251175006",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Nimbus",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Charcoal",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176004",
+    "internal_sku": "BIGD-251176004",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Charcoal",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175004",
+    "internal_sku": "BIGD-251175004",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Charcoal",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Cool Beige",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176005",
+    "internal_sku": "BIGD-251176005",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Cool Beige",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   },
+   {
+    "vendor_sku": "251175005",
+    "internal_sku": "BIGD-251175005",
+    "variant_name": "6\"x36\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Cool Beige",
+     "size": "6x36",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Alumin",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176019",
+    "internal_sku": "BIGD-251176019",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Alumin",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Concrete Charcoal",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176023",
+    "internal_sku": "BIGD-251176023",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Concrete Charcoal",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Cristallo",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176017",
+    "internal_sku": "BIGD-251176017",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Cristallo",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Elbrus",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176018",
+    "internal_sku": "BIGD-251176018",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Elbrus",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Gypsum",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176020",
+    "internal_sku": "BIGD-251176020",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Gypsum",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Hearthstone",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176014",
+    "internal_sku": "BIGD-251176014",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Hearthstone",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Iron Patina",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176043",
+    "internal_sku": "BIGD-251176043",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Iron Patina",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Lavastone",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176038",
+    "internal_sku": "BIGD-251176038",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Lavastone",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Luna",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176016",
+    "internal_sku": "BIGD-251176016",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Luna",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Lunarrock",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176039",
+    "internal_sku": "BIGD-251176039",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Lunarrock",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Prairie",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176015",
+    "internal_sku": "BIGD-251176015",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Prairie",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Weather Glazed",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251176044",
+    "internal_sku": "BIGD-251176044",
+    "variant_name": "18\"x18\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 45,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Weather Glazed",
+     "size": "18x18",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Acadia Pine",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177021",
+    "internal_sku": "BIGD-251177021",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Acadia Pine",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "American Cherry",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177004",
+    "internal_sku": "BIGD-251177004",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "American Cherry",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Ash",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177011",
+    "internal_sku": "BIGD-251177011",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Ash",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Autumn Walnut",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177042",
+    "internal_sku": "BIGD-251177042",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Autumn Walnut",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Black Walnut",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177007",
+    "internal_sku": "BIGD-251177007",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Black Walnut",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Blanched Pine",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177020",
+    "internal_sku": "BIGD-251177020",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Blanched Pine",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Butternut",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177040",
+    "internal_sku": "BIGD-251177040",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Butternut",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Chamois Oak",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177009",
+    "internal_sku": "BIGD-251177009",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Chamois Oak",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Chandler Oak",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177035",
+    "internal_sku": "BIGD-251177035",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Chandler Oak",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Cr\u00e8me Oak",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177010",
+    "internal_sku": "BIGD-251177010",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Cr\u00e8me Oak",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "English Walnut",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177041",
+    "internal_sku": "BIGD-251177041",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "English Walnut",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "European Cherry",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177005",
+    "internal_sku": "BIGD-251177005",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "European Cherry",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Geneva",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177034",
+    "internal_sku": "BIGD-251177034",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Geneva",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Gibralter",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177051",
+    "internal_sku": "BIGD-251177051",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Gibralter",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Golden Oak",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177043",
+    "internal_sku": "BIGD-251177043",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Golden Oak",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Hazelwood",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177046",
+    "internal_sku": "BIGD-251177046",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Hazelwood",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Hickory",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177012",
+    "internal_sku": "BIGD-251177012",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Hickory",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Lacewood",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177036",
+    "internal_sku": "BIGD-251177036",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Lacewood",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Laurel Oak",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177008",
+    "internal_sku": "BIGD-251177008",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Laurel Oak",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Millennium Oak",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177044",
+    "internal_sku": "BIGD-251177044",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Millennium Oak",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Mountain Maple",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177038",
+    "internal_sku": "BIGD-251177038",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Mountain Maple",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Natural Teak",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177016",
+    "internal_sku": "BIGD-251177016",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Natural Teak",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Nordic",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177037",
+    "internal_sku": "BIGD-251177037",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Nordic",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Parable",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177045",
+    "internal_sku": "BIGD-251177045",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Parable",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Pearl Maple",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177018",
+    "internal_sku": "BIGD-251177018",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Pearl Maple",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Silver Maple",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177039",
+    "internal_sku": "BIGD-251177039",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Silver Maple",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Sunsun Toned Teak",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177015",
+    "internal_sku": "BIGD-251177015",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Sunsun Toned Teak",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Taos Oak",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177003",
+    "internal_sku": "BIGD-251177003",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Taos Oak",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Urban Oak",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177001",
+    "internal_sku": "BIGD-251177001",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Urban Oak",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Vintage Oak",
+  "collection": "Tarkett iD Latitude",
+  "category_slug": "lvt-tile",
+  "description": "iD Latitude luxury vinyl tile, 3mm (0.12\"), glue-down.",
+  "skus": [
+   {
+    "vendor_sku": "251177002",
+    "internal_sku": "BIGD-251177002",
+    "variant_name": "6\"x48\"",
+    "sell_by": "box",
+    "cost": 2.87,
+    "price_basis": "per_sqft",
+    "packaging": {
+     "sqft_per_box": 36,
+     "pieces_per_box": null
+    },
+    "attrs": {
+     "color": "Vintage Oak",
+     "size": "6x48",
+     "thickness": "3mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Surestart 36in LVT Underlayment",
+  "collection": "Tarkett Surestart",
+  "category_slug": "lvt-tile",
+  "description": "Surestart self-adhering LVT underlayment roll.",
+  "skus": [
+   {
+    "vendor_sku": "500033006",
+    "internal_sku": "BIGD-500033006",
+    "variant_name": "36 inches x 33.3 feet Roll (100 sf)",
+    "sell_by": "unit",
+    "cost": 80.0,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {
+     "size": "36 inches x 33.3 feet"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Surestart 54in LVT Underlayment",
+  "collection": "Tarkett Surestart",
+  "category_slug": "lvt-tile",
+  "description": "Surestart self-adhering LVT underlayment roll.",
+  "skus": [
+   {
+    "vendor_sku": "500033007",
+    "internal_sku": "BIGD-500033007",
+    "variant_name": "54 inches x 44.4 feet Roll (200 sf)",
+    "sell_by": "unit",
+    "cost": 160.0,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {
+     "size": "54 inches x 44.4 feet"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Mission Oak Letterwood",
+  "collection": "Tarkett Performa",
+  "category_slug": "sheet-vinyl",
+  "description": "Performa heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "213002001",
+    "internal_sku": "BIGD-213002001",
+    "variant_name": "6' Sheet",
+    "sell_by": "roll",
+    "cost": 26.67,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6
+    },
+    "attrs": {
+     "color": "Mission Oak Letterwood",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Mission Oak Golden Glaze",
+  "collection": "Tarkett Performa",
+  "category_slug": "sheet-vinyl",
+  "description": "Performa heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "213002002",
+    "internal_sku": "BIGD-213002002",
+    "variant_name": "6' Sheet",
+    "sell_by": "roll",
+    "cost": 26.67,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6
+    },
+    "attrs": {
+     "color": "Mission Oak Golden Glaze",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Mission Oak Seasoned Oak",
+  "collection": "Tarkett Performa",
+  "category_slug": "sheet-vinyl",
+  "description": "Performa heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "213002003",
+    "internal_sku": "BIGD-213002003",
+    "variant_name": "6' Sheet",
+    "sell_by": "roll",
+    "cost": 26.67,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6
+    },
+    "attrs": {
+     "color": "Mission Oak Seasoned Oak",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Mission Oak Laurel",
+  "collection": "Tarkett Performa",
+  "category_slug": "sheet-vinyl",
+  "description": "Performa heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "213002004",
+    "internal_sku": "BIGD-213002004",
+    "variant_name": "6' Sheet",
+    "sell_by": "roll",
+    "cost": 26.67,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6
+    },
+    "attrs": {
+     "color": "Mission Oak Laurel",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Mission Oak Antique Oak",
+  "collection": "Tarkett Performa",
+  "category_slug": "sheet-vinyl",
+  "description": "Performa heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "213002005",
+    "internal_sku": "BIGD-213002005",
+    "variant_name": "6' Sheet",
+    "sell_by": "roll",
+    "cost": 26.67,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6
+    },
+    "attrs": {
+     "color": "Mission Oak Antique Oak",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Urban Ash New Maple",
+  "collection": "Tarkett Performa",
+  "category_slug": "sheet-vinyl",
+  "description": "Performa heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "213002011",
+    "internal_sku": "BIGD-213002011",
+    "variant_name": "6' Sheet",
+    "sell_by": "roll",
+    "cost": 26.67,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6
+    },
+    "attrs": {
+     "color": "Urban Ash New Maple",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Urban Ash Paela",
+  "collection": "Tarkett Performa",
+  "category_slug": "sheet-vinyl",
+  "description": "Performa heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "213002012",
+    "internal_sku": "BIGD-213002012",
+    "variant_name": "6' Sheet",
+    "sell_by": "roll",
+    "cost": 26.67,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6
+    },
+    "attrs": {
+     "color": "Urban Ash Paela",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Urban Ash Magnolia",
+  "collection": "Tarkett Performa",
+  "category_slug": "sheet-vinyl",
+  "description": "Performa heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "213002013",
+    "internal_sku": "BIGD-213002013",
+    "variant_name": "6' Sheet",
+    "sell_by": "roll",
+    "cost": 26.67,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6
+    },
+    "attrs": {
+     "color": "Urban Ash Magnolia",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Urban Ash Satin Wood",
+  "collection": "Tarkett Performa",
+  "category_slug": "sheet-vinyl",
+  "description": "Performa heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "213002014",
+    "internal_sku": "BIGD-213002014",
+    "variant_name": "6' Sheet",
+    "sell_by": "roll",
+    "cost": 26.67,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6
+    },
+    "attrs": {
+     "color": "Urban Ash Satin Wood",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Urban Ash Ironwood",
+  "collection": "Tarkett Performa",
+  "category_slug": "sheet-vinyl",
+  "description": "Performa heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "213002015",
+    "internal_sku": "BIGD-213002015",
+    "variant_name": "6' Sheet",
+    "sell_by": "roll",
+    "cost": 26.67,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6
+    },
+    "attrs": {
+     "color": "Urban Ash Ironwood",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Urban Ash Aspen",
+  "collection": "Tarkett Performa",
+  "category_slug": "sheet-vinyl",
+  "description": "Performa heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "213002016",
+    "internal_sku": "BIGD-213002016",
+    "variant_name": "6' Sheet",
+    "sell_by": "roll",
+    "cost": 26.67,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6
+    },
+    "attrs": {
+     "color": "Urban Ash Aspen",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Rubberwood Blanco",
+  "collection": "Tarkett Performa",
+  "category_slug": "sheet-vinyl",
+  "description": "Performa heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "213002021",
+    "internal_sku": "BIGD-213002021",
+    "variant_name": "6' Sheet",
+    "sell_by": "roll",
+    "cost": 26.67,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6
+    },
+    "attrs": {
+     "color": "Rubberwood Blanco",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Rubberwood Prima",
+  "collection": "Tarkett Performa",
+  "category_slug": "sheet-vinyl",
+  "description": "Performa heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "213002022",
+    "internal_sku": "BIGD-213002022",
+    "variant_name": "6' Sheet",
+    "sell_by": "roll",
+    "cost": 26.67,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6
+    },
+    "attrs": {
+     "color": "Rubberwood Prima",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Rubberwood Beechwood",
+  "collection": "Tarkett Performa",
+  "category_slug": "sheet-vinyl",
+  "description": "Performa heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "213002023",
+    "internal_sku": "BIGD-213002023",
+    "variant_name": "6' Sheet",
+    "sell_by": "roll",
+    "cost": 26.67,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6
+    },
+    "attrs": {
+     "color": "Rubberwood Beechwood",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Rubberwood Myrtle",
+  "collection": "Tarkett Performa",
+  "category_slug": "sheet-vinyl",
+  "description": "Performa heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "213002024",
+    "internal_sku": "BIGD-213002024",
+    "variant_name": "6' Sheet",
+    "sell_by": "roll",
+    "cost": 26.67,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6
+    },
+    "attrs": {
+     "color": "Rubberwood Myrtle",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Stonework Dover",
+  "collection": "Tarkett Performa",
+  "category_slug": "sheet-vinyl",
+  "description": "Performa heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "213002031",
+    "internal_sku": "BIGD-213002031",
+    "variant_name": "6' Sheet",
+    "sell_by": "roll",
+    "cost": 26.67,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6
+    },
+    "attrs": {
+     "color": "Stonework Dover",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Stonework Castlerock",
+  "collection": "Tarkett Performa",
+  "category_slug": "sheet-vinyl",
+  "description": "Performa heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "213002032",
+    "internal_sku": "BIGD-213002032",
+    "variant_name": "6' Sheet",
+    "sell_by": "roll",
+    "cost": 26.67,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6
+    },
+    "attrs": {
+     "color": "Stonework Castlerock",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Stonework Grey Sand",
+  "collection": "Tarkett Performa",
+  "category_slug": "sheet-vinyl",
+  "description": "Performa heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "213002033",
+    "internal_sku": "BIGD-213002033",
+    "variant_name": "6' Sheet",
+    "sell_by": "roll",
+    "cost": 26.67,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6
+    },
+    "attrs": {
+     "color": "Stonework Grey Sand",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Beech Cherry",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024001",
+    "internal_sku": "BIGD-206024001",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Beech Cherry",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Beech Light",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024002",
+    "internal_sku": "BIGD-206024002",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Beech Light",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Beech Dark",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024003",
+    "internal_sku": "BIGD-206024003",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Beech Dark",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Beech Brazilian Cherry",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024004",
+    "internal_sku": "BIGD-206024004",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Beech Brazilian Cherry",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Brushed Oak Light",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024005",
+    "internal_sku": "BIGD-206024005",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Brushed Oak Light",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Brushed Oak Medium",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024006",
+    "internal_sku": "BIGD-206024006",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Brushed Oak Medium",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Cabreuva Red",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024007",
+    "internal_sku": "BIGD-206024007",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Cabreuva Red",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Cabreuva Brown",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024008",
+    "internal_sku": "BIGD-206024008",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Cabreuva Brown",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "French Oak Dark Grey",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024009",
+    "internal_sku": "BIGD-206024009",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "French Oak Dark Grey",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "French Oak White",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024010",
+    "internal_sku": "BIGD-206024010",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "French Oak White",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "French Oak Natural",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024011",
+    "internal_sku": "BIGD-206024011",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "French Oak Natural",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "French Oak Medium Grey",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024012",
+    "internal_sku": "BIGD-206024012",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "French Oak Medium Grey",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Modern Maple Maple",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024013",
+    "internal_sku": "BIGD-206024013",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Modern Maple Maple",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Walnut Natural",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024014",
+    "internal_sku": "BIGD-206024014",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Walnut Natural",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Walnut Dark",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024015",
+    "internal_sku": "BIGD-206024015",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Walnut Dark",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Variant Oak Warm Brown",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024016",
+    "internal_sku": "BIGD-206024016",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Variant Oak Warm Brown",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Variant Oak Red Brown",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024017",
+    "internal_sku": "BIGD-206024017",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Variant Oak Red Brown",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Concrete Chalk",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024019",
+    "internal_sku": "BIGD-206024019",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Concrete Chalk",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Concrete Cool Grey",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024020",
+    "internal_sku": "BIGD-206024020",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Concrete Cool Grey",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Concrete Dark Grey",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024021",
+    "internal_sku": "BIGD-206024021",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Concrete Dark Grey",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Concrete Grey Beige",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024022",
+    "internal_sku": "BIGD-206024022",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Concrete Grey Beige",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Concrete Warm Grey",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024023",
+    "internal_sku": "BIGD-206024023",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Concrete Warm Grey",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Terrazzo Concrete Black",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024024",
+    "internal_sku": "BIGD-206024024",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Terrazzo Concrete Black",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Terrazzo Concrete Grey",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024025",
+    "internal_sku": "BIGD-206024025",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Terrazzo Concrete Grey",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Terrazzo Concrete Beige",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024026",
+    "internal_sku": "BIGD-206024026",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Terrazzo Concrete Beige",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Oak Longstripe Classical Beige",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024027",
+    "internal_sku": "BIGD-206024027",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Oak Longstripe Classical Beige",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Chatillon Oak Beige",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024029",
+    "internal_sku": "BIGD-206024029",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Chatillon Oak Beige",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Chatillon Oak Golden",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024030",
+    "internal_sku": "BIGD-206024030",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Chatillon Oak Golden",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Chatillon Oak Natural",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024031",
+    "internal_sku": "BIGD-206024031",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Chatillon Oak Natural",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Variant Oak Beige",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024033",
+    "internal_sku": "BIGD-206024033",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Variant Oak Beige",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Variant Oak Brown Grey",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024034",
+    "internal_sku": "BIGD-206024034",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Variant Oak Brown Grey",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Variant Oak Golden",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024035",
+    "internal_sku": "BIGD-206024035",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Variant Oak Golden",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Variant Oak Natural",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024036",
+    "internal_sku": "BIGD-206024036",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Variant Oak Natural",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Variant Oak Nut",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024037",
+    "internal_sku": "BIGD-206024037",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Variant Oak Nut",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Scandinavian Oak Beige",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024038",
+    "internal_sku": "BIGD-206024038",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Scandinavian Oak Beige",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Oak Tree Beige",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024040",
+    "internal_sku": "BIGD-206024040",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Oak Tree Beige",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Oak Tree Golden",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024041",
+    "internal_sku": "BIGD-206024041",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Oak Tree Golden",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Oak Tree Grey",
+  "collection": "Tarkett Acczent Woods & Stones",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Woods & Stones heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024042",
+    "internal_sku": "BIGD-206024042",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Oak Tree Grey",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Linen",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024500",
+    "internal_sku": "BIGD-206024500",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Linen",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Cambrai",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024501",
+    "internal_sku": "BIGD-206024501",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Cambrai",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Cambric",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024502",
+    "internal_sku": "BIGD-206024502",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Cambric",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Cotton",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024503",
+    "internal_sku": "BIGD-206024503",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Cotton",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Natural",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024504",
+    "internal_sku": "BIGD-206024504",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Natural",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Twill",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024505",
+    "internal_sku": "BIGD-206024505",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Twill",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Flax",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024506",
+    "internal_sku": "BIGD-206024506",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Flax",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Bamboo",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024507",
+    "internal_sku": "BIGD-206024507",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Bamboo",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Sunshine",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024508",
+    "internal_sku": "BIGD-206024508",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Sunshine",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Terra",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024509",
+    "internal_sku": "BIGD-206024509",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Terra",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Reddie",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024510",
+    "internal_sku": "BIGD-206024510",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Reddie",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Berry",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024511",
+    "internal_sku": "BIGD-206024511",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Berry",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Batiste",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024512",
+    "internal_sku": "BIGD-206024512",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Batiste",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Fields",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024513",
+    "internal_sku": "BIGD-206024513",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Fields",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Scarborough",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024514",
+    "internal_sku": "BIGD-206024514",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Scarborough",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Proper",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024515",
+    "internal_sku": "BIGD-206024515",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Proper",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Oxford",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024516",
+    "internal_sku": "BIGD-206024516",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Oxford",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Tides In",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024517",
+    "internal_sku": "BIGD-206024517",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Tides In",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Jeannie",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024518",
+    "internal_sku": "BIGD-206024518",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Jeannie",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Covington",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024519",
+    "internal_sku": "BIGD-206024519",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Covington",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Citrus",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024520",
+    "internal_sku": "BIGD-206024520",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Citrus",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Vine",
+  "collection": "Tarkett Acczent Chambray",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Chambray heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024521",
+    "internal_sku": "BIGD-206024521",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Vine",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Poplin Greige",
+  "collection": "Tarkett Acczent Twill",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Twill heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024600",
+    "internal_sku": "BIGD-206024600",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Poplin Greige",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Poplin Thunder",
+  "collection": "Tarkett Acczent Twill",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Twill heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024601",
+    "internal_sku": "BIGD-206024601",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Poplin Thunder",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Poplin Camel",
+  "collection": "Tarkett Acczent Twill",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Twill heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024602",
+    "internal_sku": "BIGD-206024602",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Poplin Camel",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Poplin Cape May",
+  "collection": "Tarkett Acczent Twill",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Twill heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024603",
+    "internal_sku": "BIGD-206024603",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Poplin Cape May",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Poplin Cool Grey",
+  "collection": "Tarkett Acczent Twill",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Twill heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024604",
+    "internal_sku": "BIGD-206024604",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Poplin Cool Grey",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Poplin Soft Green",
+  "collection": "Tarkett Acczent Twill",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Twill heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024605",
+    "internal_sku": "BIGD-206024605",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Poplin Soft Green",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Poplin Soft Seas",
+  "collection": "Tarkett Acczent Twill",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Twill heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024606",
+    "internal_sku": "BIGD-206024606",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Poplin Soft Seas",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Poplin Soft Blue",
+  "collection": "Tarkett Acczent Twill",
+  "category_slug": "sheet-vinyl",
+  "description": "Acczent Twill heterogeneous commercial sheet vinyl, 2.0 mm.",
+  "skus": [
+   {
+    "vendor_sku": "206024607",
+    "internal_sku": "BIGD-206024607",
+    "variant_name": "6'6\" Sheet",
+    "sell_by": "roll",
+    "cost": 45.74,
+    "price_basis": "per_sqyd",
+    "packaging": {
+     "roll_width_ft": 6.5
+    },
+    "attrs": {
+     "color": "Poplin Soft Blue",
+     "thickness": "2.0mm"
+    }
+   }
+  ]
+ },
+ {
+  "name": "Tarkett 906 Conductive Static-Dissipative Adhesive",
+  "collection": "Tarkett Adhesives",
+  "category_slug": "adhesives-sealants",
+  "description": "Tarkett 906 Conductive Static-Dissipative Adhesive. Full cartons only; price is per selling unit.",
+  "skus": [
+   {
+    "vendor_sku": "297038061",
+    "internal_sku": "BIGD-297038061",
+    "variant_name": "4 x 1 Gal Case",
+    "sell_by": "unit",
+    "cost": 425.08,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   },
+   {
+    "vendor_sku": "297038065",
+    "internal_sku": "BIGD-297038065",
+    "variant_name": "2 Gal Pail",
+    "sell_by": "unit",
+    "cost": 149.72,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   }
+  ]
+ },
+ {
+  "name": "Tarkett 925 Resilient Sheet Vinyl Flooring Adhesive",
+  "collection": "Tarkett Adhesives",
+  "category_slug": "adhesives-sealants",
+  "description": "Tarkett 925 Resilient Sheet Vinyl Flooring Adhesive. Full cartons only; price is per selling unit.",
+  "skus": [
+   {
+    "vendor_sku": "297038062",
+    "internal_sku": "BIGD-297038062",
+    "variant_name": "4 x 1 Gal Case",
+    "sell_by": "unit",
+    "cost": 214.52,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   },
+   {
+    "vendor_sku": "297038066",
+    "internal_sku": "BIGD-297038066",
+    "variant_name": "4 Gal Pail",
+    "sell_by": "unit",
+    "cost": 208.27,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   }
+  ]
+ },
+ {
+  "name": "Tarkett 925HM High-Moisture Vinyl Sheet Adhesive",
+  "collection": "Tarkett Adhesives",
+  "category_slug": "adhesives-sealants",
+  "description": "Tarkett 925HM High-Moisture Vinyl Sheet Adhesive. Full cartons only; price is per selling unit.",
+  "skus": [
+   {
+    "vendor_sku": "297038346",
+    "internal_sku": "BIGD-297038346",
+    "variant_name": "4 x 1 Gal Case",
+    "sell_by": "unit",
+    "cost": 238.57,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   },
+   {
+    "vendor_sku": "297038345",
+    "internal_sku": "BIGD-297038345",
+    "variant_name": "4 Gal Pail",
+    "sell_by": "unit",
+    "cost": 240.8,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   }
+  ]
+ },
+ {
+  "name": "Tarkett 926HM High-Moisture Vinyl Tile Adhesive",
+  "collection": "Tarkett Adhesives",
+  "category_slug": "adhesives-sealants",
+  "description": "Tarkett 926HM High-Moisture Vinyl Tile Adhesive. Full cartons only; price is per selling unit.",
+  "skus": [
+   {
+    "vendor_sku": "297038353",
+    "internal_sku": "BIGD-297038353",
+    "variant_name": "4 Gal Pail",
+    "sell_by": "unit",
+    "cost": 201.6,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   }
+  ]
+ },
+ {
+  "name": "Tarkett 930 SpraySmart Resilient Spray Adhesive",
+  "collection": "Tarkett Adhesives",
+  "category_slug": "adhesives-sealants",
+  "description": "Tarkett 930 SpraySmart Resilient Spray Adhesive. Full cartons only; price is per selling unit.",
+  "skus": [
+   {
+    "vendor_sku": "297038040",
+    "internal_sku": "BIGD-297038040",
+    "variant_name": "13.5 oz Can Case",
+    "sell_by": "unit",
+    "cost": 492.36,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   }
+  ]
+ },
+ {
+  "name": "Tarkett 931 SpraySmart Carpet Spray Adhesive",
+  "collection": "Tarkett Adhesives",
+  "category_slug": "adhesives-sealants",
+  "description": "Tarkett 931 SpraySmart Carpet Spray Adhesive. Full cartons only; price is per selling unit.",
+  "skus": [
+   {
+    "vendor_sku": "297038337",
+    "internal_sku": "BIGD-297038337",
+    "variant_name": "13.5 oz Can Case",
+    "sell_by": "unit",
+    "cost": 492.36,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   }
+  ]
+ },
+ {
+  "name": "Tarkett 959HM High-Moisture LVT Substrate Adhesive",
+  "collection": "Tarkett Adhesives",
+  "category_slug": "adhesives-sealants",
+  "description": "Tarkett 959HM High-Moisture LVT Substrate Adhesive. Full cartons only; price is per selling unit.",
+  "skus": [
+   {
+    "vendor_sku": "297038082",
+    "internal_sku": "BIGD-297038082",
+    "variant_name": "4 Gal Pail",
+    "sell_by": "unit",
+    "cost": 121.39,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   }
+  ]
+ },
+ {
+  "name": "Tarkett 960 Releasable Resilient Tile Adhesive",
+  "collection": "Tarkett Adhesives",
+  "category_slug": "adhesives-sealants",
+  "description": "Tarkett 960 Releasable Resilient Tile Adhesive. Full cartons only; price is per selling unit.",
+  "skus": [
+   {
+    "vendor_sku": "297038000",
+    "internal_sku": "BIGD-297038000",
+    "variant_name": "4 x 1 Gal Case",
+    "sell_by": "unit",
+    "cost": 96.04,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   },
+   {
+    "vendor_sku": "297038001",
+    "internal_sku": "BIGD-297038001",
+    "variant_name": "4 Gal Pail",
+    "sell_by": "unit",
+    "cost": 63.51,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   }
+  ]
+ },
+ {
+  "name": "Tarkett 965 Premium Resilient Flooring Adhesive",
+  "collection": "Tarkett Adhesives",
+  "category_slug": "adhesives-sealants",
+  "description": "Tarkett 965 Premium Resilient Flooring Adhesive. Full cartons only; price is per selling unit.",
+  "skus": [
+   {
+    "vendor_sku": "297038011",
+    "internal_sku": "BIGD-297038011",
+    "variant_name": "4 x 1 Gal Case",
+    "sell_by": "unit",
+    "cost": 177.24,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   },
+   {
+    "vendor_sku": "297038024",
+    "internal_sku": "BIGD-297038024",
+    "variant_name": "4 Gal Pail",
+    "sell_by": "unit",
+    "cost": 152.12,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   }
+  ]
+ },
+ {
+  "name": "Tarkett 975 Two-Part Urethane Adhesive",
+  "collection": "Tarkett Adhesives",
+  "category_slug": "adhesives-sealants",
+  "description": "Tarkett 975 Two-Part Urethane Adhesive. Full cartons only; price is per selling unit.",
+  "skus": [
+   {
+    "vendor_sku": "297038014",
+    "internal_sku": "BIGD-297038014",
+    "variant_name": "1 Gal Unit",
+    "sell_by": "unit",
+    "cost": 136.91,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   },
+   {
+    "vendor_sku": "297038020",
+    "internal_sku": "BIGD-297038020",
+    "variant_name": "2 Gal Unit",
+    "sell_by": "unit",
+    "cost": 245.89,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   }
+  ]
+ },
+ {
+  "name": "Tarkett 996 Two-Part Epoxy Adhesive",
+  "collection": "Tarkett Adhesives",
+  "category_slug": "adhesives-sealants",
+  "description": "Tarkett 996 Two-Part Epoxy Adhesive. Full cartons only; price is per selling unit.",
+  "skus": [
+   {
+    "vendor_sku": "297038019",
+    "internal_sku": "BIGD-297038019",
+    "variant_name": "1 Gal Unit",
+    "sell_by": "unit",
+    "cost": 210.56,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   }
+  ]
+ },
+ {
+  "name": "Tarkett CWL Cold Weld Liquid Seam Sealer",
+  "collection": "Tarkett Adhesives",
+  "category_slug": "adhesives-sealants",
+  "description": "Tarkett CWL Cold Weld Liquid Seam Sealer. Full cartons only; price is per selling unit.",
+  "skus": [
+   {
+    "vendor_sku": "297038002",
+    "internal_sku": "BIGD-297038002",
+    "variant_name": "10 x 4.5 oz Tube Case",
+    "sell_by": "unit",
+    "cost": 604.8,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   }
+  ]
+ },
+ {
+  "name": "Tarkett RollSmart Immediate-Occupancy Sheet Adhesive",
+  "collection": "Tarkett Adhesives",
+  "category_slug": "adhesives-sealants",
+  "description": "Tarkett RollSmart Immediate-Occupancy Sheet Adhesive. Full cartons only; price is per selling unit.",
+  "skus": [
+   {
+    "vendor_sku": "297038074",
+    "internal_sku": "BIGD-297038074",
+    "variant_name": "4 x 1 Gal Case",
+    "sell_by": "unit",
+    "cost": 281.76,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   },
+   {
+    "vendor_sku": "297038073",
+    "internal_sku": "BIGD-297038073",
+    "variant_name": "4 Gal Pail",
+    "sell_by": "unit",
+    "cost": 265.94,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   }
+  ]
+ },
+ {
+  "name": "Tarkett 901 Premium Wall Base Adhesive (22 oz)",
+  "collection": "Tarkett Adhesives",
+  "category_slug": "adhesives-sealants",
+  "description": "Tarkett 901 Premium Wall Base Adhesive (22 oz). Full cartons only; price is per selling unit.",
+  "skus": [
+   {
+    "vendor_sku": "297038075",
+    "internal_sku": "BIGD-297038075",
+    "variant_name": "22 oz Cartridge Case",
+    "sell_by": "unit",
+    "cost": 224.88,
+    "price_basis": "per_unit",
+    "packaging": null,
+    "attrs": {}
+   }
+  ]
+ }
+]
