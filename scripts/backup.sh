@@ -22,9 +22,11 @@ if [ -n "${S3_BACKUP_BUCKET:-}" ] && [ -n "${AWS_ACCESS_KEY_ID:-}" ]; then
         --storage-class STANDARD_IA
     echo "S3 upload complete"
 
-    # Clean up old S3 backups
+    # Clean up old S3 backups. @epoch arithmetic is the only -d form BusyBox
+    # date understands — the GNU "-30 days" / BSD -v forms both die here, and
+    # under set -eu that aborted the script before the media sync ever ran.
     echo "Cleaning S3 backups older than ${S3_RETENTION_DAYS} days..."
-    CUTOFF_DATE=$(date -d "-${S3_RETENTION_DAYS} days" +%Y-%m-%d 2>/dev/null || date -v-${S3_RETENTION_DAYS}d +%Y-%m-%d)
+    CUTOFF_DATE=$(date -u -d "@$(( $(date +%s) - S3_RETENTION_DAYS * 86400 ))" +%Y-%m-%d)
     aws s3 ls "s3://${S3_BACKUP_BUCKET}/backups/" | while read -r line; do
         FILE_DATE=$(echo "$line" | awk '{print $1}')
         FILE_NAME=$(echo "$line" | awk '{print $4}')
