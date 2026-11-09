@@ -7476,6 +7476,7 @@
         return a.localeCompare(b);
       };
       let _designFallback = false;
+      let fallbackSizeItems = [];
       if (colorItems.length === 0 && !showSibSizes && !showAttrSizes && !showSizePills && !showFinishPills && !showSubLinePill && mainSiblings.length > 0 && !(sku.attributes || []).length && mainSiblings.every((s) => !(s.attributes || []).length)) {
         const seen = /* @__PURE__ */ new Set();
         const items = [];
@@ -7488,11 +7489,57 @@
         pushItem(sku, true, media && media[0] ? media[0].url : null);
         mainSiblings.forEach((s) => pushItem(s, false, getVariantImage(s)));
         if (items.length >= 2) {
-          items.sort((a, b) => (a.product_name || "").localeCompare(b.product_name || "", void 0, { numeric: true }));
-          colorItems = items;
-          _designFallback = true;
+          const _dimRe = /\d+(?:\.\d+)?\s*(?:ft|['’]|["″])|\d+(?:\.\d+)?\s*[xX×]\s*\d+(?:\.\d+)?/g;
+          const _SHAPE_WORDS = /* @__PURE__ */ new Set([
+            "round",
+            "square",
+            "oval",
+            "rectangular",
+            "rect",
+            "corner",
+            "triangular",
+            "triangle",
+            "hexagon",
+            "octagon",
+            "white",
+            "background",
+            "simplified",
+            "original",
+            "new",
+            "version",
+            "polished",
+            "honed",
+            "matte",
+            "the",
+            "and",
+            "with"
+          ]);
+          const sizeLike = items.length >= 2 && items.every((i) => {
+            const vn = i.variant_name || "";
+            if (!_dimRe.test(vn)) return false;
+            _dimRe.lastIndex = 0;
+            const rest = vn.replace(_dimRe, " ").toLowerCase().split(/[^a-z]+/).filter((t) => t.length > 1);
+            return rest.every((t) => _SHAPE_WORDS.has(t));
+          });
+          _dimRe.lastIndex = 0;
+          if (sizeLike) {
+            const _dimInches = (name) => {
+              const vals = [];
+              (name.match(/\d+(?:\.\d+)?\s*(?:ft|['’])/gi) || []).forEach((m) => vals.push(parseFloat(m) * 12));
+              (name.match(/\d+(?:\.\d+)?\s*(?:"|″)/g) || []).forEach((m) => vals.push(parseFloat(m)));
+              if (!vals.length) (name.match(/\d+(?:\.\d+)?/g) || []).forEach((m) => vals.push(parseFloat(m)));
+              return vals.length ? Math.max(...vals) : 0;
+            };
+            fallbackSizeItems = items.map((i) => ({ ...i, label: i.product_name, sort: _dimInches(i.variant_name || "") })).sort((a, b) => a.sort - b.sort || a.label.localeCompare(b.label, void 0, { numeric: true }));
+            _designFallback = true;
+          } else {
+            items.sort((a, b) => (a.product_name || "").localeCompare(b.product_name || "", void 0, { numeric: true }));
+            colorItems = items;
+            _designFallback = true;
+          }
         }
       }
+      const showFallbackSizePills = fallbackSizeItems.length >= 2;
       const showColors = colorItems.length >= 2;
       const isRomanVariants = showColors && colorItems.some((c) => hasRomanSuffix(c.product_name));
       let sibOptionItems = [];
@@ -7604,7 +7651,7 @@
       };
       const showFormatSiblings = formatSiblings.length > 0 && formatLabel;
       const showSibFinish = sibFinishItems.length > 0 && !showFinishPills && !_finishIsColor && !attrSlugs.includes("finish") && !currentAttrs["color"];
-      if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes && !showAttrSizes && !showFormatSiblings && !showSibFinish && !showSibOptions) return null;
+      if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes && !showAttrSizes && !showFormatSiblings && !showSibFinish && !showSibOptions && !showFallbackSizePills) return null;
       return /* @__PURE__ */ React.createElement("div", { className: "variant-selectors" }, showColors && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, colorLabel, /* @__PURE__ */ React.createElement("span", null, (() => {
         const cur = colorItems.find((c) => c.is_current);
         return cur ? isRomanVariants ? romanPillLabel(cur.product_name) : cur.color || cur.variant_name || cur.product_name : "";
@@ -7614,7 +7661,9 @@
         return /* @__PURE__ */ React.createElement("div", { key: c.sku_id, className: "color-swatch-wrap" + (!compatible ? " limited" : ""), onClick: () => {
           if (!c.is_current) onSkuClick(c.sku_id);
         } }, /* @__PURE__ */ React.createElement("div", { className: "color-swatch" + (c.is_current ? " active" : "") + (!compatible ? " limited" : "") }, c.primary_image ? /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(c.primary_image, 120), alt: label, loading: "lazy", decoding: "async", width: "64", height: "64" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.625rem", fontWeight: 600, color: "var(--stone-500)", textAlign: "center", lineHeight: 1.2, padding: "4px" } }, label)), /* @__PURE__ */ React.createElement("div", { className: "color-swatch-tooltip" }, label, !compatible ? " (other options may change)" : ""));
-      }))), showSibOptions && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Option", /* @__PURE__ */ React.createElement("span", null, (sibOptionItems.find((o) => o.is_current) || {}).label || "")), /* @__PURE__ */ React.createElement("div", { className: "color-swatches" }, sibOptionItems.map((o) => /* @__PURE__ */ React.createElement("div", { key: o.sku_id, className: "color-swatch-wrap", onClick: () => {
+      }))), showFallbackSizePills && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Size & Shape", /* @__PURE__ */ React.createElement("span", null, (fallbackSizeItems.find((i) => i.is_current) || {}).label || "")), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, fallbackSizeItems.map((i) => /* @__PURE__ */ React.createElement("button", { key: i.sku_id, className: "attr-pill" + (i.is_current ? " active" : ""), onClick: () => {
+        if (!i.is_current) onSkuClick(i.sku_id);
+      } }, i.label)))), showSibOptions && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Option", /* @__PURE__ */ React.createElement("span", null, (sibOptionItems.find((o) => o.is_current) || {}).label || "")), /* @__PURE__ */ React.createElement("div", { className: "color-swatches" }, sibOptionItems.map((o) => /* @__PURE__ */ React.createElement("div", { key: o.sku_id, className: "color-swatch-wrap", onClick: () => {
         if (!o.is_current) onSkuClick(o.sku_id);
       } }, /* @__PURE__ */ React.createElement("div", { className: "color-swatch" + (o.is_current ? " active" : "") }, o.primary_image ? /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(o.primary_image, 120), alt: o.label, loading: "lazy", decoding: "async", width: "64", height: "64" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.625rem", fontWeight: 600, color: "var(--stone-500)", textAlign: "center", lineHeight: 1.2, padding: "4px" } }, o.label)), /* @__PURE__ */ React.createElement("div", { className: "color-swatch-tooltip" }, o.label))))), showFormatSiblings && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Style", /* @__PURE__ */ React.createElement("span", null, formatLabel)), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, /* @__PURE__ */ React.createElement("button", { className: "attr-pill active" }, formatLabel), formatSiblings.map((fs) => /* @__PURE__ */ React.createElement("button", { key: fs.sku_id, className: "attr-pill", onClick: () => onSkuClick(fs.sku_id) }, fs.format_label)))), showSizePills && !attrSlugs.includes("shape") && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Size", /* @__PURE__ */ React.createElement("span", null, collectionSizeItems.find((s) => s.is_current)?.label || "")), sku.vendor_code === "JMV" ? (
         // James Martin Vanities

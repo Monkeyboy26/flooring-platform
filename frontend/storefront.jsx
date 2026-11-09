@@ -10086,6 +10086,7 @@
                 // OR any sibling, and no other pill source active) so first-class attribute/
                 // collection products are never touched.
                 let _designFallback = false;
+                let fallbackSizeItems = [];
                 if (colorItems.length === 0 && !showSibSizes && !showAttrSizes && !showSizePills
                     && !showFinishPills && !showSubLinePill && mainSiblings.length > 0
                     && !(sku.attributes || []).length && mainSiblings.every(s => !(s.attributes || []).length)) {
@@ -10100,11 +10101,49 @@
                   pushItem(sku, true, (media && media[0]) ? media[0].url : null);
                   mainSiblings.forEach(s => pushItem(s, false, getVariantImage(s)));
                   if (items.length >= 2) {
-                    items.sort((a, b) => (a.product_name || '').localeCompare(b.product_name || '', undefined, { numeric: true }));
-                    colorItems = items;
-                    _designFallback = true;
+                    // Two shapes of fallback. When the variant names are SIZES of one
+                    // design (medallions: 36" Round / 3'x5' Rectangular / 72" Round),
+                    // image swatches are useless — every thumbnail is the same artwork
+                    // and the actual choice hides in the tooltip. Render those as TEXT
+                    // pills sorted by physical size. Image swatches remain for true
+                    // design groups (borders/liners), where the picture IS the choice.
+                    // Discriminator: strip the dimensions — a size group leaves only
+                    // shape/qualifier words ("Round", "Oval, White Background"); a design
+                    // group leaves design identities ("Aroma 4×12" → "Aroma") that must
+                    // keep their image swatches.
+                    const _dimRe = /\d+(?:\.\d+)?\s*(?:ft|['’]|["″])|\d+(?:\.\d+)?\s*[xX×]\s*\d+(?:\.\d+)?/g;
+                    const _SHAPE_WORDS = new Set(['round', 'square', 'oval', 'rectangular', 'rect', 'corner',
+                      'triangular', 'triangle', 'hexagon', 'octagon', 'white', 'background', 'simplified',
+                      'original', 'new', 'version', 'polished', 'honed', 'matte', 'the', 'and', 'with']);
+                    const sizeLike = items.length >= 2 && items.every(i => {
+                      const vn = (i.variant_name || '');
+                      if (!_dimRe.test(vn)) return false;
+                      _dimRe.lastIndex = 0;
+                      const rest = vn.replace(_dimRe, ' ').toLowerCase().split(/[^a-z]+/).filter(t => t.length > 1);
+                      return rest.every(t => _SHAPE_WORDS.has(t));
+                    });
+                    _dimRe.lastIndex = 0;
+                    if (sizeLike) {
+                      // Largest dimension in inches (ft/' → ×12; bare N×N treated as inches)
+                      const _dimInches = (name) => {
+                        const vals = [];
+                        (name.match(/\d+(?:\.\d+)?\s*(?:ft|['’])/gi) || []).forEach(m => vals.push(parseFloat(m) * 12));
+                        (name.match(/\d+(?:\.\d+)?\s*(?:"|″)/g) || []).forEach(m => vals.push(parseFloat(m)));
+                        if (!vals.length) (name.match(/\d+(?:\.\d+)?/g) || []).forEach(m => vals.push(parseFloat(m)));
+                        return vals.length ? Math.max(...vals) : 0;
+                      };
+                      fallbackSizeItems = items
+                        .map(i => ({ ...i, label: i.product_name, sort: _dimInches(i.variant_name || '') }))
+                        .sort((a, b) => (a.sort - b.sort) || a.label.localeCompare(b.label, undefined, { numeric: true }));
+                      _designFallback = true; // still suppresses the redundant sibOption row
+                    } else {
+                      items.sort((a, b) => (a.product_name || '').localeCompare(b.product_name || '', undefined, { numeric: true }));
+                      colorItems = items;
+                      _designFallback = true;
+                    }
                   }
                 }
+                const showFallbackSizePills = fallbackSizeItems.length >= 2;
                 const showColors = colorItems.length >= 2;
                 const isRomanVariants = showColors && colorItems.some(c => hasRomanSuffix(c.product_name));
 
@@ -10275,7 +10314,7 @@
                 // color↔finish 1:1) — the color swatch grid is already the finish selector,
                 // so a finish row here would duplicate it.
                 const showSibFinish = sibFinishItems.length > 0 && !showFinishPills && !_finishIsColor && !attrSlugs.includes('finish') && !currentAttrs['color'];
-                if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes && !showAttrSizes && !showFormatSiblings && !showSibFinish && !showSibOptions) return null;
+                if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes && !showAttrSizes && !showFormatSiblings && !showSibFinish && !showSibOptions && !showFallbackSizePills) return null;
                 return (
                   <div className="variant-selectors">
                     {showColors && (
@@ -10294,6 +10333,18 @@
                             </div>
                             );
                           })}
+                        </div>
+                      </div>
+                    )}
+                    {showFallbackSizePills && (
+                      <div className="variant-selector-group">
+                        <div className="variant-selector-label">Size & Shape<span>{(fallbackSizeItems.find(i => i.is_current) || {}).label || ''}</span></div>
+                        <div className="attr-pills">
+                          {fallbackSizeItems.map(i => (
+                            <button key={i.sku_id} className={'attr-pill' + (i.is_current ? ' active' : '')} onClick={() => { if (!i.is_current) onSkuClick(i.sku_id); }}>
+                              {i.label}
+                            </button>
+                          ))}
                         </div>
                       </div>
                     )}
