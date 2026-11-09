@@ -87,6 +87,33 @@ const PID_CODES = {
   '12': 'quality', '77': 'collection',
 };
 
+// Design/piece-type segment from Coveo's skudescription ("Balance, SCRL4449,
+// Bullnose Corner, Glossy" → "Bullnose Corner"). The description is the only
+// field carrying the trim profile / surface design; everything else in it
+// (leading color, SKU codes, sizes, finish/shape echoes, marketing tags) is
+// dropped. Returns null when nothing distinctive remains (plain field tile).
+const DESC_GENERIC = new Set(['square', 'rectangle', 'glossy', 'matte', 'polished',
+  'unpolished', 'honed', 'textured', 'satin', 'microban']);
+export function descDesignSegment(sku) {
+  const desc = (sku.skuDescription || '').trim();
+  if (!desc) return null;
+  const known = new Set([sku.finish, sku.shape, sku.designPattern, sku.productType]
+    .filter(Boolean).map(s => String(s).toLowerCase()));
+  const segs = desc.split(/\s*,\s*/).filter(Boolean);
+  const out = [];
+  for (let i = 1; i < segs.length; i++) { // segs[0] is always the color
+    const seg = segs[i];
+    const l = seg.toLowerCase();
+    if (known.has(l) || DESC_GENERIC.has(l)) continue;
+    // Single-token segments with digits are sizes/SKU codes (2X8, SCRL4449,
+    // 1224C6) — but digit-bearing phrases are real ("Coping (6cm Return)").
+    if (!/\s/.test(seg) && /\d/.test(seg)) continue;
+    if (/^[A-Z0-9]{3,}$/.test(seg)) continue;  // bare code tokens (EXTSN, SLIMT)
+    out.push(seg.replace(/(\S)trim$/i, '$1 Trim')); // "Copingtrim" → "Coping Trim"
+  }
+  return out.length ? out.join(', ') : null;
+}
+
 function tokenizeSegments(raw) {
   let text = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const tildeCount = (text.match(/~/g) || []).length;
@@ -935,6 +962,21 @@ async function processProduct(pool, ctx) {
     stats.seoCarried++;
   }
 
+  // Coveo has no structured field for the design axis that splits some
+  // same-size/finish/shape siblings (Fluted vs Wave Crest, Stream vs Ridge,
+  // Hexagon vs Straight Joint) — it only surfaces inside skudescription.
+  // Count collisions on the structured fields so those SKUs can append it.
+  const fieldKey = (sku) => {
+    let sz = sku.size || '';
+    if (sz.includes(',')) sz = sz.split(',')[0].trim();
+    return [sz, sku.finish, sku.designPattern, sku.shape].join('|').toLowerCase();
+  };
+  const fieldKeyCounts = new Map();
+  for (const sku of colorData.skus) {
+    const k = fieldKey(sku);
+    fieldKeyCounts.set(k, (fieldKeyCounts.get(k) || 0) + 1);
+  }
+
   // Process each SKU variant
   for (const sku of colorData.skus) {
     const coveoSku = sku.coveoSku;
@@ -964,12 +1006,24 @@ async function processProduct(pool, ctx) {
     // vendor SKU) are what tell 50+ SKUs apart. Lead with the color and append
     // the decoded profile, mirroring the old 832 naming.
     const accColor = isAccessory ? colorName.replace(/\s+Trim$/i, '').trim() : null;
-    // Skip SKU-code trim decoding for Liners — liner codes (S1/2…) false-match
-    // the bullnose pattern, producing "Liner, Bullnose" contradictions.
-    const skuDescriptors = (isTrim && sku.shape !== 'Liner') ? daltileSkuDescriptors(coveoSku) : [];
+    // Trim profile: prefer the skudescription segment (authoritative — the
+    // old SKU-code guess misread e.g. SCRL4449 "Bullnose Corner" as Cove Base
+    // Corner Right via the /^SCR/ pattern). Code decoding remains the
+    // fallback for description-less rows; Liners skip it — liner codes
+    // (S1/2…) false-match the bullnose pattern, producing "Liner, Bullnose"
+    // contradictions.
+    const descDesign = descDesignSegment(sku);
+    const skuDescriptors = (isTrim && descDesign)
+      ? [descDesign]
+      : (isTrim && sku.shape !== 'Liner') ? daltileSkuDescriptors(coveoSku) : [];
     let variantParts = [accColor, skuSize, sku.finish, sku.designPattern, sku.shape].filter(Boolean);
     for (const d of skuDescriptors) {
-      if (!variantParts.join(' ').toLowerCase().includes(d.toLowerCase())) variantParts.push(d);
+      const dl = d.toLowerCase();
+      if (variantParts.join(' ').toLowerCase().includes(dl)) continue;
+      // A richer descriptor supersedes a part it extends ("Quarter Round
+      // Corner Right" replaces a bare "Quarter Round").
+      variantParts = variantParts.filter(pt => !dl.startsWith(pt.toLowerCase() + ' '));
+      variantParts.push(d);
     }
     // Coveo sometimes echoes the same word in designPattern and shape
     // ("Liner, Liner") — keep first occurrence only.
@@ -992,6 +1046,14 @@ async function processProduct(pool, ctx) {
       productName,
     });
     if (mosaicPattern) variantName = `${variantName}, ${mosaicPattern}`;
+
+    // Field/mosaic tiles whose structured fields collide within this color:
+    // append the description's design segment so siblings stop needing the
+    // nightly deduper's "(vendor_sku)" fallback.
+    if (!isTrim && descDesign && fieldKeyCounts.get(fieldKey(sku)) > 1
+        && !variantName.toLowerCase().includes(descDesign.toLowerCase())) {
+      variantName = `${variantName}, ${descDesign}`;
+    }
 
     // Determine sell_by
     let sellBy = isTrim ? 'unit' : 'box';

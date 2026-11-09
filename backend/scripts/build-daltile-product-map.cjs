@@ -436,6 +436,7 @@ async function main() {
     const colorFamily = getField(item, 'colorfamilyname');
     const shadeVariation = getField(item, 'shadevariation');
     const country = getField(item, 'countryofmanufacture');
+    const skuDescription = getField(item, 'skudescription');
 
     if (!seriesName) continue;
 
@@ -495,6 +496,7 @@ async function main() {
         swatchUrl: cleanedSwatchUrl,
         roomSceneUrl: cleanedRoomUrl,
         pdpUrl: pdpUrl || '',
+        skuDescription: skuDescription || '',
       };
 
       if (isTrim) {

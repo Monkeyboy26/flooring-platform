@@ -205,17 +205,37 @@ function imageBase(url) {
     .replace(/_\d+$/, '');                 // trailing shot number
   return base || null;
 }
-function loadDalImageMap() {
-  const map = new Map();
-  const pm = JSON.parse(fs.readFileSync(path.join(DATA, 'daltile-product-map.json'), 'utf8'));
-  for (const series of Object.values(pm.series || {})) {
-    for (const prod of Object.values(series.products || {})) {
-      for (const sku of prod.skus || []) {
-        if (sku.coveoSku && sku.productImageUrl) map.set(sku.coveoSku.toUpperCase(), sku.productImageUrl);
+// Merge all three brand maps (same order the scraper imports them — first
+// brand wins for cross-listed SKUs).
+const DAL_MAP_FILES = ['daltile-product-map.json', 'ao-product-map.json', 'marazzi-product-map.json'];
+function loadDalSkuMap() {
+  const map = new Map(); // SKU → full map entry
+  for (const file of DAL_MAP_FILES) {
+    const p = path.join(DATA, file);
+    if (!fs.existsSync(p)) continue;
+    const pm = JSON.parse(fs.readFileSync(p, 'utf8'));
+    for (const series of Object.values(pm.series || {})) {
+      for (const bucket of ['products', 'accessories']) {
+        for (const prod of Object.values(series[bucket] || {})) {
+          for (const sku of prod.skus || []) {
+            const key = (sku.coveoSku || '').toUpperCase();
+            if (key && !map.has(key)) map.set(key, sku);
+          }
+        }
       }
     }
   }
   return map;
+}
+// Stale outputs of the old SKU-code trim guessing (daltile-832.js) that the
+// authoritative skudescription segment supersedes — stripped from the base
+// before appending so "Cove Base Corner Right, Bullnose Corner" can't happen.
+const DAL_STALE_GUESS = new Set(['bullnose corner', 'cove base corner left',
+  'cove base corner right', 'cove base', 'bullnose', 'quarter round']);
+function stripStaleGuess(base) {
+  const parts = base.split(/\s*,\s*/).filter(Boolean);
+  while (parts.length && DAL_STALE_GUESS.has(parts[parts.length - 1].toLowerCase())) parts.pop();
+  return parts.join(', ');
 }
 const titleCase = (s) => s.replace(/\w\S*/g, t => t[0].toUpperCase() + t.slice(1).toLowerCase());
 function commonAffixStrip(strs) {
@@ -236,9 +256,20 @@ function dalCodeFor(mid, suffix) {
   return keys.find(k => k.length >= mid.length && expanded.startsWith(k)) || null;
 }
 async function decodeDal(groups) {
-  const imgMap = loadDalImageMap();
+  const { descDesignSegment } = await import('../scrapers/daltile-unified.js');
+  const skuMap = loadDalSkuMap();
+  const imgMap = new Map([...skuMap].map(([k, v]) => [k, v.productImageUrl]).filter(([, v]) => v));
   const decoded = new Map();
   for (const g of groups) {
+    // 0) skudescription design segment — authoritative when it splits the group
+    const dds = g.map(m => {
+      const entry = skuMap.get(m.vendor_sku.toUpperCase());
+      return entry ? descDesignSegment(entry) : null;
+    });
+    if (dds.every(Boolean) && new Set(dds.map(d => d.toLowerCase())).size === g.length) {
+      g.forEach((m, i) => decoded.set(m.sku_id, { seg: dds[i], base: stripStaleGuess(m.base) }));
+      continue;
+    }
     // 1) image-URL token diff
     const bases = g.map(m => imageBase(imgMap.get(m.vendor_sku.toUpperCase())));
     if (bases.every(Boolean) && new Set(bases).size === g.length) {
@@ -247,7 +278,8 @@ async function decodeDal(groups) {
       const uniques = tokenSets.map(ts => ts.filter(t => !shared.includes(t) && /^[A-Za-z]{2,}$/.test(t)));
       if (uniques.every(u => u.length === 1) &&
           new Set(uniques.map(u => u[0].toLowerCase())).size === g.length) {
-        g.forEach((m, i) => decoded.set(m.sku_id, titleCase(uniques[i][0])));
+        g.forEach((m, i) => decoded.set(m.sku_id,
+          titleCase(uniques[i][0]).replace(/(\S)trim$/i, '$1 Trim')));
         continue;
       }
     }
@@ -276,13 +308,15 @@ function planGroup(group, decoded) {
   const anyDecoded = group.some(m => decoded.has(m.sku_id));
   const proposals = new Map();
   for (const m of group) {
-    const seg = decoded.get(m.sku_id);
+    const val = decoded.get(m.sku_id);
+    const seg = typeof val === 'string' ? val : val?.seg;
+    const base = (val && typeof val === 'object' && val.base != null) ? val.base : m.base;
     if (!seg) {
       proposals.set(m.sku_id, anyDecoded && m.base ? m.base : m.variant_name);
       continue;
     }
-    if (m.base.toLowerCase().includes(seg.toLowerCase())) { proposals.set(m.sku_id, m.variant_name); continue; }
-    const name = (m.base ? `${m.base}, ${seg}` : seg).slice(0, MAX_LEN);
+    if (base.toLowerCase().includes(seg.toLowerCase())) { proposals.set(m.sku_id, m.variant_name); continue; }
+    const name = (base ? `${base}, ${seg}` : seg).slice(0, MAX_LEN);
     proposals.set(m.sku_id, name);
   }
   const counts = new Map();
@@ -302,9 +336,13 @@ function planGroup(group, decoded) {
 
 // Replay a backup JSON from another environment (match on vendor code +
 // vendor_sku; only touch rows whose current name still matches `from`).
-// Usage: node scripts/decode-sku-suffix-variants.mjs --replay=<backup.json> [--apply]
+// --revert swaps from/to, undoing a previously applied backup.
+// Usage: node scripts/decode-sku-suffix-variants.mjs --replay=<backup.json> [--revert] [--apply]
 async function replay(file) {
-  const renames = JSON.parse(fs.readFileSync(file, 'utf8'));
+  let renames = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (process.argv.includes('--revert')) {
+    renames = renames.map(r => ({ ...r, from: r.to, to: r.from }));
+  }
   let applied = 0, skipped = 0;
   const client = await pool.connect();
   try {
