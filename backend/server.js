@@ -35593,8 +35593,9 @@ cron.schedule('45 5 * * *', async () => {
   }
 });
 
-// Weekly broken-image sweep (network-bound HEAD checks) Sunday 4 AM UTC.
-cron.schedule('0 4 * * 0', async () => {
+// Weekly broken-image sweep (network-bound HEAD checks) Sunday 11 AM UTC =
+// 3 AM PST — true off-peak. 4 AM UTC is 8 PM Saturday evening in California.
+cron.schedule('0 11 * * 0', async () => {
   try {
     const audit = await runQualityAuditExclusive({ triggeredBy: 'cron:images', checkImages: true, ruleKeys: ['broken-image'] });
     console.log(`[Quality] Weekly image sweep: ${audit.newCount} new broken, ${audit.fixedCount} fixed`);
@@ -35628,7 +35629,11 @@ cron.schedule('0 4 * * 0', async () => {
 const IMAGE_MIRROR_BATCH = parseInt(process.env.IMAGE_MIRROR_BATCH || '3000', 10); // max mirrors/night
 const IMAGE_MIRROR_CONCURRENCY = parseInt(process.env.IMAGE_MIRROR_CONCURRENCY || '2', 10);
 const IMAGE_MIRROR_PER_CHILD = parseInt(process.env.IMAGE_MIRROR_PER_CHILD || '50', 10); // < OOM threshold
-cron.schedule('30 4 * * *', async () => {
+// 10:30 UTC = 2:30 AM PST. This MUST stay in California's dead hours: the sharp
+// children peg both vCPUs, and at the old 4:30 UTC slot (8:30 PM PST — prime
+// evening traffic) they starved Postgres until storefront browse queries hit
+// statement timeouts and shoppers saw "0 results" (2026-11-08 brownout).
+cron.schedule('30 10 * * *', async () => {
   if (process.env.IMAGE_MIRROR_DISABLE === '1') return;
   const { spawn } = await import('child_process');
   // One recycled child: mirrors up to PER_CHILD images then exits. Resolves to

@@ -1694,6 +1694,10 @@ button.avail-pill:hover, button.avail-pill.open { filter: brightness(0.92); }
 .browse-empty { text-align: center; padding: 4rem; color: var(--stone-600); }
 .browse-empty p:first-child { font-size: 1.125rem; margin-bottom: 1rem; }
 .browse-empty p:last-child { font-size: 0.875rem; }
+.browse-load-error p { font-size: 0.875rem; }
+.browse-load-error p:first-child { font-size: 1.125rem; margin-bottom: 1rem; }
+.browse-retry-btn { margin-top: 1.5rem; padding: 0.75rem 2rem; background: var(--stone-900); color: var(--stone-50); border: none; font-family: inherit; font-size: 0.8125rem; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; transition: background 0.2s; }
+.browse-retry-btn:hover { background: var(--stone-700); }
 .sku-card-trade-strike { text-decoration: line-through; color: var(--stone-500); font-size: 0.875rem; margin-right: 0.5rem; }
 .featured-empty { text-align: center; color: var(--stone-500); padding: 2rem 0; }
 

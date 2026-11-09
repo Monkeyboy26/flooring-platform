@@ -3026,6 +3026,10 @@
       const [tagFilters, setTagFilters] = useState([]);
       const [sortBy, setSortBy] = useState('name_asc');
       const [loadingSkus, setLoadingSkus] = useState(false);
+      // Grid fetch failed after all retries (server error / network stall). Kept
+      // separate from "0 results" so a transient outage never renders as a
+      // genuine empty search — that reads as "we don't carry it" to a shopper.
+      const [skusError, setSkusError] = useState(false);
       const [currentPage, setCurrentPage] = useState(1);
 
       // Homepage
@@ -3303,6 +3307,7 @@
                 setTotalSkus(data.total || 0);
                 setSearchDidYouMean(data.didYouMean || null);
                 setSearchTimeMs(data.searchTimeMs != null ? data.searchTimeMs : null);
+                setSkusError(false);
                 setLoadingSkus(false);
               });
               // Restore the saved browse scroll — but only if the user is still on
@@ -3318,7 +3323,7 @@
               // Superseded by a newer fetch — it owns loading now, so stay silent.
               if (job.cancelled) return;
               const delays = [400, 900];
-              if (attempt >= delays.length) { console.error(err); setLoadingSkus(false); return; }
+              if (attempt >= delays.length) { console.error(err); setSkusError(true); setLoadingSkus(false); return; }
               await new Promise(res => setTimeout(res, delays[attempt]));
             }
           }
@@ -4712,6 +4717,7 @@
             ) : (
               <BrowseView
                 skus={skus} totalSkus={totalSkus} loading={loadingSkus}
+                loadError={skusError} onRetryLoad={() => fetchSkusRef.current(lastSkuFetch.current || {})}
                 categories={categories} selectedCategory={selectedCategory}
                 selectedCollection={selectedCollection} searchQuery={searchQuery}
                 onCategorySelect={handleCategorySelect} onSearch={handleSearch}
@@ -6877,7 +6883,7 @@
 
     // ==================== Category Hero ====================
 
-    function CategoryHero({ category, collectionName, brandName, crumbs, searchQuery, totalSkus, loading, vendorCount }) {
+    function CategoryHero({ category, collectionName, brandName, crumbs, searchQuery, totalSkus, loading, loadError, vendorCount }) {
       if (searchQuery) {
         return (
           <div className="category-header-editorial category-header-search">
@@ -6894,7 +6900,7 @@
                 ))}
               </div>
               <div className="cat-header-stats">
-                {loading ? 'Searching\u2026' : (totalSkus + ' result' + (totalSkus !== 1 ? 's' : ''))}
+                {loading ? 'Searching\u2026' : loadError ? '' : (totalSkus + ' result' + (totalSkus !== 1 ? 's' : ''))}
               </div>
             </div>
             <div className="cat-header-body cat-header-body-search">
@@ -6902,6 +6908,8 @@
                 <h1 className="cat-header-headline">
                   {loading
                     ? <>Searching for {'\u2018'}<em>{searchQuery}</em>{'\u2019'}{'\u2026'}</>
+                    : loadError
+                    ? <>Results for {'\u2018'}<em>{searchQuery}</em>{'\u2019'}</>
                     : <>{totalSkus} results for {'\u2018'}<em>{searchQuery}</em>{'\u2019'}</>}
                 </h1>
               </div>
@@ -6977,7 +6985,7 @@
 
     // ==================== Browse View ====================
 
-    function BrowseView({ skus, totalSkus, loading, categories, selectedCategory, selectedCollection, searchQuery, onCategorySelect, onSearch, facets, filters, onFilterToggle, onBatchFilterSet, onClearFilters, sortBy, onSortChange, onSkuClick, currentPage, onPageChange, wishlist, toggleWishlist, setQuickViewSku, filterDrawerOpen, setFilterDrawerOpen, goHome,
+    function BrowseView({ skus, totalSkus, loading, loadError, onRetryLoad, categories, selectedCategory, selectedCollection, searchQuery, onCategorySelect, onSearch, facets, filters, onFilterToggle, onBatchFilterSet, onClearFilters, sortBy, onSortChange, onSkuClick, currentPage, onPageChange, wishlist, toggleWishlist, setQuickViewSku, filterDrawerOpen, setFilterDrawerOpen, goHome,
       vendorFacets, vendorFilters, onVendorToggle, priceRange, userPriceRange, onPriceRangeChange, tagFacets, tagFilters, onTagToggle, didYouMean, searchTimeMs, relatedSearches, matchingCategories }) {
       const [viewMode, setViewMode] = useState('grid');
       const totalPages = Math.ceil(totalSkus / 24);
@@ -7023,7 +7031,7 @@
 
       return (
         <>
-          <CategoryHero category={currentCategory} collectionName={selectedCollection} brandName={brandName} crumbs={crumbs} searchQuery={searchQuery} totalSkus={totalSkus} loading={loading} vendorCount={vendorFacets ? vendorFacets.length : 0} />
+          <CategoryHero category={currentCategory} collectionName={selectedCollection} brandName={brandName} crumbs={crumbs} searchQuery={searchQuery} totalSkus={totalSkus} loading={loading} loadError={loadError} vendorCount={vendorFacets ? vendorFacets.length : 0} />
           {isParentLanding && landingChildren.length > 0 && (
             <div className="subcategory-strip">
               <div className="subcategory-strip-grid" style={{ gridTemplateColumns: 'repeat(' + Math.min(landingChildren.length, 6) + ', 1fr)' }}>
@@ -7057,7 +7065,7 @@
                 tagFilters={tagFilters} tagFacets={tagFacets} onTagToggle={onTagToggle} />
             )}
             <div className="browse-toolbar-row">
-              <BrowseToolbar totalSkus={totalSkus} sortBy={sortBy} onSortChange={onSortChange} currentPage={currentPage} viewMode={viewMode} onViewModeChange={setViewMode} searchQuery={searchQuery} searchTimeMs={searchTimeMs} relatedSearches={relatedSearches} onSearch={onSearch} matchingCategories={matchingCategories} onCategorySelect={onCategorySelect} onOpenFilters={() => setFilterDrawerOpen(true)} activeFilterCount={totalActiveFilterCount} />
+              <BrowseToolbar totalSkus={totalSkus} loadError={loadError} sortBy={sortBy} onSortChange={onSortChange} currentPage={currentPage} viewMode={viewMode} onViewModeChange={setViewMode} searchQuery={searchQuery} searchTimeMs={searchTimeMs} relatedSearches={relatedSearches} onSearch={onSearch} matchingCategories={matchingCategories} onCategorySelect={onCategorySelect} onOpenFilters={() => setFilterDrawerOpen(true)} activeFilterCount={totalActiveFilterCount} />
             </div>
             {didYouMean && searchQuery && !loading && skus.length > 0 && (
               <div className="browse-did-you-mean">
@@ -7066,6 +7074,12 @@
             )}
             {loading ? (
               <SkeletonGrid count={8} />
+            ) : loadError ? (
+              <div className="browse-empty browse-load-error">
+                <p>We couldn&rsquo;t load results just now.</p>
+                <p>Please try again in a moment.</p>
+                <button className="browse-retry-btn" onClick={onRetryLoad}>Try again</button>
+              </div>
             ) : skus.length === 0 ? (
               searchQuery ? (
                 <SearchEmptyState searchQuery={searchQuery} categories={categories} onSearch={onSearch} onCategorySelect={onCategorySelect} didYouMean={didYouMean} />
@@ -7594,7 +7608,7 @@
       );
     }
 
-    function BrowseToolbar({ totalSkus, sortBy, onSortChange, currentPage, viewMode, onViewModeChange, searchQuery, searchTimeMs, relatedSearches, onSearch, matchingCategories, onCategorySelect, onOpenFilters, activeFilterCount }) {
+    function BrowseToolbar({ totalSkus, loadError, sortBy, onSortChange, currentPage, viewMode, onViewModeChange, searchQuery, searchTimeMs, relatedSearches, onSearch, matchingCategories, onCategorySelect, onOpenFilters, activeFilterCount }) {
       const page = currentPage || 1;
       const per = 24;
       const startIdx = (page - 1) * per + 1;
@@ -7607,7 +7621,7 @@
             <div className="result-count">
               {totalSkus > 0
                 ? 'Showing ' + startIdx + '\u2013' + endIdx + ' of ' + totalSkus + (searchTimeMs != null ? ' in ' + (searchTimeMs / 1000).toFixed(2) + 's' : '')
-                : '0 products'
+                : loadError ? '' : '0 products'
               }
             </div>
             <div className="browse-toolbar-right">
