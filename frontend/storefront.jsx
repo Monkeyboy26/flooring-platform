@@ -9765,7 +9765,17 @@
                 // Exception: when size pills were color-scoped and the sibling products are clearly
                 // colors (name-derived color keys map 1:1 to color attribute values), still show them.
                 let _collectionColorWall = false; // colorItems sourced from collection siblings (cross-product wall)
-                if (colorItems.length <= 1 && _nonAccCollSiblings.length > 0) {
+                // Attribute-less products with their OWN multi-variant group (Stone Pride
+                // medallions: Grace in 9 sizes) must skip the cross-product wall — it fills
+                // colorItems with every design in the collection (labeled "Color", many
+                // photoless) and preempts the _designFallback below, leaving the product's
+                // real variants with no pill row at all. The Collection section still
+                // provides cross-design navigation.
+                const _attrlessOwnVariants = !(sku.attributes || []).length
+                  && mainSiblings.length > 0
+                  && mainSiblings.every(s => !(s.attributes || []).length);
+                let _wallHasColorAttr = true; // wall candidates carry a real color attr
+                if (colorItems.length <= 1 && _nonAccCollSiblings.length > 0 && !_attrlessOwnVariants) {
                   // Only siblings sharing the current FINISH are alternate colors. Collections
                   // that split finish into separate products (MOMA: "…12x24, R11" vs "…, Natural")
                   // otherwise leak finish variants in as bogus color swatches labeled ", R11".
@@ -9781,6 +9791,9 @@
                     { sku_id: sku.sku_id, product_name: sku.product_name, variant_name: sku.variant_name, color: currentColorVal, primary_image: (media && media[0]) ? media[0].url : null, is_current: true },
                     ..._colorSibs
                   ];
+                  // No candidate has a color attribute → the wall is cross-DESIGN
+                  // navigation (medallion singles), not a color picker — label "Design".
+                  _wallHasColorAttr = candidates.some(c => (c.color || '').toString().trim());
                   let eligible = !showSizePills;
                   // Mosaic collections are one-product-per-pattern: the wall IS the
                   // collection navigation, and any size pills are same-line chip
@@ -10200,7 +10213,7 @@
                 const _patternWordRe = /\b(penny|hexagons?|hex|octagon|pickets?|herringbone|chevron|arabesque|lanterns?|basket|weave|bricks?|ovals?|dots?|stacked|pinwheel|circles?|triangles?|squares?|arrows?|fans?|rhombus|medallions?|feathers?|kaleidoscope|rounds?)\b/i;
                 const _patternWall = _collectionColorWall && /mosaic/.test(sku.category_slug || '')
                   && colorItems.filter(c => _patternWordRe.test(c.color || c.product_name || '')).length >= 2;
-                const colorLabel = _designFallback ? 'Design' : attrMap['countertop_finish'] ? 'Cabinet Color' : isRomanVariants ? 'Style' : (_isDecorativeHW && !currentAttrs['color']) ? 'Collection' : _patternWall ? 'Pattern' : 'Color';
+                const colorLabel = _designFallback ? (/medallion/.test(sku.category_slug || '') ? 'Option' : 'Design') : attrMap['countertop_finish'] ? 'Cabinet Color' : isRomanVariants ? 'Style' : (_isDecorativeHW && !currentAttrs['color']) ? 'Collection' : _patternWall ? 'Pattern' : (_collectionColorWall && !_wallHasColorAttr) ? 'Design' : 'Color';
                 const showAttrs = attrSlugs.length > 0;
                 // Check if the currently selected size/finish is available for a color swatch
                 const isColorCompatible = (c) => {

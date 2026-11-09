@@ -307,14 +307,21 @@ const imgOrigInflight = new Map(); // url hash → Promise<Buffer|null> — dedu
 // — surfaced as "Unknown system error -35" because the host's macOS errno 35
 // has no Linux libuv mapping (err.code is then undefined, err.errno === -35).
 // These clear on an immediate retry; without one a single blip 500s the image.
-async function readLocalImageFile(localPath, attempts = 3) {
+// macOS Docker bind mounts (VirtioFS/gRPC-FUSE) intermittently fail reads with
+// EAGAIN (-35) or EDEADLK ("Resource deadlock avoided") — sometimes until the
+// HOST touches the file. Retry with real backoff; callers map a still-transient
+// failure to 503/no-store (not 500) so nothing caches the outage.
+function isTransientReadErr(err) {
+  return err && (err.code === 'EAGAIN' || err.code === 'EBUSY' || err.code === 'EDEADLK'
+    || err.errno === -35 || err.errno === -11);
+}
+async function readLocalImageFile(localPath, attempts = 4) {
   for (let i = 0; ; i++) {
     try {
       return await fs.promises.readFile(localPath);
     } catch (err) {
-      const transient = err.code === 'EAGAIN' || err.code === 'EBUSY' || err.errno === -35;
-      if (!transient || i >= attempts - 1) throw err;
-      await new Promise((r) => setTimeout(r, 20 * (i + 1)));
+      if (!isTransientReadErr(err) || i >= attempts - 1) throw err;
+      await new Promise((r) => setTimeout(r, 50 * (i + 1) * (i + 1)));
     }
   }
 }
@@ -590,6 +597,13 @@ app.get('/api/img', imgLimiter, async (req, res) => {
     res.send(outputBuffer);
   } catch (err) {
     console.error('[img] resize error:', err.message);
+    // Transient bind-mount read failure (macOS VirtioFS EAGAIN/EDEADLK): answer
+    // 503 + no-store so neither nginx's img_cache nor the browser pins the
+    // outage; the image recovers on a later request without an SW/cache purge.
+    if (isTransientReadErr(err)) {
+      res.set({ 'Cache-Control': 'no-store', 'Retry-After': '2' });
+      return res.status(503).end();
+    }
     res.status(500).end();
   }
 });
