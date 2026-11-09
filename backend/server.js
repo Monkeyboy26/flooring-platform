@@ -26884,10 +26884,23 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
         const oneOffName = !item.sku_id && !item.vendor_id && item.custom_vendor
           ? String(item.custom_vendor).trim().slice(0, 120) : '';
         const oneOffEmail = item.custom_vendor_email ? String(item.custom_vendor_email).trim() : '';
-        // One-off vendor with an email → vendor record now, sendable PO later
+        // A custom (off-catalog) line MUST resolve to a real vendor_id — else it
+        // rides on no PO and is silently dropped once the quote converts
+        // ([[po-vendorless-custom-line-drop]]). Mirror the add-item contract.
+        // Samples, rugs, and SKU-backed lines are exempt.
         let itemVendorId = (!item.sku_id && item.vendor_id) || null;
-        if (oneOffName && /^\S+@\S+\.\S+$/.test(oneOffEmail)) {
-          itemVendorId = await findOrCreateOneOffVendor(client, oneOffName, oneOffEmail);
+        const isCustomLine = !item.sku_id && !rug && !item.is_sample;
+        if (isCustomLine) {
+          if (itemVendorId) {
+            const vc = await client.query('SELECT id FROM vendors WHERE id = $1', [itemVendorId]);
+            if (!vc.rows.length) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Vendor not found for custom item: ' + (item.product_name || '') }); }
+          } else if (oneOffName) {
+            if (!/^\S+@\S+\.\S+$/.test(oneOffEmail)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'A valid email for one-off vendor "' + oneOffName + '" is required so the PO can be sent.' }); }
+            itemVendorId = await findOrCreateOneOffVendor(client, oneOffName, oneOffEmail);
+          } else {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'A vendor (or one-off vendor name) is required for custom item: ' + (item.product_name || '') });
+          }
         }
         // Save the rep-entered cost for ANY line — catalog cost overrides included,
         // not just custom lines — so it persists onto the order + PO at conversion.
@@ -27201,11 +27214,25 @@ app.post('/api/rep/quotes/:id/items', repAuth, async (req, res) => {
     const customPriceBasis = (!sku_id && req.body.price_basis) ? String(req.body.price_basis).trim() : null;
     const customSqftPerBox = (!sku_id && req.body.sqft_per_box != null && !isNaN(parseFloat(req.body.sqft_per_box)) && parseFloat(req.body.sqft_per_box) > 0)
       ? parseFloat(req.body.sqft_per_box) : null;
-    // One-off vendor with an email → create/reuse the vendor record now so the
-    // PO is sendable when the quote converts. Email optional at quote stage.
+    // A custom (off-catalog) line MUST resolve to a real vendor_id here — else it
+    // rides on no PO and is silently dropped from generatePurchaseOrders once the
+    // quote converts ([[po-vendorless-custom-line-drop]]). Mirror the order
+    // add-item contract: a stocked vendor_id, or a one-off name + valid email
+    // (findOrCreateOneOffVendor creates/reuses the record so the PO is sendable).
+    // Samples, rugs, and SKU-backed lines are exempt.
     let quoteItemVendorId = (!sku_id && req.body.vendor_id) || null;
-    if (!sku_id && !quoteItemVendorId && customVendorName && /^\S+@\S+\.\S+$/.test(customVendorEmail)) {
-      quoteItemVendorId = await findOrCreateOneOffVendor(client, customVendorName, customVendorEmail);
+    const isQuoteCustomLine = !sku_id && !rug && !is_sample;
+    if (isQuoteCustomLine) {
+      if (quoteItemVendorId) {
+        const vc = await client.query('SELECT id FROM vendors WHERE id = $1', [quoteItemVendorId]);
+        if (!vc.rows.length) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Vendor not found for custom item: ' + (product_name || '') }); }
+      } else if (customVendorName) {
+        if (!/^\S+@\S+\.\S+$/.test(customVendorEmail)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'A valid email for one-off vendor "' + customVendorName + '" is required so the PO can be sent.' }); }
+        quoteItemVendorId = await findOrCreateOneOffVendor(client, customVendorName, customVendorEmail);
+      } else {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'A vendor (or one-off vendor name) is required for custom item: ' + (product_name || '') });
+      }
     }
     // Sibling-accessory / trim payloads carry only sku_id — backfill product_id
     // so the line reaches its vendor PO on conversion. [[po-trim-missing-productid]]
@@ -28659,6 +28686,28 @@ app.post('/api/rep/estimates/:id/items', repAuth, async (req, res) => {
       if (rug.error) { await client.query('ROLLBACK'); return res.status(400).json({ error: rug.error }); }
     }
 
+    // A custom (off-catalog) estimate line MUST resolve to a real vendor_id — else
+    // it carries no vendor through estimate→quote/order conversion and silently
+    // falls off its PO ([[po-vendorless-custom-line-drop]]). Mirror the order/quote
+    // add-item contract. Labor, rugs, and SKU-backed lines are exempt.
+    const estCustomVendorName = req.body.custom_vendor ? String(req.body.custom_vendor).trim().slice(0, 120) : '';
+    const estCustomVendorEmail = req.body.custom_vendor_email ? String(req.body.custom_vendor_email).trim() : '';
+    const estCustomVendorSku = req.body.vendor_sku ? (String(req.body.vendor_sku).trim().slice(0, 64) || null) : null;
+    const isEstCustomLine = !sku_id && !rug && (item_type || 'material') !== 'labor';
+    let estItemVendorId = (!sku_id && req.body.vendor_id) || null;
+    if (isEstCustomLine) {
+      if (estItemVendorId) {
+        const vc = await client.query('SELECT id FROM vendors WHERE id = $1', [estItemVendorId]);
+        if (!vc.rows.length) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Vendor not found for custom item: ' + (product_name || '') }); }
+      } else if (estCustomVendorName) {
+        if (!/^\S+@\S+\.\S+$/.test(estCustomVendorEmail)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'A valid email for one-off vendor "' + estCustomVendorName + '" is required so the PO can be sent.' }); }
+        estItemVendorId = await findOrCreateOneOffVendor(client, estCustomVendorName, estCustomVendorEmail);
+      } else {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'A vendor (or one-off vendor name) is required for custom item: ' + (product_name || '') });
+      }
+    }
+
     // Backfill product_id from sku_id for accessory/trim lines that carry only a
     // sku, so the line reaches its vendor PO once the estimate converts. [[po-trim-missing-productid]]
     const estResolvedProductId = rug ? rug.product_id : await resolveProductIdForSku(client, sku_id, product_id);
@@ -28666,8 +28715,8 @@ app.post('/api/rep/estimates/:id/items', repAuth, async (req, res) => {
       INSERT INTO estimate_items (estimate_id, item_type, product_id, sku_id, product_name, collection, description,
         sqft_needed, num_boxes, sell_by, labor_category, rate_type, rate_sqft, labor_sqft,
         unit_price, quantity, subtotal, sort_order, area_id, cost, is_custom_rug, custom_width_ft, custom_length_ft,
-        price_basis, sqft_per_box)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+        price_basis, sqft_per_box, vendor_id, custom_vendor, vendor_sku)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
       RETURNING *
     `, [id, rug ? 'material' : (item_type || 'material'), estResolvedProductId, rug ? rug.sku_id : (sku_id || null),
         rug ? rug.product_name : (product_name || null), rug ? rug.collection : (collection || null), rug ? rug.description : (description || null),
@@ -28677,7 +28726,8 @@ app.post('/api/rep/estimates/:id/items', repAuth, async (req, res) => {
         parseFloat((rug ? rug.subtotal : subtotal) || 0).toFixed(2), sort_order || 0, area_id || null,
         rug ? (rug.cost != null ? parseFloat(rug.cost).toFixed(2) : null) : ((effVendorCost == null || effVendorCost === '') ? null : parseFloat(effVendorCost).toFixed(2)),
         rug ? true : false, rug ? rug.custom_width_ft : null, rug ? rug.custom_length_ft : null,
-        rug ? null : customPriceBasis, rug ? null : customSqftPerBox]);
+        rug ? null : customPriceBasis, rug ? null : customSqftPerBox,
+        rug ? null : estItemVendorId, (rug || sku_id) ? null : (estCustomVendorName || null), (rug || sku_id) ? null : estCustomVendorSku]);
 
     await recalculateEstimateTotals(id, client);
     await client.query('COMMIT');
@@ -29437,12 +29487,14 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
         : item.description;
       await client.query(`
         INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description,
-          sqft_needed, num_boxes, unit_price, subtotal, sell_by, cost, is_custom_rug, custom_width_ft, custom_length_ft)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+          sqft_needed, num_boxes, unit_price, subtotal, sell_by, cost, is_custom_rug, custom_width_ft, custom_length_ft,
+          vendor_id, custom_vendor, vendor_sku)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       `, [quote.id, item.product_id, item.sku_id, item.product_name, item.collection,
           desc, item.sqft_needed, item.num_boxes || item.quantity || 1,
           item.unit_price, item.subtotal, item.sell_by,
-          item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
+          item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null,
+          item.vendor_id || null, item.custom_vendor || null, item.vendor_sku || null]);
     }
 
     // Recompute subtotal/tax/total from the copied line items.
@@ -29581,13 +29633,15 @@ async function convertEstimateToOrderTx(client, e, materialItems, laborItems, op
     await client.query(`
       INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description,
         sqft_needed, num_boxes, unit_price, subtotal, sell_by, item_type, source_estimate_area,
-        cost, is_custom_rug, custom_width_ft, custom_length_ft, price_basis, sqft_per_box)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'material', $12, $13, $14, $15, $16, $17, $18)
+        cost, is_custom_rug, custom_width_ft, custom_length_ft, price_basis, sqft_per_box,
+        vendor_id, custom_vendor, vendor_sku)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'material', $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
     `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection,
         item.description, item.sqft_needed, item.num_boxes || item.quantity || 1,
         item.unit_price, item.subtotal, item.sell_by, item.area_name || null,
         item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null,
-        item.sku_id ? null : (item.price_basis || null), item.sku_id ? null : (item.sqft_per_box || null)]);
+        item.sku_id ? null : (item.price_basis || null), item.sku_id ? null : (item.sqft_per_box || null),
+        item.vendor_id || null, item.custom_vendor || null, item.vendor_sku || null]);
   }
 
   // Copy labor items as labor lines. num_boxes is NOT NULL and generic
@@ -37021,6 +37075,18 @@ async function runMigrations() {
     await pool.query(`
       ALTER TABLE order_items ADD COLUMN IF NOT EXISTS vendor_sku TEXT;
       ALTER TABLE quote_items ADD COLUMN IF NOT EXISTS vendor_sku TEXT;
+    `);
+    // Estimates historically had NO vendor columns on their line items, so a
+    // custom (off-catalog) estimate line could not record its vendor — and the
+    // estimate→quote / estimate→order copy loops then dropped vendor entirely,
+    // producing vendorless custom lines that silently fall off their PO
+    // ([[po-vendorless-custom-line-drop]]). Bring estimate_items to parity with
+    // order_items/quote_items so a custom line resolves to a real vendor at the
+    // source and carries it all the way through conversion.
+    await pool.query(`
+      ALTER TABLE estimate_items ADD COLUMN IF NOT EXISTS vendor_id UUID REFERENCES vendors(id);
+      ALTER TABLE estimate_items ADD COLUMN IF NOT EXISTS custom_vendor TEXT;
+      ALTER TABLE estimate_items ADD COLUMN IF NOT EXISTS vendor_sku TEXT;
     `);
     // Hard/soft 850 split is a Shaw-specific requirement — gate it behind an
     // explicit edi_config flag so other EDI vendors (Daltile/EF/TW) get ONE 850.

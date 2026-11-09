@@ -16330,9 +16330,14 @@
             price_basis: c.price_basis || null,
             sqft_per_box: c.sqft_per_box || null,
             area_id: targetAreaId,
-            vendor_cost: c.cost || null
+            vendor_cost: c.cost || null,
+            // Carry the vendor the custom form collected — the estimate line now
+            // requires one so it keeps its PO through conversion. [[po-vendorless-custom-line-drop]]
+            vendor_id: c.vendor_id || null,
+            custom_vendor: c.custom_vendor || null,
+            custom_vendor_email: c.custom_vendor_email || null
           },
-          extra: { vendor_cost: c.cost || null, price_basis: c.price_basis || null, sqft_per_box: c.sqft_per_box || null }
+          extra: { vendor_cost: c.cost || null, price_basis: c.price_basis || null, sqft_per_box: c.sqft_per_box || null, vendor_name: c.vendor_name || null }
         });
       }
       try {

@@ -2157,6 +2157,13 @@ CREATE TABLE IF NOT EXISTS estimate_items (
     -- Custom-line sell-by basis + piece/box area (see order_items / [[custom-sell-by]])
     price_basis VARCHAR(20),
     sqft_per_box DECIMAL(10,4),
+    -- Custom (off-catalog) lines only: vendor_id for a stocked vendor, custom_vendor
+    -- free text for a one-off vendor, vendor_sku for the PO1/VP identifier. Mirrors
+    -- order_items/quote_items so a custom estimate line carries its vendor through
+    -- estimate→quote/order conversion (else it falls off its PO). [[po-vendorless-custom-line-drop]]
+    vendor_id UUID REFERENCES vendors(id),
+    custom_vendor TEXT,
+    vendor_sku TEXT,
     sort_order INTEGER DEFAULT 0,
     area_id UUID REFERENCES estimate_areas(id) ON DELETE SET NULL,
     -- Custom bound area rug — see [[custom-rug-calculator]]
