@@ -10119,8 +10119,8 @@
                     // keep their image swatches.
                     const _dimRe = /\d+(?:\.\d+)?\s*(?:ft|['’]|["″])|\d+(?:\.\d+)?\s*[xX×]\s*\d+(?:\.\d+)?/g;
                     const _SHAPE_WORDS = new Set(['round', 'square', 'oval', 'rectangular', 'rect', 'corner',
-                      'triangular', 'triangle', 'hexagon', 'octagon', 'white', 'background', 'simplified',
-                      'original', 'new', 'version', 'polished', 'honed', 'matte', 'the', 'and', 'with']);
+                      'border', 'custom', 'triangular', 'triangle', 'hexagon', 'octagon', 'white', 'background',
+                      'simplified', 'original', 'new', 'version', 'polished', 'honed', 'matte', 'the', 'and', 'with']);
                     const sizeLike = items.length >= 2 && items.every(i => {
                       const vn = (i.variant_name || '');
                       if (!_dimRe.test(vn)) return false;

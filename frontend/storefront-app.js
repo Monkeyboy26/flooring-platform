@@ -7497,6 +7497,8 @@
             "rectangular",
             "rect",
             "corner",
+            "border",
+            "custom",
             "triangular",
             "triangle",
             "hexagon",
