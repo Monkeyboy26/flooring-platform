@@ -1214,7 +1214,7 @@
       {
         "vendor_sku": "FR-BA-F5-P (A+)",
         "internal_sku": "SP-FR-BA-F5-P-A",
-        "variant_name": "F5, Polished",
+        "variant_name": "Molding 2x12 (F5), Polished, Premium",
         "sell_by": "unit",
         "variant_type": "accessory",
         "cost": 7.1,
@@ -1230,7 +1230,7 @@
       {
         "vendor_sku": "FR-BA-F5-P(D)",
         "internal_sku": "SP-FR-BA-F5-P-D",
-        "variant_name": "F5, Polished",
+        "variant_name": "Molding 2x12 (F5), Polished",
         "sell_by": "unit",
         "variant_type": "accessory",
         "cost": 4.36,
@@ -1369,7 +1369,7 @@
       {
         "vendor_sku": "MS-BA-2-Hex-P(A+)",
         "internal_sku": "SP-MS-BA-2-Hex-P-A",
-        "variant_name": "2 Hex, Polished",
+        "variant_name": "2\" Hexagon, Polished, Premium",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 8.42,
@@ -1388,7 +1388,7 @@
       {
         "vendor_sku": "MS-BA-2-Hex-P(GRN)(D)",
         "internal_sku": "SP-MS-BA-2-Hex-P-GRN-D",
-        "variant_name": "2 Hex, Polished",
+        "variant_name": "2\" Hexagon, Polished (GRN Lot)",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 5.9,
@@ -1817,7 +1817,7 @@
       {
         "vendor_sku": "MS-BM-2x2-T-8mm(D)",
         "internal_sku": "SP-MS-BM-2x2-T-8mm-D",
-        "variant_name": "2x2, Tumbled",
+        "variant_name": "2x2 (8mm), Tumbled",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 3.36,
@@ -3047,7 +3047,7 @@
       {
         "vendor_sku": "FR-CM-Baseboard-P",
         "internal_sku": "SP-FR-CM-Baseboard-P",
-        "variant_name": "Baseboard, Polished",
+        "variant_name": "Baseboard 4x12, Polished",
         "sell_by": "unit",
         "variant_type": "accessory",
         "cost": 7.15,
@@ -3063,7 +3063,7 @@
       {
         "vendor_sku": "FR-CM-F1-H(D)",
         "internal_sku": "SP-FR-CM-F1-H-D",
-        "variant_name": "F1, Honed",
+        "variant_name": "Chairrail 2x12 (F1), Honed",
         "sell_by": "unit",
         "variant_type": "accessory",
         "cost": 3.74,
@@ -3079,7 +3079,7 @@
       {
         "vendor_sku": "FR-CM-F1-P",
         "internal_sku": "SP-FR-CM-F1-P",
-        "variant_name": "F1, Polished",
+        "variant_name": "Chairrail 2x12 (F1), Polished",
         "sell_by": "unit",
         "variant_type": "accessory",
         "cost": 5.35,
@@ -3095,7 +3095,7 @@
       {
         "vendor_sku": "FR-CM-F1-P(BD)(D)",
         "internal_sku": "SP-FR-CM-F1-P-BD-D",
-        "variant_name": "F1, Polished",
+        "variant_name": "Chairrail 2x12 (F1), Polished, 5 pc/Box",
         "sell_by": "unit",
         "variant_type": "accessory",
         "cost": 4.7,
@@ -3111,7 +3111,7 @@
       {
         "vendor_sku": "FR-CM-F2-H(D)",
         "internal_sku": "SP-FR-CM-F2-H-D",
-        "variant_name": "F2, Honed",
+        "variant_name": "Ogee 2x12 (F2), Honed",
         "sell_by": "unit",
         "variant_type": "accessory",
         "cost": 3.74,
@@ -3127,7 +3127,7 @@
       {
         "vendor_sku": "FR-CM-F2-P(D)",
         "internal_sku": "SP-FR-CM-F2-P-D",
-        "variant_name": "F2, Polished",
+        "variant_name": "Ogee 2x12 (F2), Polished",
         "sell_by": "unit",
         "variant_type": "accessory",
         "cost": 3.74,
@@ -3143,7 +3143,7 @@
       {
         "vendor_sku": "FR-CM-F5-H",
         "internal_sku": "SP-FR-CM-F5-H",
-        "variant_name": "F5, Honed",
+        "variant_name": "Molding 2x12 (F5), Honed",
         "sell_by": "unit",
         "variant_type": "accessory",
         "cost": 6.25,
@@ -3159,7 +3159,7 @@
       {
         "vendor_sku": "FR-CM-P12.5-P",
         "internal_sku": "SP-FR-CM-P12-5-P",
-        "variant_name": "P12.5, Polished",
+        "variant_name": "Pencil 1/2x12 (P12.5), Polished",
         "sell_by": "unit",
         "variant_type": "accessory",
         "cost": 3.15,
@@ -3175,7 +3175,7 @@
       {
         "vendor_sku": "FR-CM-P20-H",
         "internal_sku": "SP-FR-CM-P20-H",
-        "variant_name": "P20, Honed",
+        "variant_name": "Pencil 3/4x12 (P20), Honed",
         "sell_by": "unit",
         "variant_type": "accessory",
         "cost": 3.85,
@@ -3191,7 +3191,7 @@
       {
         "vendor_sku": "FR-CM-P20-P",
         "internal_sku": "SP-FR-CM-P20-P",
-        "variant_name": "P20, Polished",
+        "variant_name": "Pencil 3/4x12 (P20), Polished",
         "sell_by": "unit",
         "variant_type": "accessory",
         "cost": 3.85,
@@ -3215,7 +3215,7 @@
       {
         "vendor_sku": "MS-CM-1-Hex-P(D)",
         "internal_sku": "SP-MS-CM-1-Hex-P-D",
-        "variant_name": "1 Hex, Polished",
+        "variant_name": "1\" Hexagon, Polished",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 4.67,
@@ -3247,7 +3247,7 @@
       {
         "vendor_sku": "MS-CM-1x1-P-8mm(D)",
         "internal_sku": "SP-MS-CM-1x1-P-8mm-D",
-        "variant_name": "1x1, Polished",
+        "variant_name": "1x1 (8mm), Polished",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 2.78,
@@ -3263,7 +3263,7 @@
       {
         "vendor_sku": "MS-CM-1x1-T-7mm(D)",
         "internal_sku": "SP-MS-CM-1x1-T-7mm-D",
-        "variant_name": "1x1, Tumbled",
+        "variant_name": "1x1 (7mm), Tumbled, Final Sale",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 2.78,
@@ -3295,7 +3295,7 @@
       {
         "vendor_sku": "MS-CM-1X2-Brick-P-8mm(D)",
         "internal_sku": "SP-MS-CM-1X2-Brick-P-8mm-D",
-        "variant_name": "1X2 Brick, Polished",
+        "variant_name": "1x2 Brick (8mm), Polished",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 3.17,
@@ -3311,7 +3311,7 @@
       {
         "vendor_sku": "MS-CM-1x2-Brick-T(BD)",
         "internal_sku": "SP-MS-CM-1x2-Brick-T-BD",
-        "variant_name": "1x2 Brick, Tumbled",
+        "variant_name": "1x2 Brick (3/8\" Thick), Tumbled",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 6.35,
@@ -3327,7 +3327,7 @@
       {
         "vendor_sku": "MS-CM-1x2-Brick-T-8mm(D)",
         "internal_sku": "SP-MS-CM-1x2-Brick-T-8mm-D",
-        "variant_name": "1x2 Brick, Tumbled",
+        "variant_name": "1x2 Brick (8mm), Tumbled",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 4.44,
@@ -3343,7 +3343,7 @@
       {
         "vendor_sku": "MS-CM-1x2-Rhomboid-H(D)",
         "internal_sku": "SP-MS-CM-1x2-Rhomboid-H-D",
-        "variant_name": "1x2 Rhomboid, Tumbled",
+        "variant_name": "1x2 Rhomboid, Honed",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 4.9,
@@ -3381,7 +3381,7 @@
       {
         "vendor_sku": "MS-CM-2-Hex-P-8mm(D)",
         "internal_sku": "SP-MS-CM-2-Hex-P-8mm-D",
-        "variant_name": "2 Hex, Polished",
+        "variant_name": "2\" Hexagon (8mm), Polished",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 3.59,
@@ -3397,7 +3397,7 @@
       {
         "vendor_sku": "MS-CM-2-Hex-T(D)",
         "internal_sku": "SP-MS-CM-2-Hex-T-D",
-        "variant_name": "2 Hex, Tumbled",
+        "variant_name": "2\" Hexagon, Tumbled",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 6.13,
@@ -3416,7 +3416,7 @@
       {
         "vendor_sku": "MS-CM-2-Hex-T-8mm(D)",
         "internal_sku": "SP-MS-CM-2-Hex-T-8mm-D",
-        "variant_name": "2 Hex, Tumbled",
+        "variant_name": "2\" Hexagon (8mm), Tumbled",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 3.59,
@@ -3432,7 +3432,7 @@
       {
         "vendor_sku": "MS-CM-2-P-8mm(D)",
         "internal_sku": "SP-MS-CM-2-P-8mm-D",
-        "variant_name": "2, Polished",
+        "variant_name": "2x2 (8mm), Polished, Final Sale",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 3.17,
@@ -3448,7 +3448,7 @@
       {
         "vendor_sku": "MS-CM-2-T-8mm(D)",
         "internal_sku": "SP-MS-CM-2-T-8mm-D",
-        "variant_name": "2, Tumbled",
+        "variant_name": "2x2 (8mm), Tumbled",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 2.75,
@@ -3544,7 +3544,7 @@
       {
         "vendor_sku": "MS-CM-5/8-P",
         "internal_sku": "SP-MS-CM-5-8-P",
-        "variant_name": "5/8, Polished",
+        "variant_name": "5/8x5/8, Polished",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 7.04,
@@ -3560,7 +3560,7 @@
       {
         "vendor_sku": "MS-CM-5/8-T(BD)(D)",
         "internal_sku": "SP-MS-CM-5-8-T-BD-D",
-        "variant_name": "5/8, Tumbled",
+        "variant_name": "5/8x5/8 (3/8\" Thick), Tumbled",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 4.44,
@@ -3576,7 +3576,7 @@
       {
         "vendor_sku": "MS-CM-5/8-T-8mm",
         "internal_sku": "SP-MS-CM-5-8-T-8mm",
-        "variant_name": "5/8, Tumbled",
+        "variant_name": "5/8x5/8 (8mm), Tumbled",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 3.75,
@@ -3608,7 +3608,7 @@
       {
         "vendor_sku": "MS-CM-Morocco-4-P",
         "internal_sku": "SP-MS-CM-Morocco-4-P",
-        "variant_name": "Morocco 4, Polished",
+        "variant_name": "4\" Morocco, Polished",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 9.5,
@@ -3627,7 +3627,7 @@
       {
         "vendor_sku": "MS-CM-tight mosaics(no gap)-P(D",
         "internal_sku": "SP-MS-CM-tight-mosaics-no-gap-P-D",
-        "variant_name": "tight mosaics(no gap) P(D, Polished",
+        "variant_name": "3/4x3/4 Tight (No Grout Lines), Polished",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 2.67,
@@ -3643,7 +3643,7 @@
       {
         "vendor_sku": "MS-CM-Vase-P(D)",
         "internal_sku": "SP-MS-CM-Vase-P-D",
-        "variant_name": "Vase, Polished",
+        "variant_name": "Vase, Polished, Final Sale",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 6.9,
@@ -3694,7 +3694,7 @@
       {
         "vendor_sku": "Tile-CM-12-P-C",
         "internal_sku": "SP-Tile-CM-12-P-C",
-        "variant_name": "12 P C, Polished",
+        "variant_name": "12x12, Polished, Commercial Grade",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 5.0,
@@ -3713,7 +3713,7 @@
       {
         "vendor_sku": "Tile-CM-12-T(D)",
         "internal_sku": "SP-Tile-CM-12-T-D",
-        "variant_name": "12, Tumbled",
+        "variant_name": "12x12, Tumbled",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 3.98,
@@ -3732,7 +3732,7 @@
       {
         "vendor_sku": "Tile-CM-18-H-B",
         "internal_sku": "SP-Tile-CM-18-H-B",
-        "variant_name": "18 H B, Honed",
+        "variant_name": "18x18, Honed, Standard Grade",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 6.0,
@@ -3751,7 +3751,7 @@
       {
         "vendor_sku": "Tile-CM-18-T(D)",
         "internal_sku": "SP-Tile-CM-18-T-D",
-        "variant_name": "18, Tumbled",
+        "variant_name": "18x18, Tumbled",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 5.63,
@@ -3808,7 +3808,7 @@
       {
         "vendor_sku": "Tile-CM-4-T-Discount-7mm(D)",
         "internal_sku": "SP-Tile-CM-4-T-Discount-7mm-D",
-        "variant_name": "4 T Discount, Tumbled",
+        "variant_name": "4x4 (7mm), Tumbled, Final Sale",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 3.05,
@@ -3827,7 +3827,7 @@
       {
         "vendor_sku": "Tile-CM-6Hex-H(D)",
         "internal_sku": "SP-Tile-CM-6Hex-H-D",
-        "variant_name": "6Hex, Honed",
+        "variant_name": "6\" Hexagon, Honed",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 1.97,
@@ -3846,7 +3846,7 @@
       {
         "vendor_sku": "Tile-CM-6-T-Discount-7mm(D)",
         "internal_sku": "SP-Tile-CM-6-T-Discount-7mm-D",
-        "variant_name": "6 T Discount, Tumbled",
+        "variant_name": "6x6 (7mm), Tumbled, Final Sale",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 3.3,
@@ -3908,7 +3908,7 @@
       {
         "vendor_sku": "FR-CW-F1-P",
         "internal_sku": "SP-FR-CW-F1-P",
-        "variant_name": "F1, Polished",
+        "variant_name": "Chairrail 2x12 (F1), Polished",
         "sell_by": "unit",
         "variant_type": "accessory",
         "cost": 5.35,
@@ -3924,7 +3924,7 @@
       {
         "vendor_sku": "FR-CW-F1-P(BD)",
         "internal_sku": "SP-FR-CW-F1-P-BD",
-        "variant_name": "F1, Polished",
+        "variant_name": "Chairrail 2x12 (F1), Polished, 5 pc/Box",
         "sell_by": "unit",
         "variant_type": "accessory",
         "cost": 6.7,
@@ -3972,7 +3972,7 @@
       {
         "vendor_sku": "FR-CW-F5-P",
         "internal_sku": "SP-FR-CW-F5-P",
-        "variant_name": "F5, Polished",
+        "variant_name": "Molding 2x12 (F5), Polished",
         "sell_by": "unit",
         "variant_type": "accessory",
         "cost": 6.25,
@@ -3988,7 +3988,7 @@
       {
         "vendor_sku": "FR-CW-F5-P(BD)(D)",
         "internal_sku": "SP-FR-CW-F5-P-BD-D",
-        "variant_name": "F5, Polished",
+        "variant_name": "Molding 2x12 (F5), Polished, 5 pc/Box",
         "sell_by": "unit",
         "variant_type": "accessory",
         "cost": 5.5,
@@ -4036,7 +4036,7 @@
       {
         "vendor_sku": "FR-CW-P20-P",
         "internal_sku": "SP-FR-CW-P20-P",
-        "variant_name": "P20, Polished",
+        "variant_name": "Pencil 3/4x12 (P20), Polished",
         "sell_by": "unit",
         "variant_type": "accessory",
         "cost": 3.15,
@@ -4052,7 +4052,7 @@
       {
         "vendor_sku": "FR-CW-P20-P(BD)(D)",
         "internal_sku": "SP-FR-CW-P20-P-BD-D",
-        "variant_name": "P20, Polished",
+        "variant_name": "Pencil 3/4x12 (P20), Polished, 10 pc/Box",
         "sell_by": "unit",
         "variant_type": "accessory",
         "cost": 3.63,
@@ -4130,7 +4130,7 @@
       {
         "vendor_sku": "MS-CW-1-Hex-P",
         "internal_sku": "SP-MS-CW-1-Hex-P",
-        "variant_name": "1 Hex, Polished",
+        "variant_name": "1\" Hexagon, Polished",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 8.31,
@@ -4146,7 +4146,7 @@
       {
         "vendor_sku": "MS-CW-1-Hex-P(BD)(D)",
         "internal_sku": "SP-MS-CW-1-Hex-P-BD-D",
-        "variant_name": "1 Hex, Polished",
+        "variant_name": "1\" Hexagon (3/8\" Thick), Polished",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 6.47,
@@ -4194,7 +4194,7 @@
       {
         "vendor_sku": "MS-CW-1x1-P(BD)(D)",
         "internal_sku": "SP-MS-CW-1x1-P-BD-D",
-        "variant_name": "1x1, Polished",
+        "variant_name": "1x1 (3/8\" Thick), Polished",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 5.13,
@@ -4242,7 +4242,7 @@
       {
         "vendor_sku": "MS-CW-1x2-Brick-P(BD)(D)",
         "internal_sku": "SP-MS-CW-1x2-Brick-P-BD-D",
-        "variant_name": "1x2 Brick, Polished",
+        "variant_name": "1x2 Brick (3/8\" Thick), Polished",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 4.44,
@@ -4274,7 +4274,7 @@
       {
         "vendor_sku": "MS-CW-1x2-Brick-P-8mm(D)",
         "internal_sku": "SP-MS-CW-1x2-Brick-P-8mm-D",
-        "variant_name": "1x2 Brick, Polished",
+        "variant_name": "1x2 Brick (8mm), Polished",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 4.44,
@@ -4306,7 +4306,7 @@
       {
         "vendor_sku": "MS-CW-1x2-Brick-T-7mm(D)",
         "internal_sku": "SP-MS-CW-1x2-Brick-T-7mm-D",
-        "variant_name": "1x2 Brick, Tumbled",
+        "variant_name": "1x2 Brick (7mm), Tumbled",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 4.44,
@@ -4430,7 +4430,7 @@
       {
         "vendor_sku": "MS-CW-2-Hex-P",
         "internal_sku": "SP-MS-CW-2-Hex-P",
-        "variant_name": "2 Hex, Polished",
+        "variant_name": "2\" Hexagon, Polished",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 8.47,
@@ -4449,7 +4449,7 @@
       {
         "vendor_sku": "MS-CW-2-Hex-P(BD)(D)",
         "internal_sku": "SP-MS-CW-2-Hex-P-BD-D",
-        "variant_name": "2 Hex, Polished",
+        "variant_name": "2\" Hexagon (3/8\" Thick), Polished",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 5.93,
@@ -4653,7 +4653,7 @@
       {
         "vendor_sku": "MS-CW-3-Hex-H",
         "internal_sku": "SP-MS-CW-3-Hex-H",
-        "variant_name": "3 Hex, Honed",
+        "variant_name": "3\" Hexagon, Honed",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 8.67,
@@ -4672,7 +4672,7 @@
       {
         "vendor_sku": "MS-CW-3-Hex-H(Dark blend)(D)",
         "internal_sku": "SP-MS-CW-3-Hex-H-Dark-blend-D",
-        "variant_name": "3 Hex, Honed",
+        "variant_name": "3\" Hexagon (Dark Blend), Honed",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 6.08,
@@ -4691,7 +4691,7 @@
       {
         "vendor_sku": "MS-CW-3-Hex-P",
         "internal_sku": "SP-MS-CW-3-Hex-P",
-        "variant_name": "3 Hex, Polished",
+        "variant_name": "3\" Hexagon, Polished",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 8.67,
@@ -4710,7 +4710,7 @@
       {
         "vendor_sku": "MS-CW-3-Hex-P(BD)(D)",
         "internal_sku": "SP-MS-CW-3-Hex-P-BD-D",
-        "variant_name": "3 Hex, Polished",
+        "variant_name": "3\" Hexagon (3/8\" Thick), Polished",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 6.08,
@@ -5826,7 +5826,7 @@
       {
         "vendor_sku": "MS-ED-1-T(D)",
         "internal_sku": "SP-MS-ED-1-T-D",
-        "variant_name": "1, Tumbled",
+        "variant_name": "1x1, Tumbled",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 5.21,
@@ -5842,7 +5842,7 @@
       {
         "vendor_sku": "MS-ED-1-T-8mm",
         "internal_sku": "SP-MS-ED-1-T-8mm",
-        "variant_name": "1, Tumbled",
+        "variant_name": "1x1 (8mm), Tumbled",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 5.15,
@@ -6058,7 +6058,7 @@
       {
         "vendor_sku": "MS-EL-1X2-Brick-T(D)",
         "internal_sku": "SP-MS-EL-1X2-Brick-T-D",
-        "variant_name": "1X2 Brick, Tumbled",
+        "variant_name": "1x2 Brick, Tumbled",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 4.9,
@@ -6074,7 +6074,7 @@
       {
         "vendor_sku": "MS-EL-1x2-Brick-T-8mm(D)",
         "internal_sku": "SP-MS-EL-1x2-Brick-T-8mm-D",
-        "variant_name": "1x2 Brick, Tumbled",
+        "variant_name": "1x2 Brick (8mm), Tumbled",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 3.56,
@@ -6500,7 +6500,7 @@
       {
         "vendor_sku": "MS-HO-1-T(D)",
         "internal_sku": "SP-MS-HO-1-T-D",
-        "variant_name": "1, Tumbled",
+        "variant_name": "1x1, Tumbled",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 4.82,
@@ -6516,7 +6516,7 @@
       {
         "vendor_sku": "MS-HO-1-T-8mm(D)",
         "internal_sku": "SP-MS-HO-1-T-8mm-D",
-        "variant_name": "1, Tumbled",
+        "variant_name": "1x1 (8mm), Tumbled",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 4.82,
@@ -6809,7 +6809,7 @@
       {
         "vendor_sku": "Tile-NP-12x24-H(A2)(D)",
         "internal_sku": "SP-Tile-NP-12x24-H-A2-D",
-        "variant_name": "12x24, Honed",
+        "variant_name": "12x24, Honed, Color #A2",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 4.7,
@@ -6828,7 +6828,7 @@
       {
         "vendor_sku": "Tile-NP-12x24-H(A3)(D)",
         "internal_sku": "SP-Tile-NP-12x24-H-A3-D",
-        "variant_name": "12x24, Honed",
+        "variant_name": "12x24, Honed, Color #A3",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 4.7,
@@ -6847,7 +6847,7 @@
       {
         "vendor_sku": "Tile-NP-12x24-H(A5)(D)",
         "internal_sku": "SP-Tile-NP-12x24-H-A5-D",
-        "variant_name": "12x24, Honed",
+        "variant_name": "12x24, Honed, Color #A5",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 4.7,
@@ -6866,7 +6866,7 @@
       {
         "vendor_sku": "Tile-NP-12x24-P(A2)(D)",
         "internal_sku": "SP-Tile-NP-12x24-P-A2-D",
-        "variant_name": "12x24, Polished",
+        "variant_name": "12x24, Polished, Color #A2",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 4.7,
@@ -6885,7 +6885,7 @@
       {
         "vendor_sku": "Tile-NP-24x24-H(A2)(D)",
         "internal_sku": "SP-Tile-NP-24x24-H-A2-D",
-        "variant_name": "24x24, Honed",
+        "variant_name": "24x24, Honed, Color #A2",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 5.55,
@@ -6904,7 +6904,7 @@
       {
         "vendor_sku": "Tile-NP-24x24-H(A3)(D)",
         "internal_sku": "SP-Tile-NP-24x24-H-A3-D",
-        "variant_name": "24x24, Honed",
+        "variant_name": "24x24, Honed, Color #A3",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 5.55,
@@ -6923,7 +6923,7 @@
       {
         "vendor_sku": "Tile-NP-24x24-H(A4)(D)",
         "internal_sku": "SP-Tile-NP-24x24-H-A4-D",
-        "variant_name": "24x24, Honed",
+        "variant_name": "24x24, Honed, Color #A4",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 5.55,
@@ -6942,7 +6942,7 @@
       {
         "vendor_sku": "Tile-NP-24x24-H(A5)(D)",
         "internal_sku": "SP-Tile-NP-24x24-H-A5-D",
-        "variant_name": "24x24, Honed",
+        "variant_name": "24x24, Honed, Color #A5",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 5.55,
@@ -6961,7 +6961,7 @@
       {
         "vendor_sku": "Tile-NP-24x24-P(A3)(D)",
         "internal_sku": "SP-Tile-NP-24x24-P-A3-D",
-        "variant_name": "24x24, Polished",
+        "variant_name": "24x24, Polished, Color #A3",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 5.55,
@@ -6980,7 +6980,7 @@
       {
         "vendor_sku": "Tile-NP-24x24-P(A4)(D)",
         "internal_sku": "SP-Tile-NP-24x24-P-A4-D",
-        "variant_name": "24x24, Polished",
+        "variant_name": "24x24, Polished, Color #A4",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 5.55,
@@ -6999,7 +6999,7 @@
       {
         "vendor_sku": "Tile-NP-24x24-P(A5)",
         "internal_sku": "SP-Tile-NP-24x24-P-A5",
-        "variant_name": "24x24, Polished",
+        "variant_name": "24x24, Polished, Color #A5",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 7.9,
@@ -7122,7 +7122,7 @@
       {
         "vendor_sku": "MS-RA-2-T(D)",
         "internal_sku": "SP-MS-RA-2-T-D",
-        "variant_name": "2, Tumbled",
+        "variant_name": "2x2, Tumbled",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 6.21,
@@ -7138,7 +7138,7 @@
       {
         "vendor_sku": "MS-RA-2-T-8mm(D)",
         "internal_sku": "SP-MS-RA-2-T-8mm-D",
-        "variant_name": "2, Tumbled",
+        "variant_name": "2x2 (8mm), Tumbled",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 6.21,
