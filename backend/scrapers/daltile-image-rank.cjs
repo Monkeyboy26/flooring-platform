@@ -82,6 +82,72 @@ function imageSizeToken(url) {
   return m ? m[1] : null;
 }
 
+// ── Mosaic-silo shape matching ──────────────────────────────────────────────
+//
+// Daltile's Coveo feed publishes ONE `productswatchurl` per series+color — for
+// Keystones it is always the 2x1 Oval mosaic silo — and attaches it to every
+// SKU of that color regardless of piece shape (hex, penny round, 2x2 straight
+// joint, bullnose, cove base, …). Stored blindly, every Keystones PDP shows an
+// oval mosaic it doesn't sell. The same color-only fallback occasionally leaks
+// into `productimageurl` for trims and odd colors. These helpers detect a
+// mosaic silo whose shape token contradicts the SKU so importers can skip it.
+
+// Shape encoded in a mosaic-silo filename: 'oval' | 'penny' | 'hex' | 'NxN' |
+// 'unknown' (mosaic but unrecognized naming) | null (not a mosaic silo).
+function mosaicImageShape(url) {
+  if (!url) return null;
+  const u = url.toLowerCase();
+  if (!u.includes('msc')) return null;
+  if (u.includes('oval')) return 'oval';
+  if (u.includes('penny') || u.includes('pny')) return 'penny';
+  if (u.includes('hex')) return 'hex';
+  const m = u.match(/_(\d+)x(\d+)_/);
+  if (m) return [m[1], m[2]].sort((a, b) => a - b).join('x');
+  return 'unknown';
+}
+
+// Orientation-insensitive sizes mentioned in a SKU descriptor ("2X1" == "1x2").
+function descSizes(desc) {
+  return [...desc.matchAll(/(\d+)\s*x\s*(\d+)/g)]
+    .map((m) => [m[1], m[2]].sort((a, b) => a - b).join('x'));
+}
+
+// Shape words encoded in the vendor SKU itself (variant names often omit them:
+// "MA84LHX25MT" is a linear-hex mosaic but its variant is just "2X5, Matte").
+function vendorSkuShapeHints(vendorSku) {
+  if (!vendorSku) return '';
+  const v = vendorSku.toUpperCase();
+  const hints = [];
+  if (/HEX|LHX/.test(v)) hints.push('hexagon');
+  if (/PNY|PENNY/.test(v)) hints.push('penny');
+  if (/OVAL|OVL/.test(v)) hints.push('oval');
+  return hints.join(' ');
+}
+
+/**
+ * True when `url` is a mosaic silo whose shape contradicts the SKU.
+ * `shapeDesc` is a free-text blob describing the SKU — concatenate whatever is
+ * on hand (size, shape attribute, variant name). Conservative: non-mosaic
+ * images and unrecognized mosaic namings never mismatch.
+ */
+function mosaicShapeMismatch(url, shapeDesc) {
+  const imgShape = mosaicImageShape(url);
+  if (!imgShape || imgShape === 'unknown') return false;
+  const d = (shapeDesc || '').toLowerCase();
+  if (!d.trim()) return false;
+  // Shapeless blend mosaics ("Mixed, Polished" Savoir ovals-and-dots etc.) —
+  // the piece mix defines the look, so any of the series' silos is right.
+  if (d.includes('mixed') || d.includes('blend') || d.includes('random')) return false;
+  if (imgShape === 'oval') return !d.includes('oval');
+  if (imgShape === 'penny') return !(d.includes('penny') || d.includes('pny'));
+  if (imgShape === 'hex') return !d.includes('hex');
+  // Sized mosaic (e.g. 2x2 straight joint) on a shaped SKU is wrong; on a
+  // sized SKU it must agree with one of the SKU's sizes.
+  if (d.includes('oval') || d.includes('penny') || d.includes('hex')) return true;
+  const sizes = descSizes(d);
+  return sizes.length > 0 && !sizes.includes(imgShape);
+}
+
 // ── SKU classification ──────────────────────────────────────────────────────
 
 // Vinyl / pro-series trim codes that appear in the vendor_sku itself.
@@ -185,13 +251,18 @@ function planPrimaryImageFix({ vendorSku, productType, currentUrl, mapImageUrl }
  * @param {object} p
  * @param {string} [p.productImageUrl]
  * @param {string} [p.swatchUrl]
+ * @param {string} [p.shapeDesc]  SKU shape descriptor — when given, candidates
+ *                                that are shape-mismatched mosaic silos are
+ *                                skipped (see mosaicShapeMismatch).
  * @returns {string|null}
  */
-function pickPrimaryImage({ productImageUrl, swatchUrl }) {
+function pickPrimaryImage({ productImageUrl, swatchUrl, shapeDesc }) {
+  const usable = (url) => url && !isPlaceholderUrl(url) &&
+    !(shapeDesc && mosaicShapeMismatch(url, shapeDesc));
   const primary = normalizeMapUrl(productImageUrl);
-  if (primary && !isPlaceholderUrl(primary)) return primary;
+  if (usable(primary)) return primary;
   const sw = normalizeMapUrl(swatchUrl);
-  if (sw && !isPlaceholderUrl(sw)) return sw;
+  if (usable(sw)) return sw;
   return null;
 }
 
@@ -199,6 +270,8 @@ module.exports = {
   planPrimaryImageFix,
   pickPrimaryImage,
   normalizeMapUrl,
+  mosaicShapeMismatch,
+  vendorSkuShapeHints,
   // exported for tests / diagnostics
   isPlaceholderUrl,
   isSwatchUrl,
@@ -207,5 +280,6 @@ module.exports = {
   isMosaicImage,
   isTrimImage,
   imageSizeToken,
+  mosaicImageShape,
   skuIsTrim,
 };

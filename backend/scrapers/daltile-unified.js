@@ -19,7 +19,7 @@
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { Client: FtpClient } = require('basic-ftp');
-const { pickPrimaryImage } = require('./daltile-image-rank.cjs');
+const { pickPrimaryImage, mosaicShapeMismatch, vendorSkuShapeHints } = require('./daltile-image-rank.cjs');
 const { resolveMosaicPattern } = require('./daltile-mosaic-pattern.cjs');
 import { daltileSkuDescriptors } from './daltile-832.js';
 
@@ -1100,12 +1100,20 @@ async function processProduct(pool, ctx) {
       return url;
     };
 
+    // Shape descriptor for mosaic-silo matching: Daltile's feed swatch (and
+    // sometimes product image) is a color-level asset — for Keystones always
+    // the 2x1 Oval mosaic — attached to every shape of that color. Skip any
+    // mosaic silo whose shape contradicts this SKU (see daltile-image-rank).
+    const shapeDesc = [sku.size, sku.shape, variantName, vendorSkuShapeHints(coveoSku)]
+      .filter(Boolean).join(' ');
+
     // Primary: prefer the authoritative product render; fall back to the swatch
     // when it is missing/placeholder so the SKU still gets an image (never store
     // a placeholder). Shared with the reconcile script so imports stay consistent.
     const primaryUrl = pickPrimaryImage({
       productImageUrl: sku.productImageUrl,
       swatchUrl: sku.swatchUrl,
+      shapeDesc,
     });
     if (primaryUrl) {
       await upsertMediaAsset(pool, {
@@ -1115,7 +1123,7 @@ async function processProduct(pool, ctx) {
       });
       stats.imagesSet++;
     }
-    if (sku.swatchUrl) {
+    if (sku.swatchUrl && !mosaicShapeMismatch(sku.swatchUrl, shapeDesc)) {
       const swUrl = cleanImageUrl(sku.swatchUrl);
       await upsertMediaAsset(pool, {
         product_id: productId, sku_id: skuId,
@@ -1123,6 +1131,14 @@ async function processProduct(pool, ctx) {
         original_url: sku.swatchUrl, sort_order: 0,
       });
       stats.imagesSet++;
+    } else if (sku.swatchUrl) {
+      // Shape-mismatched feed swatch: also clear a previously stored copy so
+      // re-scrapes self-heal instead of leaving the wrong silo behind.
+      await pool.query(
+        `DELETE FROM media_assets WHERE sku_id = $1 AND asset_type = 'swatch'
+          AND (original_url = $2 OR url = $2)`,
+        [skuId, sku.swatchUrl]
+      );
     }
     if (sku.roomSceneUrl) {
       const rsUrl = cleanImageUrl(sku.roomSceneUrl);
