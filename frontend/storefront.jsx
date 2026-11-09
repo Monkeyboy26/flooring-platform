@@ -9580,8 +9580,16 @@
                   }
                 });
                 const _sizeFollowsSubLine = _subLineSizes.size > 1 && [..._subLineSizes.values()].every(set => set.size === 1);
+                // Attribute-less products whose variants are one design in many sizes/shapes
+                // (Stone Pride medallions) are owned by the Size & Shape fallback below. The
+                // width heuristic must not fire for them: it only parses inch-marked variants
+                // (60" Round yes, 3.5ft x 5ft Oval no), so the pill row would MUTATE between
+                // selections — full 9 options on the oval page, a 5-size subset on the rounds.
+                const _attrlessOwnVariants = !(sku.attributes || []).length
+                  && mainSiblings.length > 0
+                  && mainSiblings.every(s => !(s.attributes || []).length);
                 let sibSizeItems = [];
-                if (mainSiblings.length > 0 && !showSizePills && !_isSlabVariant && !_sizeFollowsSubLine) {
+                if (mainSiblings.length > 0 && !showSizePills && !_isSlabVariant && !_sizeFollowsSubLine && !_attrlessOwnVariants) {
                   const _getWidthRaw = (attrs) => { const ol = (attrs || []).find(a => a.slug === 'overall_length'); if (ol) return ol.value; const wa = (attrs || []).find(a => a.slug === 'width'); return wa ? wa.value : null; };
                   const _getWidthNum = (attrs, vn) => { const raw = _getWidthRaw(attrs); if (raw) return parseFractionalInches(raw); const m = (vn || '').match(/\b(\d+(?:[-\s]\d+\/\d+)?\.?\d*)\s*["″]/); return m ? parseFractionalInches(m[1]) : null; };
                   const _getSize = (attrs) => { const sa = (attrs || []).find(a => a.slug === 'size'); return sa ? sa.value : null; };
@@ -9770,10 +9778,8 @@
                 // colorItems with every design in the collection (labeled "Color", many
                 // photoless) and preempts the _designFallback below, leaving the product's
                 // real variants with no pill row at all. The Collection section still
-                // provides cross-design navigation.
-                const _attrlessOwnVariants = !(sku.attributes || []).length
-                  && mainSiblings.length > 0
-                  && mainSiblings.every(s => !(s.attributes || []).length);
+                // provides cross-design navigation. (_attrlessOwnVariants defined above,
+                // where it also disables the width-heuristic Size row.)
                 let _wallHasColorAttr = true; // wall candidates carry a real color attr
                 if (colorItems.length <= 1 && _nonAccCollSiblings.length > 0 && !_attrlessOwnVariants) {
                   // Only siblings sharing the current FINISH are alternate colors. Collections

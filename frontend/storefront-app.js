@@ -7034,8 +7034,9 @@
         }
       });
       const _sizeFollowsSubLine = _subLineSizes.size > 1 && [..._subLineSizes.values()].every((set) => set.size === 1);
+      const _attrlessOwnVariants = !(sku.attributes || []).length && mainSiblings.length > 0 && mainSiblings.every((s) => !(s.attributes || []).length);
       let sibSizeItems = [];
-      if (mainSiblings.length > 0 && !showSizePills && !_isSlabVariant && !_sizeFollowsSubLine) {
+      if (mainSiblings.length > 0 && !showSizePills && !_isSlabVariant && !_sizeFollowsSubLine && !_attrlessOwnVariants) {
         const _getWidthRaw = (attrs) => {
           const ol = (attrs || []).find((a) => a.slug === "overall_length");
           if (ol) return ol.value;
@@ -7229,7 +7230,6 @@
       const _applySizeAvail = !!_curFinishAvail && _sizesForCurFinish.size > 0 && attrSizeItems.some((s) => s.nsize && !_sizesForCurFinish.has(s.nsize));
       const _sizeAvail = (s) => !_applySizeAvail || !s.nsize || _sizesForCurFinish.has(s.nsize);
       let _collectionColorWall = false;
-      const _attrlessOwnVariants = !(sku.attributes || []).length && mainSiblings.length > 0 && mainSiblings.every((s) => !(s.attributes || []).length);
       let _wallHasColorAttr = true;
       if (colorItems.length <= 1 && _nonAccCollSiblings.length > 0 && !_attrlessOwnVariants) {
         const _finClause = (n) => {
