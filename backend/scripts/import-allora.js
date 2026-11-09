@@ -14,7 +14,7 @@
  * optional images.json (build-allora-images.js) keyed by internal_sku.
  *
  * Pricing: dealer sheet price = Roma COST; retail = cost x1.6 keystone snapped
- * to a 9-ending with the covering floor (cost+$0.99), matching the store
+ * to a 9-ending with the covering floor (cost+$1.50), matching the store
  * standard and Garrison — see [[nine-ending-prices]] / [[covering-margin-floor]].
  * Planks sell per sqft by the box; mouldings sell per unit as accessories.
  *
@@ -43,7 +43,7 @@ try {
 
 // ---- Pricing (mirrors scrapers/base.js upsertPricing) ----
 const RETAIL_MARKUP = 1.70;
-const RETAIL_MIN_MARGIN = 0.99;
+const RETAIL_MIN_MARGIN = 1.50;
 const keystone = (cost) => Number(cost) * RETAIL_MARKUP;
 const nearestNine = (v) => {
   const cents = Math.round(Number(v) * 100);

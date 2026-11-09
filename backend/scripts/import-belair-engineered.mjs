@@ -9,7 +9,7 @@
 // the vendor's own item codes where the site publishes one.
 //
 // Pricing: cost from the list; retail = 1.70x cost, charm-rounded to a 9-ending
-// with the standard $0.99-over-cost floor — the same math as base.js
+// with the standard $1.50-over-cost floor — the same math as base.js
 // upsertPricing for a non-tile category (replicated here so the script has no
 // scraper-stack imports).
 //
@@ -181,14 +181,14 @@ const TRIMS = {
 const slugify = (s) => s.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const codeify = (s) => slugify(s).toUpperCase().replace(/-/g, '');
 
-// Retail = 1.70x cost, charm-rounded to a 9-ending, floored at cost+$0.99 —
+// Retail = 1.70x cost, charm-rounded to a 9-ending, floored at cost+$1.50 —
 // mirrors base.js upsertPricing (nearestNine + covering floor) for the
 // engineered-hardwood category.
 function retailFor(cost) {
-  const target = Math.max(cost * 1.70, cost + 0.99);
+  const target = Math.max(cost * 1.70, cost + 1.50);
   const cents = Math.round(target * 100);
   let nine = Math.max(9, Math.floor((cents - 9) / 10) * 10 + 9) / 100;
-  if (nine < cost + 0.99 - 1e-9) nine = Math.round((nine + 0.10) * 100) / 100;
+  if (nine < cost + 1.50 - 1e-9) nine = Math.round((nine + 0.10) * 100) / 100;
   return nine;
 }
 

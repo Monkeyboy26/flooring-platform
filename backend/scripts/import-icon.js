@@ -14,7 +14,7 @@
  *
  * Pricing: pricelist "Unit price" = Icon's dealer price = Roma's COST.
  * Retail = nearestNine(cost x 1.6) — store-standard keystone + charm pricing, baked by
- * build-icon-catalog.py (all Icon costs >= ~$3, so the cost+$0.99 covering floor never binds).
+ * build-icon-catalog.py (all Icon costs >= ~$3, so the cost+$1.50 covering floor never binds).
  *
  * Selling model: area products (pavers/field tile) sell_by='box' price_basis='per_sqft'
  * (coverage calculator); everything sold by the piece/sheet (copings, steps, ledger

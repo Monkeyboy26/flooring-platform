@@ -71,7 +71,7 @@ export async function computeOrderTradeSavings(orderId) {
       const cost = parseFloat(it.line_cost) || 0;
       if (!(unit > 0) || !(cost > 0)) continue;
       priceable++;
-      const trade = Math.min(unit, Math.max(cost * parseFloat(mult), cost + 0.99));
+      const trade = Math.min(unit, Math.max(cost * parseFloat(mult), cost + 1.50));
       savings += Math.max(0, paid * (1 - trade / unit));
     }
   }

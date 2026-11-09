@@ -14,7 +14,7 @@
 // Verdellino, Puerto Vallarta); "Polished Platinum" fixes the list's "Platinun"
 // typo (site agrees). Site-only items NOT on the list (Cascade collection,
 // Gulf Shores Tulum) are skipped. Retail = 1.70x cost, charm 9-ending,
-// $0.99-over-cost floor — same math as the engineered script.
+// $1.50-over-cost floor — same math as the engineered script.
 //
 //   node scripts/import-belair-laminate-spc.mjs --dry-run
 //   node scripts/import-belair-laminate-spc.mjs [--no-mirror]
@@ -271,13 +271,13 @@ const TRIMS = {
 const slugify = (s) => s.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const codeify = (s) => slugify(s).toUpperCase().replace(/-/g, '');
 
-// Retail = 1.70x cost, charm 9-ending, floored at cost+$0.99 (mirrors base.js
+// Retail = 1.70x cost, charm 9-ending, floored at cost+$1.50 (mirrors base.js
 // upsertPricing for non-tile categories).
 function retailFor(cost) {
-  const target = Math.max(cost * 1.70, cost + 0.99);
+  const target = Math.max(cost * 1.70, cost + 1.50);
   const cents = Math.round(target * 100);
   let nine = Math.max(9, Math.floor((cents - 9) / 10) * 10 + 9) / 100;
-  if (nine < cost + 0.99 - 1e-9) nine = Math.round((nine + 0.10) * 100) / 100;
+  if (nine < cost + 1.50 - 1e-9) nine = Math.round((nine + 0.10) * 100) / 100;
   return nine;
 }
 

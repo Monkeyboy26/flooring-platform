@@ -5,7 +5,7 @@
  * What it does:
  *   1. Updates pricing.cost to the new "YOUR COST" column and recomputes
  *      retail with the platform keystone rule: round-DOWN-to-.x9(cost × 1.6)
- *      with the covering floor (cost + $0.99) for per_sqft/sqft rows.
+ *      with the covering floor (cost + $1.50) for per_sqft/sqft rows.
  *   2. Renames vendor_sku to the official price-list item codes where the
  *      importer had synthesized aliases (ALCO-DECO-501 → ALCO-501, CELICA →
  *      CEL, STONELEDGE → SL, VIP-813 → VIPS-813, …) so vendor POs carry codes
@@ -53,7 +53,7 @@ const ATTR = {
 };
 
 const RETAIL_MARKUP = 1.70;
-const RETAIL_MIN_MARGIN = 0.99;
+const RETAIL_MIN_MARGIN = 1.50;
 // Round DOWN to the nearest .x9 (see backfill-round-down-nine.mjs / base.js)
 const newNine = (v) => {
   const cents = Math.round(Number(v) * 100);

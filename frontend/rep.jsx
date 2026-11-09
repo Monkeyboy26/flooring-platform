@@ -6378,14 +6378,14 @@
 
       // Pricing tiers \u2014 cost-multiplier model (margin_tiers): Silver 1.50x / Gold
       // 1.40x / Platinum 1.32x cost, floored at the category min margin (tile $1.50 /
-      // mosaic sheet $4.50 / else $0.99) and capped at retail \u2014 matches the API.
+      // mosaic sheet $4.50 / else $1.50) and capped at retail \u2014 matches the API.
       const pricingRows = [];
       if (retailPrice) {
         const TILE_SLUGS = ['tile','backsplash-tile','ceramic-tile','commercial-tile','fluted-tile','large-format-tile','pool-tile','porcelain-tile','talavera-tile','terrazzo-tile','wood-look-tile'];
         const catSlug = (product && product.category_slug) || '';
         const pb = (mainSku && mainSku.price_basis) || '';
         const minMargin = (catSlug === 'mosaic-tile' && pb === 'per_unit') ? 4.50
-          : ((catSlug === 'mosaic-tile' || TILE_SLUGS.indexOf(catSlug) >= 0) ? 1.50 : 0.99);
+          : ((catSlug === 'mosaic-tile' || TILE_SLUGS.indexOf(catSlug) >= 0) ? 1.50 : 1.50);
         const fallbackPct = (m) => m === 1.50 ? 11.765 : m === 1.40 ? 17.647 : m === 1.32 ? 22.353 : 0;
         const tierPrice = (m) => (costPrice > 0)
           ? Math.min(retailPrice, Math.max(costPrice * m, costPrice + minMargin))

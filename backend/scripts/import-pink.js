@@ -14,7 +14,7 @@
  *
  * Pricing: the "Vendor Price List PIA" $/sqft (and accessory $/length) are Roma's
  * COST. Retail = nine-ended keystone (cost x1.6, rounded to the nearest .x9 — store
- * standard, see [[nine-ending-prices]]). All costs >= $4.99 so the cost+$0.99
+ * standard, see [[nine-ending-prices]]). All costs >= $4.99 so the cost+$1.50
  * covering floor never binds. Flooring sold per box (sell_by='box' price_basis
  * 'per_sqft' → coverage calc rounds up to whole cartons); accessories per piece.
  *

@@ -15,7 +15,8 @@ engineered terrazzo. Product lines, keyed off the item-code prefix:
 
 Pricing: the "D+ Price" column is Stone Pride's dealer price = Roma's COST.
 Retail = nearestNine(cost x 1.6) — store keystone + charm pricing. (Min cost is
-$1.90, so 1.6x always clears the cost+$0.99 covering floor; no floor lift needed.)
+$1.90; at 1.6x that's 3.04, which now sits under the cost+$1.50 covering floor
+(3.40), so base.js lifts the cheapest items to the next 9-ending at/above it.)
 
 Selling model (see [[natural-stone-per-piece]] / [[mosaic-per-sheet-conversion]]):
   * sqft-priced tile  -> sell_by=unit, price_basis=per_sqft, packaging.sqft_per_box

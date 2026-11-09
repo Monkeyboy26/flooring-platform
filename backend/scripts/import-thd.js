@@ -886,7 +886,7 @@ async function run() {
         // Route through upsertPricing so retail gets the platform's charm/
         // nine-ending + covering-margin-floor treatment (matches the rest of the
         // THD catalog) instead of a raw cost×1.6. Per-sheet mosaics/stacked stone
-        // sell per_unit but ARE coverings → flag coveringFloor so the $0.99 floor
+        // sell per_unit but ARE coverings → flag coveringFloor so the $1.50 floor
         // applies; genuine EA trim/accessories are not floored.
         if (pdf && pdf.price) {
           const priceBasis = sheet.priceBasis === 'per_unit' ? 'unit' : 'sqft';

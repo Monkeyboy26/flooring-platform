@@ -41,7 +41,7 @@ try { images = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'images.json'), 'u
 catch { console.warn('! images.json not found — importing without photos'); }
 
 const MARKUP = catalog.markup || 1.6;
-// Round DOWN to the nearest .x9 with the covering floor (cost + $0.99) for
+// Round DOWN to the nearest .x9 with the covering floor (cost + $1.50) for
 // per_sqft rows — matches platform-wide charm pricing (see [[nine-ending-prices]]
 // and backfill-round-down-nine.mjs; this importer predated that rule).
 const nineDown = (v) => {
@@ -51,7 +51,7 @@ const nineDown = (v) => {
 };
 const keystone = (cost, basis) => {
   const base = cost * MARKUP;
-  const floorMin = (basis === 'per_sqft' || basis === 'sqft') ? cost + 0.99 : 0;
+  const floorMin = (basis === 'per_sqft' || basis === 'sqft') ? cost + 1.50 : 0;
   let nine = nineDown(Math.max(base, floorMin));
   if (floorMin > 0 && nine < floorMin - 1e-9) nine = Math.round((nine + 0.10) * 100) / 100;
   return nine;

@@ -174,7 +174,7 @@ const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
  * can't be derived (so the caller leaves it as a box rather than mis-pricing).
  *
  * Also returns `coveringFloor` — true for mosaic/stacked-stone sheets sold per
- * unit. Pass it into upsertPricing's opts so the $0.99-over-cost retail floor is
+ * unit. Pass it into upsertPricing's opts so the $1.50-over-cost retail floor is
  * enforced on these coverings (per_unit alone can't tell a mosaic sheet from an
  * accessory/hardware/trim piece, which are excluded). See [[covering-margin-floor]].
  */
@@ -198,7 +198,7 @@ export function applySheetSelling({
   if (!isSheetProduct) return passthrough();
   if (isTrimPiece(name)) return passthrough();
   // Already per-unit (or roll) — nothing to convert, just normalize the basis.
-  // coveringFloor:true so upsertPricing enforces the $0.99/sheet retail floor
+  // coveringFloor:true so upsertPricing enforces the $1.50/sheet retail floor
   // on this mosaic/stacked-stone sheet (per_unit alone is ambiguous — it also
   // holds trim/hardware/accessories, which must NOT be floored). See [[covering-margin-floor]].
   if (sellBy && sellBy !== 'box') {
@@ -769,7 +769,7 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
     return r;
   };
   // Retail pricing rules, applied to retail_price after keystone (owner, 2026-08-16):
-  //   1. Covering margin floor — retail must clear at least $0.99 over cost on
+  //   1. Covering margin floor — retail must clear at least $1.50 over cost on
   //      covering products. Scope: sold BY AREA (price_basis per_sqft/sqft —
   //      flooring, wall & field tile) always, plus per-sheet mosaics/stacked stone
   //      (per_unit) which callers flag via opts.coveringFloor. per_unit alone is
@@ -780,21 +780,22 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
   //      (the covering/margin floor below is the only thing that can lift it back).
   //      Applies to retail_price only, not carpet cut/roll or cost.
   //      See [[nine-ending-prices]].
-  // The floor wins over "nearest": if the nearest 9-ending sits under cost+$0.99 on
+  // The floor wins over "nearest": if the nearest 9-ending sits under cost+$1.50 on
   // a covering product, bump to the next 9-ending up. Only ever touches rows with a
   // real retail (never invents a price on a $0/unpriced row). Hard rules — run
   // regardless of skipKeystoneReprice.
-  const RETAIL_MIN_MARGIN = 0.99;
+  const RETAIL_MIN_MARGIN = 1.50;
   const isAreaCovering = price_basis === 'per_sqft' || price_basis === 'sqft';
 
-  // Category-scoped minimum gross margin (owner, 2026-09-22): tile must clear at
-  // least $1.50 of margin over cost, and a mosaic sheet at least $4.50 — raising the
-  // standard $0.99 covering margin for these categories. Category is the
-  // authoritative signal, resolved once from the sku's product, so it also catches a
-  // mosaic whose scraper never set opts.coveringFloor and applies the margin floor to
-  // it. Charm pricing still applies, so the retail lands on the next 9-ending at/above
-  // cost+margin. Like the $0.99 floor, it needs a real cost — a $0/unknown-cost row
-  // can't have a margin computed, so it's left alone. See [[category-margin-floors]].
+  // Category-scoped minimum gross margin (owner, 2026-09-22; baseline raised $0.99 →
+  // $1.50 on 2026-11-08): the standard covering margin is now $1.50, and a mosaic
+  // sheet must clear at least $4.50. Tile now matches the standard $1.50; only the
+  // mosaic sheet goes higher. Category is the authoritative signal, resolved once from
+  // the sku's product, so it also catches a mosaic whose scraper never set
+  // opts.coveringFloor and applies the margin floor to it. Charm pricing still
+  // applies, so the retail lands on the next 9-ending at/above cost+margin. Like the
+  // baseline floor, it needs a real cost — a $0/unknown-cost row can't have a margin
+  // computed, so it's left alone. See [[category-margin-floors]].
   const TILE_MIN_MARGIN = 1.50;
   const MOSAIC_MIN_MARGIN = 4.50;
   const TILE_FLOOR_SLUGS = new Set(['tile', 'backsplash-tile', 'ceramic-tile',
@@ -804,7 +805,7 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
   const isMosaicCat = catSlug === 'mosaic-tile';
   const isTileCat = TILE_FLOOR_SLUGS.has(catSlug);
   // The $4.50 margin is a per-SHEET minimum (per_unit). A mosaic sold by area, and
-  // all other tile, take the $1.50 tile margin instead; everything else the $0.99.
+  // all other tile, take the $1.50 tile margin instead; everything else also $1.50.
   const isPerSheetMosaic = isMosaicCat && price_basis === 'per_unit';
   const minMargin = isPerSheetMosaic ? MOSAIC_MIN_MARGIN
     : (isTileCat || isMosaicCat) ? TILE_MIN_MARGIN : RETAIL_MIN_MARGIN;
@@ -837,7 +838,7 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
 
   // The covering floor also guards retail_locked (Home-Depot-matched) prices:
   // they're preserved as-is EXCEPT they may never sit under the effective floor
-  // (cost+$0.99 and/or the tile/mosaic absolute floor; owner 2026-08-16, 2026-09-22).
+  // (cost+$1.50 and/or the tile/mosaic absolute floor; owner 2026-08-16, 2026-09-22).
   // coveringFloorValue = smallest 9-ending ≥ that floor; the UPDATE GREATEST()s it
   // against the locked price so a cost increase (or a below-floor tile/mosaic) lifts
   // the price to floor. Only ever RAISES — never lowers a locked price and never
@@ -876,7 +877,7 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
       -- retail_locked rows (e.g. Home-Depot-matched prices) keep their retail no
       -- matter what a scrape sends, so rescrapes can't overwrite a manual price —
       -- EXCEPT they may never sit under the covering floor: GREATEST() lifts a
-      -- locked price to cost+$0.99 (as a 9-ending) when a cost increase would put
+      -- locked price to cost+$1.50 (as a 9-ending) when a cost increase would put
       -- it under. $11 is null for non-covering/cost-less upserts (price preserved).
       retail_price = CASE WHEN pricing.retail_locked THEN GREATEST(pricing.retail_price, COALESCE($11, 0::numeric)) ELSE COALESCE($3, pricing.retail_price) END,
       -- Basis only moves when the caller EXPLICITLY sends one — the old

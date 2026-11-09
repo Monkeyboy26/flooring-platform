@@ -15,7 +15,7 @@
  * because its base can't be reconstructed from the DB. retail_locked always skipped.
  *
  * Result: keystone rows whose base sat above an .x9 boundary drop by 10¢; rows
- * already floor-aligned are unchanged. The covering floor (cost + $0.99) can
+ * already floor-aligned are unchanged. The covering floor (cost + $1.50) can
  * still lift a per_sqft/sqft price that would otherwise dip under cost.
  *
  * Usage:
@@ -35,7 +35,7 @@ const pool = new pg.Pool({
 });
 
 const RETAIL_MARKUP = 1.70;
-const RETAIL_MIN_MARGIN = 0.99;
+const RETAIL_MIN_MARGIN = 1.50;
 
 // OLD rule: nearest value ending in 9, exact midpoints round down.
 const oldNine = (v) => {

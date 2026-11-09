@@ -19,7 +19,7 @@
  * Per row it sets:
  *   - pricing.cost        = list price
  *   - pricing.retail_price= keystone: nine-ending round-down of cost x 1.6
- *                           (covering floor cost+$0.99), matching upsertPricing
+ *                           (covering floor cost+$1.50), matching upsertPricing
  *   - pricing.price_basis = per_sqft (U/M = SF) | per_unit (U/M = sheet/Each)
  *   - skus.sell_by        = box (SF) | unit (sheet/Each)
  *   - packaging.pieces_per_box / sqft_per_box from the list (only when the list

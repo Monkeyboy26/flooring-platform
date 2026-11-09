@@ -795,7 +795,7 @@ async function importPricing(pool, items) {
       const cents = Math.round(Number(v) * 100);
       return Math.max(9, Math.floor((cents - 9) / 10) * 10 + 9) / 100;
     };
-    const floorMin = (priceBasis === 'per_sqft' || priceBasis === 'sqft') ? item.price + 0.99 : 0;
+    const floorMin = (priceBasis === 'per_sqft' || priceBasis === 'sqft') ? item.price + 1.50 : 0;
     let retailPrice = nineDown(Math.max(item.price * 1.70, floorMin));
     if (floorMin > 0 && retailPrice < floorMin - 1e-9) retailPrice = Math.round((retailPrice + 0.10) * 100) / 100;
     await pool.query(`

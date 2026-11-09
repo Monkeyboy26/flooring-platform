@@ -9,7 +9,7 @@ liners and freeform walling.
 
 The pricelist "Unit price" column is Icon's dealer price = Roma's COST.
 Retail = nearestNine(cost x 1.6) — store-standard keystone + charm pricing (base.js).
-(All Icon costs are >= ~$3, so cost x 1.6 always clears the cost+$0.99 covering floor;
+(All Icon costs are >= ~$3, so cost x 1.6 always clears the cost+$1.50 covering floor;
 the floor never binds, so a plain nine-ending of the keystone matches the store rule.)
 
 Selling model (per [[selling-conventions]] / [[natural-stone-per-piece]]):

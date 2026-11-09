@@ -8,7 +8,7 @@
 // margin_tiers.cost_multiplier is the source of truth; discount_percent is kept only
 // as a display/fallback value for rows that have no cost. See [[cost-multiplier-tiers]].
 
-export const RETAIL_MIN_MARGIN = 0.99;
+export const RETAIL_MIN_MARGIN = 1.50;
 export const TILE_MIN_MARGIN = 1.50;
 export const MOSAIC_MIN_MARGIN = 4.50;
 export const HD_LOCKED_DISCOUNT_CAP = 10;

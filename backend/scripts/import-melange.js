@@ -14,7 +14,7 @@
  *
  * Pricing: PDF lists dealer cost. Imported (non-domestic) items carry the 2026
  * book's 5% surcharge in cost; retail = cost × 1.6 keystone snapped to a 9-ending
- * with the covering floor (cost+$0.99), matching the store standard. Domestic
+ * with the covering floor (cost+$1.50), matching the store standard. Domestic
  * (Made-in-USA) collections — Shellstone, Quartz Outdoor (`domestic: true`) — are
  * surcharge-exempt. All tiles sold per sqft unless noted (mosaico sheets SH,
  * bullnose PC → per-unit accessories).
@@ -41,7 +41,7 @@ const pool = new pg.Pool({
 });
 
 const RETAIL_MARKUP = 1.70;
-const RETAIL_MIN_MARGIN = 0.99;
+const RETAIL_MIN_MARGIN = 1.50;
 // 2026 price book: "A surcharge of 5% will be applied to all items with the
 // exception of domestic products." Domestic = Made in USA (Shellstone, Quartz
 // Outdoor). We bake the surcharge into Roma's COST for imported items, so retail
@@ -56,7 +56,7 @@ const nearestNine = (v) => {
   const k = Math.floor((cents - 9) / 10);
   return Math.max(9, k * 10 + 9) / 100;
 };
-// price_basis 'per_sqft' → covering floor (cost+$0.99) applies; 'per_unit'
+// price_basis 'per_sqft' → covering floor (cost+$1.50) applies; 'per_unit'
 // (mosaico sheets, bullnose pieces) → 9-ending only.
 const priceRetail = (cost, basis) => {
   const rn = keystone(cost);

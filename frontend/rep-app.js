@@ -4125,7 +4125,7 @@
       const TILE_SLUGS = ["tile", "backsplash-tile", "ceramic-tile", "commercial-tile", "fluted-tile", "large-format-tile", "pool-tile", "porcelain-tile", "talavera-tile", "terrazzo-tile", "wood-look-tile"];
       const catSlug = product && product.category_slug || "";
       const pb = mainSku && mainSku.price_basis || "";
-      const minMargin = catSlug === "mosaic-tile" && pb === "per_unit" ? 4.5 : catSlug === "mosaic-tile" || TILE_SLUGS.indexOf(catSlug) >= 0 ? 1.5 : 0.99;
+      const minMargin = catSlug === "mosaic-tile" && pb === "per_unit" ? 4.5 : catSlug === "mosaic-tile" || TILE_SLUGS.indexOf(catSlug) >= 0 ? 1.5 : 1.5;
       const fallbackPct = (m) => m === 1.5 ? 11.765 : m === 1.4 ? 17.647 : m === 1.32 ? 22.353 : 0;
       const tierPrice = (m) => costPrice > 0 ? Math.min(retailPrice, Math.max(costPrice * m, costPrice + minMargin)) : retailPrice * (1 - fallbackPct(m) / 100);
       const TRADE_TIERS = [
