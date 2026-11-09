@@ -4262,6 +4262,24 @@
           const parts = path.replace('/shop/sku/', '').split('/');
           setSelectedSkuId(parts[0]);
           setView('detail');
+        } else if ((path === '/cart' || path === '/shop/cart' || path === '/checkout' || path === '/shop/checkout') && sp.get('products')) {
+          // Meta (Instagram/Facebook Shop) website-checkout handoff:
+          // ?products=<skuId>:<qty>,… — build the cart server-side, then show it.
+          // URL is cleaned first so a reload can't double-add the items.
+          const metaProducts = sp.get('products');
+          history.replaceState({ view: 'cart' }, '', '/cart');
+          setView('cart');
+          fetch(API + '/api/cart/meta-prefill', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionId.current, products: metaProducts })
+          })
+            .then(r => r.json())
+            .then(d => {
+              if (d.added > 0) fetchCart();
+              else if (d.fallback_sku_id) { setSelectedSkuId(d.fallback_sku_id); setView('detail'); }
+            })
+            .catch(err => console.error('meta prefill error:', err));
         } else if (path === '/cart' || path === '/shop/cart') {
           setView('cart');
         } else if (path === '/checkout' || path === '/shop/checkout') {

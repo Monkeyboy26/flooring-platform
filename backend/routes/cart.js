@@ -91,6 +91,94 @@ export default function createCartRoutes(ctx) {
     }
   });
 
+  // Meta (Instagram/Facebook Shop) website-checkout handoff. Meta sends shoppers
+  // to <checkout URL>?products=<retailer_id>:<qty>,<retailer_id>:<qty>&coupon=…
+  // where retailer_id = our sku UUID (the merchant feed's g:id). This endpoint
+  // builds the cart server-side — prices come from the DB per sell_by, never from
+  // the URL — and the storefront then shows the normal cart/checkout flow.
+  // Qty semantics per sell type (Meta qty is a bare integer, shoppers mostly send 1):
+  //   box/sqft goods → qty = CARTONS (sqft_needed = qty × sqft_per_box)
+  //   unit goods     → qty = pieces
+  //   roll goods     → skipped (need the cut calculator; shopper lands on cart,
+  //                    and if NOTHING was addable we return the first sku so the
+  //                    storefront can open its PDP instead of an empty cart)
+  router.post('/api/cart/meta-prefill', async (req, res) => {
+    try {
+      const { session_id, products } = req.body;
+      if (!session_id || !products) return res.status(400).json({ error: 'Missing required fields' });
+
+      const pairs = String(products).split(',').map(s => s.trim()).filter(Boolean).slice(0, 25);
+      let added = 0;
+      const skipped = [];
+      let firstSkuId = null;
+
+      for (const pair of pairs) {
+        const [rawId, rawQty] = pair.split(':');
+        const skuId = (rawId || '').trim();
+        if (!/^[0-9a-f-]{36}$/i.test(skuId)) { skipped.push({ id: skuId, reason: 'bad_id' }); continue; }
+        if (!firstSkuId) firstSkuId = skuId;
+        const qty = Math.min(99, Math.max(1, parseInt(rawQty, 10) || 1));
+
+        const r = await pool.query(`
+          SELECT s.id, s.product_id, s.sell_by, s.status AS sku_status, p.status AS product_status,
+                 pr.retail_price, pr.price_basis, pk.sqft_per_box, pk.pieces_per_box,
+                 COALESCE(v.has_public_inventory, false) AS vendor_has_inventory,
+                 CASE
+                   WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+                   WHEN inv.qty_on_hand > 0 THEN 'in_stock'
+                   ELSE 'out_of_stock'
+                 END AS stock_status
+          FROM skus s
+          JOIN products p ON p.id = s.product_id
+          LEFT JOIN vendors v ON v.id = p.vendor_id
+          LEFT JOIN pricing pr ON pr.sku_id = s.id
+          LEFT JOIN packaging pk ON pk.sku_id = s.id
+          LEFT JOIN inventory_snapshots inv ON inv.sku_id = s.id AND inv.warehouse = 'default'
+          WHERE s.id = $1
+        `, [skuId]);
+        if (!r.rows.length) { skipped.push({ id: skuId, reason: 'not_found' }); continue; }
+        const row = r.rows[0];
+        const retail = parseFloat(row.retail_price);
+        if (row.sku_status !== 'active' || row.product_status !== 'active' || !(retail > 0)) {
+          skipped.push({ id: skuId, reason: 'unavailable' }); continue;
+        }
+        if (row.stock_status === 'out_of_stock' && row.vendor_has_inventory) {
+          skipped.push({ id: skuId, reason: 'out_of_stock' }); continue;
+        }
+        if (row.sell_by === 'roll') { skipped.push({ id: skuId, reason: 'roll' }); continue; }
+
+        const basis = row.price_basis || 'per_sqft';
+        const sqftBox = parseFloat(row.sqft_per_box) || 0;
+        const pcsBox = parseFloat(row.pieces_per_box) || 0;
+        let sellBy, numBoxes, sqftNeeded = null, unitPrice, subtotal;
+        if (row.sell_by === 'unit' || !sqftBox) {
+          // Per-piece goods (or area goods with no carton data — fall back to qty units)
+          sellBy = 'unit';
+          numBoxes = qty;
+          unitPrice = (basis === 'per_sqft' || basis === 'sqft') && sqftBox > 0 ? retail * sqftBox : retail;
+          subtotal = unitPrice * qty;
+        } else {
+          // Area goods sold by the carton: qty cartons, per-sqft pricing
+          sellBy = 'box';
+          numBoxes = qty;
+          sqftNeeded = parseFloat((qty * sqftBox).toFixed(2));
+          unitPrice = basis === 'per_unit' && pcsBox > 0 ? retail / (sqftBox / pcsBox) : retail;
+          subtotal = unitPrice * sqftNeeded;
+        }
+
+        await pool.query(`
+          INSERT INTO cart_items (session_id, product_id, sku_id, sqft_needed, num_boxes, unit_price, subtotal, sell_by)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `, [session_id, row.product_id, skuId, sqftNeeded, numBoxes, unitPrice.toFixed(2), subtotal.toFixed(2), sellBy]);
+        added++;
+      }
+
+      res.json({ added, skipped, fallback_sku_id: added === 0 ? firstSkuId : null });
+    } catch (err) {
+      console.error('meta-prefill error:', err); res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   router.post('/api/cart', async (req, res) => {
     try {
       const { session_id, product_id, sku_id, sqft_needed, num_boxes, include_overage, unit_price, subtotal, is_sample, sell_by, price_tier, parent_collection, parent_color, is_custom_rug, custom_width_ft, custom_length_ft } = req.body;
