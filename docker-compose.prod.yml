@@ -121,10 +121,14 @@ services:
       S3_BACKUP_BUCKET: ${S3_BACKUP_BUCKET:-}
     volumes:
       - ./scripts/backup.sh:/backup.sh:ro
-      - ./scripts/backup-cron:/etc/crontabs/root:ro
+      # Staged path, installed via `crontab` at startup — NEVER bind-mount this
+      # straight onto /etc/crontabs/root: the mount arrives owned by the host
+      # user (uid 1000) and BusyBox crond silently ignores any crontab not
+      # owned by root, so every job stops firing (backups were dead 2.5 months).
+      - ./scripts/backup-cron:/backup-cron:ro
       - backup_data:/backups
       - ./uploads:/uploads:ro
-    entrypoint: "/bin/sh -c 'apk add --no-cache aws-cli && crond -f -l 2'"
+    entrypoint: "/bin/sh -c 'apk add --no-cache aws-cli && crontab /backup-cron && crond -f -l 2'"
     logging:
       driver: json-file
       options:

@@ -43,7 +43,9 @@ const PIPELINES = {
   // inventory as a byproduct of the crawl (variant_groups JS). No price list.
   bosphorus: {
     label: 'Bosphorus',
-    schedule: '0 17 * * *',
+    // 3:30 AM PT (SCHEDULE_TZ) — keep scrapes out of PT business/evening hours;
+    // this used to fire at 5 PM PT, stacked on the Elysium daily, on a 2-vCPU box.
+    schedule: '30 3 * * *',
     description: 'Daily: crawl the Bosphorus catalog (products, images, specs) with dealer pricing + inventory, then group colors into attributes',
     steps: [
       { type: 'scraper', sourceKey: 'bosphorus', label: 'Bosphorus Catalog + Price + Inventory' },

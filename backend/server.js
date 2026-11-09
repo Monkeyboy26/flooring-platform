@@ -34598,7 +34598,9 @@ function runSeoScript(script, args = [], { logFull = false } = {}) {
 }
 
 let seoCronRunning = false;
-cron.schedule('30 3 * * *', async () => {
+// 9:00 UTC = 1:00 AM PST — UTC clock, so "nightly" must mean 09:00–14:00 UTC
+// for a California audience (3:30 UTC was 7:30 PM PT, prime evening traffic).
+cron.schedule('0 9 * * *', async () => {
   // Prod-only (like the scraper scheduler): these call OpenAI + write content, so
   // they must not fire on a dev machine. Override locally with ENABLE_SCHEDULER=1.
   if (process.env.NODE_ENV !== 'production' && process.env.ENABLE_SCHEDULER !== '1') return;
@@ -35550,10 +35552,11 @@ cron.schedule('*/30 * * * *', async () => {
 
 // ==================== Data Quality Audit Crons ====================
 
-// Nightly full conformance audit (all vendors, no image checks) at 5:45 AM UTC.
-// Catches drift from any source — manual admin edits, backfills, re-imports —
-// that the per-vendor post-scrape hooks don't see. Alerts only on new findings.
-cron.schedule('45 5 * * *', async () => {
+// Nightly full conformance audit (all vendors, no image checks) at 11:45 UTC =
+// 3:45 AM PST. Catches drift from any source — manual admin edits, backfills,
+// re-imports — that the per-vendor post-scrape hooks don't see. Alerts only on
+// new findings. (Was 5:45 UTC = 9:45 PM PT — DB-heavy work in shopper hours.)
+cron.schedule('45 11 * * *', async () => {
   try {
     // Tile-leaf validator first (auto-fix strong / report weak), so the audit
     // that follows only surfaces what auto-fix skipped.

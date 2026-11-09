@@ -1,1 +1,5 @@
+# Installed via `crontab /backup-cron` by the backup service entrypoint (see
+# docker-compose.prod.yml) — BusyBox crond ignores non-root-owned crontabs, so
+# this file must never be bind-mounted directly onto /etc/crontabs/root.
+# Every 6h UTC; the dump+upload takes ~15s, so daytime runs are harmless.
 0 2,8,14,20 * * * /backup.sh >> /var/log/backup.log 2>&1
