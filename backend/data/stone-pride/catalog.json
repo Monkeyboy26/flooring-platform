@@ -8630,7 +8630,7 @@
       {
         "vendor_sku": "MM-02-48RD-Imperial-BW/SilverMk",
         "internal_sku": "SP-MM-02-48RD-Imperial-BW-SilverMk",
-        "variant_name": "48\" Round",
+        "variant_name": "48\" Round, Black & White with Silver Mink",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 660.0,
@@ -8672,7 +8672,7 @@
       {
         "vendor_sku": "MM-02ED-48RD-Imperial",
         "internal_sku": "SP-MM-02ED-48RD-Imperial",
-        "variant_name": "48\" Round",
+        "variant_name": "48\" Round, Emperador Dark",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 660.0,
@@ -8722,7 +8722,7 @@
       {
         "vendor_sku": "MM-03ED-48SQ-Primavera REPAIRED",
         "internal_sku": "SP-MM-03ED-48SQ-Primavera-REPAIRED",
-        "variant_name": "48\" Square",
+        "variant_name": "48\" Square, Repaired",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 699.0,
@@ -8946,7 +8946,7 @@
       {
         "vendor_sku": "MM-14-36RD-Sonoma(GO)",
         "internal_sku": "SP-MM-14-36RD-Sonoma-GO",
-        "variant_name": "36\" Round",
+        "variant_name": "36\" Round, Green Onyx",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 611.0,
@@ -9018,7 +9018,7 @@
       {
         "vendor_sku": "MM-18-36RD-Grace-white",
         "internal_sku": "SP-MM-18-36RD-Grace-white",
-        "variant_name": "36\" Round",
+        "variant_name": "36\" Round, White Background",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 870.0,
@@ -9160,7 +9160,7 @@
       {
         "vendor_sku": "MM-20-3x5 Rect.Casablanca",
         "internal_sku": "SP-MM-20-3x5-Rect-Casablanca",
-        "variant_name": "20 3x5 Rect.Casablanca",
+        "variant_name": "3'x5' Rectangular",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 1298.0,
@@ -9196,7 +9196,7 @@
       {
         "vendor_sku": "MM-21-36RD-Rafael(Burg-Red)",
         "internal_sku": "SP-MM-21-36RD-Rafael-Burg-Red",
-        "variant_name": "36\" Round",
+        "variant_name": "36\" Round, Burgundy Red",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 913.0,
@@ -9210,7 +9210,7 @@
       {
         "vendor_sku": "MM-21-36RD-Rafael/Simplified",
         "internal_sku": "SP-MM-21-36RD-Rafael-Simplified",
-        "variant_name": "36\" Round",
+        "variant_name": "36\" Round, Simplified",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 913.0,
@@ -9224,7 +9224,7 @@
       {
         "vendor_sku": "MM-21-48RD-Rafael(Burg-Red)",
         "internal_sku": "SP-MM-21-48RD-Rafael-Burg-Red",
-        "variant_name": "48\" Round",
+        "variant_name": "48\" Round, Burgundy Red",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 1205.0,
@@ -9238,7 +9238,7 @@
       {
         "vendor_sku": "MM-21-60RD-Rafael(Burg-Red)",
         "internal_sku": "SP-MM-21-60RD-Rafael-Burg-Red",
-        "variant_name": "60\" Round",
+        "variant_name": "60\" Round, Burgundy Red",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 1805.0,
@@ -9266,7 +9266,7 @@
       {
         "vendor_sku": "MM-21-72RD-Rafael(burg-red)",
         "internal_sku": "SP-MM-21-72RD-Rafael-burg-red",
-        "variant_name": "72\" Round",
+        "variant_name": "72\" Round, Burgundy Red",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 2557.0,
@@ -9324,7 +9324,7 @@
       {
         "vendor_sku": "MM-24-60RD-Odyssey",
         "internal_sku": "SP-MM-24-60RD-Odyssey",
-        "variant_name": "60\" Round",
+        "variant_name": "60\" Round (Original)",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 1805.0,
@@ -9338,7 +9338,7 @@
       {
         "vendor_sku": "MM-24-60RD-Odyssey-2",
         "internal_sku": "SP-MM-24-60RD-Odyssey-2",
-        "variant_name": "60\" Round",
+        "variant_name": "60\" Round (New Version)",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 1805.0,
@@ -9438,7 +9438,7 @@
       {
         "vendor_sku": "MM-26-48RD-Aptus(EL)",
         "internal_sku": "SP-MM-26-48RD-Aptus-EL",
-        "variant_name": "48\" Round",
+        "variant_name": "48\" Round, Emperador Light",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 1114.0,
@@ -9452,7 +9452,7 @@
       {
         "vendor_sku": "MM-26-48RD-Aptus(RA)",
         "internal_sku": "SP-MM-26-48RD-Aptus-RA",
-        "variant_name": "48\" Round",
+        "variant_name": "48\" Round, Rojo Alicante",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 1114.0,
@@ -9562,7 +9562,7 @@
       {
         "vendor_sku": "MM-36Triangular medallion",
         "internal_sku": "SP-MM-36Triangular-medallion",
-        "variant_name": "36Triangular medallion",
+        "variant_name": "36\" Triangular",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 190.0,
@@ -9576,7 +9576,7 @@
       {
         "vendor_sku": "MM-A-06-3x4",
         "internal_sku": "SP-MM-A-06-3x4",
-        "variant_name": "A 06 3x4",
+        "variant_name": "Design A-06, 3'x4'",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 1012.0,
@@ -9590,7 +9590,7 @@
       {
         "vendor_sku": "MM-A-07-3x4 oval",
         "internal_sku": "SP-MM-A-07-3x4-oval",
-        "variant_name": "3x4 oval",
+        "variant_name": "Design A-07, 3'x4' Oval",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 886.0,
@@ -9604,7 +9604,7 @@
       {
         "vendor_sku": "MM-YT-03",
         "internal_sku": "SP-MM-YT-03",
-        "variant_name": "YT 03",
+        "variant_name": "Design YT-03",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 0.0,
@@ -9748,7 +9748,7 @@
       {
         "vendor_sku": "MM-46-36RD-Monroe-Simplified",
         "internal_sku": "SP-MM-46-36RD-Monroe-Simplified",
-        "variant_name": "36\" Round",
+        "variant_name": "36\" Round, Simplified",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 662.0,
@@ -9820,7 +9820,7 @@
       {
         "vendor_sku": "MM-48RD-Kamila",
         "internal_sku": "SP-MM-48RD-Kamila",
-        "variant_name": "48RD Kamila",
+        "variant_name": "48\" Round",
         "sell_by": "unit",
         "variant_type": null,
         "cost": 586.0,
