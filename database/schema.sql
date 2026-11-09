@@ -483,6 +483,21 @@ CREATE UNIQUE INDEX IF NOT EXISTS media_assets_unique_product
     WHERE sku_id IS NULL;
 CREATE INDEX idx_media_assets_product ON media_assets(product_id);
 
+-- Persistent per-URL asset_type overrides. Scrapers assign asset_type
+-- positionally (base.js saveSkuImages/upsertMediaAsset: index 0 → primary,
+-- 1-2 → alternate, 3+ → lifestyle) with only a filename-keyword fallback, so
+-- content-vs-position mismatches (a plain-named room scene, a flat tile face at
+-- index 3+) revert on every re-scrape. upsertMediaAsset consults this table on
+-- each write and forces the stored asset_type when a row's url/original_url
+-- contains url_match (a specific substring — a CDN content hash or full filename).
+CREATE TABLE IF NOT EXISTS media_asset_overrides (
+    id SERIAL PRIMARY KEY,
+    url_match TEXT NOT NULL UNIQUE,
+    asset_type TEXT NOT NULL,
+    note TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- SEO: programmatic landing pages (Phase 2 pillar/facet system)
 -- Curated rows (NOT infinite URL combinatorics). Each row is one indexable-or-not

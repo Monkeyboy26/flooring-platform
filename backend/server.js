@@ -37664,6 +37664,27 @@ async function runMigrations() {
   } catch (err) {
     console.error('Migration warning:', err.message);
   }
+
+  // Persistent per-URL asset_type overrides. Image asset_type is assigned
+  // positionally by the scrapers (see base.js saveSkuImages/upsertMediaAsset), so
+  // content-vs-position mismatches (a plain-named room scene, a flat tile face at
+  // index 3+) revert on every re-scrape. upsertMediaAsset consults this table on
+  // each write and forces the stored asset_type. Rows are data (added per-env),
+  // not seeded here — the table just needs to exist. See [[melange-asset-type-overrides]].
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS media_asset_overrides (
+        id SERIAL PRIMARY KEY,
+        url_match TEXT NOT NULL UNIQUE,
+        asset_type TEXT NOT NULL,
+        note TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+    `);
+    console.log('Migrations: media_asset_overrides table applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
 }
 
 // ==================== Review Requests ====================

@@ -973,15 +973,59 @@ export function normalizeImageUrl(url) {
   return url.replace(/&amp;/gi, '&');
 }
 
+// ── Persistent asset_type overrides ──────────────────────────────────────────
+// Image asset_type is assigned positionally (saveSkuImages/saveProductImages:
+// index 0 → primary, 1-2 → alternate, 3+ → lifestyle) with only a filename-
+// keyword override (isLifestyleUrl). Content-vs-position mismatches slip through:
+// a room scene with a plain filename gets 'alternate'; a flat tile face that
+// happens to land at index 3+ gets 'lifestyle'. Re-scrapes re-apply the same
+// positional logic, so a one-off DB correction reverts. This table is the durable
+// store — upsertMediaAsset consults it on EVERY write (all vendors) and forces the
+// stored asset_type when a row's url/original_url contains an override's url_match.
+// Seed a correction with:
+//   INSERT INTO media_asset_overrides (url_match, asset_type, note) VALUES (...);
+// url_match is a substring (use something specific — a CDN content hash or a full
+// filename — so it can't collide with unrelated products).
+const MEDIA_OVERRIDES_TTL_MS = 5 * 60 * 1000;
+let _mediaOverridesCache = null;
+let _mediaOverridesLoadedAt = 0;
+
+async function loadMediaOverrides(pool) {
+  const now = Date.now();
+  if (_mediaOverridesCache && now - _mediaOverridesLoadedAt < MEDIA_OVERRIDES_TTL_MS) {
+    return _mediaOverridesCache;
+  }
+  try {
+    const { rows } = await pool.query('SELECT url_match, asset_type FROM media_asset_overrides');
+    _mediaOverridesCache = rows;
+  } catch {
+    // Table may not exist yet (fresh install before migrations run) — no overrides.
+    _mediaOverridesCache = [];
+  }
+  _mediaOverridesLoadedAt = now;
+  return _mediaOverridesCache;
+}
+
 export async function upsertMediaAsset(pool, { product_id, sku_id, asset_type, url, original_url, sort_order }) {
   // Always use HTTPS for image URLs
   if (url && url.startsWith('http://')) url = url.replace('http://', 'https://');
   // Decode entity ampersands so the stored URL resolves.
   url = normalizeImageUrl(url);
   if (original_url) original_url = normalizeImageUrl(original_url);
-  const at = asset_type || 'primary';
+  let at = asset_type || 'primary';
   const so = sort_order || 0;
   const ou = original_url || null;
+
+  // Persistent asset_type override (see media_asset_overrides above). Applied
+  // before the lifestyle_hidden guard so forcing a row away from 'lifestyle'
+  // (e.g. a flat face mis-tagged by position) skips that guard, and forcing a
+  // row TO 'lifestyle' still respects an existing soft-demotion.
+  const overrides = await loadMediaOverrides(pool);
+  if (overrides.length) {
+    const hay = `${url || ''}\n${ou || ''}`;
+    const hit = overrides.find(o => o.url_match && hay.includes(o.url_match));
+    if (hit) at = hit.asset_type;
+  }
 
   // Don't resurrect a soft-demoted room scene. A vision pass can relabel a
   // mismatched 'lifestyle' image to 'lifestyle_hidden' (e.g. Daltile publishes
