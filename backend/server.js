@@ -6053,6 +6053,30 @@ async function resolveProductIdForSku(client, skuId, givenProductId) {
   return r.rows.length ? r.rows[0].product_id : null;
 }
 
+// Phase 1 custom-item scaffolding: a single global, VENDORLESS sentinel product
+// that off-catalog custom lines point product_id at, so a custom line is a real
+// FK instead of NULL (prepares the line_kind unification — [[custom-items-overhaul-phase0]]).
+// Inert by construction: vendor_id / collection / brand_id / category_id all NULL,
+// status 'draft', identified by the reserved slug '__special_order_sentinel'
+// (category_source must be one of vendor|classifier|manual per CHECK, so 'manual').
+// Because it has no vendor, every `LEFT JOIN products … LEFT JOIN vendors v ON
+// v.id=p.vendor_id` still yields v=NULL for custom lines exactly as when
+// product_id was NULL, so vendor/brand/code display is unchanged; the vendor
+// still resolves via oi.vendor_id/custom_vendor. status='draft' keeps it out of
+// every storefront query. The boot migration guarantees the row exists.
+const SPECIAL_ORDER_SLUG = '__special_order_sentinel';
+let _specialOrderProductId = null;
+async function getSpecialOrderProductId(client) {
+  if (_specialOrderProductId) return _specialOrderProductId;
+  const q = client || pool;
+  const found = await q.query('SELECT id FROM products WHERE slug = $1 LIMIT 1', [SPECIAL_ORDER_SLUG]);
+  if (found.rows.length) { _specialOrderProductId = found.rows[0].id; return _specialOrderProductId; }
+  const ins = await q.query(
+    "INSERT INTO products (name, status, category_source, slug) VALUES ('Special Order', 'draft', 'manual', $1) RETURNING id", [SPECIAL_ORDER_SLUG]);
+  _specialOrderProductId = ins.rows[0].id;
+  return _specialOrderProductId;
+}
+
 async function generatePurchaseOrders(orderId, client) {
   // Get order items with vendor and cost info (exclude samples and custom items)
   const itemsResult = await client.query(`
@@ -6073,15 +6097,17 @@ async function generatePurchaseOrders(orderId, client) {
     LEFT JOIN packaging pk ON pk.sku_id = s.id
     WHERE oi.order_id = $1
       AND oi.is_sample = false
-      AND COALESCE(oi.product_id, s.product_id) IS NOT NULL
+      AND oi.sku_id IS NOT NULL
       AND COALESCE(oi.item_type, 'material') != 'labor'
   `, [orderId]);
 
   // Custom (off-catalog) lines tied to a known vendor also go on that vendor's
   // PO. One-off vendor lines (custom_vendor text, no vendor_id) never do.
-  // `sku_id IS NULL` keeps this disjoint from the catalog query above, which now
-  // resolves the vendor through the sku for lines whose product_id was never
-  // denormalized (sibling accessories / trims added by sku_id only). [[po-trim-missing-productid]]
+  // Keyed on `sku_id IS NULL` (the real custom signal) — disjoint from the
+  // catalog query, which is scoped to `sku_id IS NOT NULL`. NOTE: custom lines
+  // now carry a sentinel product_id (Phase 1 scaffolding, category_source
+  // 'special_order', vendorless), so this no longer tests product_id — the
+  // catalog query's sku_id scope + vendorless sentinel keep the two disjoint.
   const customItemsResult = await client.query(`
     SELECT oi.id as order_item_id, oi.product_name, oi.num_boxes as qty, oi.unit_price,
            oi.sqft_needed, oi.sell_by, oi.description, oi.cost as custom_cost, oi.vendor_sku,
@@ -6090,7 +6116,6 @@ async function generatePurchaseOrders(orderId, client) {
     JOIN vendors v ON v.id = oi.vendor_id
     WHERE oi.order_id = $1
       AND oi.is_sample = false
-      AND oi.product_id IS NULL
       AND oi.sku_id IS NULL
       AND oi.vendor_id IS NOT NULL
       AND COALESCE(oi.item_type, 'material') != 'labor'
@@ -11537,13 +11562,15 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       const customSqftNeeded = isCustomCarpet
         ? num_boxes
         : (customSqftPerBox ? parseFloat((num_boxes * customSqftPerBox).toFixed(2)) : (sqft_needed || null));
+      // Custom (off-catalog) lines point at the inert sentinel product (Phase 1).
+      const customProductId = await getSpecialOrderProductId(client);
       const insertResult = await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
           sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, description,
           vendor_id, custom_vendor, vendor_sku, cost, price_basis, sqft_per_box)
-        VALUES ($1, NULL, NULL, $2, NULL, $3, $4, $5, $6, false, $7, $8, $9, $10, $11, $12, $13, $14)
+        VALUES ($1, $2, NULL, $3, NULL, $4, $5, $6, $7, false, $8, $9, $10, $11, $12, $13, $14, $15)
         RETURNING id
-      `, [id, product_name.trim(), customSqftNeeded,
+      `, [id, customProductId, product_name.trim(), customSqftNeeded,
           isCustomCarpet ? 1 : num_boxes, unitPrice.toFixed(2),
           itemSubtotal.toFixed(2), customSellBy || null, description || null,
           itemVendorId, customVendorName || null, customVendorSku,
@@ -20388,7 +20415,8 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         const customPerSqft = (customPriceBasis === 'per_sqft' || customPriceBasis === 'sqft')
           && customSqftPerBox && sellBy !== 'unit' && sellBy !== 'piece';
         resolvedItems.push({
-          product_id: null,
+          // Custom (off-catalog) lines point at the inert sentinel product (Phase 1).
+          product_id: await getSpecialOrderProductId(client),
           sku_id: null,
           product_name: item.product_name,
           collection: null,
@@ -22399,13 +22427,15 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       const customSqftNeeded = isCustomCarpet
         ? num_boxes
         : (customSqftPerBox ? parseFloat((num_boxes * customSqftPerBox).toFixed(2)) : (sqft_needed || null));
+      // Custom (off-catalog) lines point at the inert sentinel product (Phase 1).
+      const customProductId = await getSpecialOrderProductId(client);
       const insertResult = await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
           sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, description,
           vendor_id, custom_vendor, vendor_sku, cost, price_basis, sqft_per_box)
-        VALUES ($1, NULL, NULL, $2, NULL, $3, $4, $5, $6, false, $7, $8, $9, $10, $11, $12, $13, $14)
+        VALUES ($1, $2, NULL, $3, NULL, $4, $5, $6, $7, false, $8, $9, $10, $11, $12, $13, $14, $15)
         RETURNING id
-      `, [id, product_name.trim(), customSqftNeeded,
+      `, [id, customProductId, product_name.trim(), customSqftNeeded,
           isCustomCarpet ? 1 : num_boxes, unitPrice.toFixed(2),
           itemSubtotal.toFixed(2), customSellBy || null, description || null,
           itemVendorId, customVendorName || null, customVendorSku,
@@ -26910,7 +26940,9 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
           : (item.cost != null && item.cost !== '' && !isNaN(parseFloat(item.cost)) && parseFloat(item.cost) >= 0 ? parseFloat(item.cost).toFixed(2) : null);
         // Backfill product_id from sku_id for accessory/trim lines that only
         // carry a sku, so they land on a vendor PO. [[po-trim-missing-productid]]
+        // Custom (off-catalog) lines point at the inert sentinel product (Phase 1).
         const resolvedProductId = rug ? rug.product_id
+          : isCustomLine ? await getSpecialOrderProductId(client)
           : await resolveProductIdForSku(client, item.sku_id, item.product_id);
         await client.query(`
           INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, vendor_sku, cost, is_custom_rug, custom_width_ft, custom_length_ft, price_basis, sqft_per_box)
@@ -27236,7 +27268,10 @@ app.post('/api/rep/quotes/:id/items', repAuth, async (req, res) => {
     }
     // Sibling-accessory / trim payloads carry only sku_id — backfill product_id
     // so the line reaches its vendor PO on conversion. [[po-trim-missing-productid]]
-    const resolvedProductId = rug ? rug.product_id : await resolveProductIdForSku(client, sku_id, product_id);
+    // Custom (off-catalog) lines point at the inert sentinel product (Phase 1).
+    const resolvedProductId = rug ? rug.product_id
+      : isQuoteCustomLine ? await getSpecialOrderProductId(client)
+      : await resolveProductIdForSku(client, sku_id, product_id);
     const itemResult = await client.query(`
       INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, vendor_sku, cost, is_custom_rug, custom_width_ft, custom_length_ft, price_basis, sqft_per_box)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
@@ -28710,7 +28745,10 @@ app.post('/api/rep/estimates/:id/items', repAuth, async (req, res) => {
 
     // Backfill product_id from sku_id for accessory/trim lines that carry only a
     // sku, so the line reaches its vendor PO once the estimate converts. [[po-trim-missing-productid]]
-    const estResolvedProductId = rug ? rug.product_id : await resolveProductIdForSku(client, sku_id, product_id);
+    // Custom (off-catalog) lines point at the inert sentinel product (Phase 1).
+    const estResolvedProductId = rug ? rug.product_id
+      : isEstCustomLine ? await getSpecialOrderProductId(client)
+      : await resolveProductIdForSku(client, sku_id, product_id);
     const itemResult = await client.query(`
       INSERT INTO estimate_items (estimate_id, item_type, product_id, sku_id, product_name, collection, description,
         sqft_needed, num_boxes, sell_by, labor_category, rate_type, rate_sqft, labor_sqft,
@@ -31396,6 +31434,7 @@ app.get('/api/rep/customers/:id/materials', repAuth, async (req, res) => {
         AND COALESCE(oi.is_sample, false) = false
         AND COALESCE(oi.item_type, 'product') <> 'labor'
         AND oi.product_id IS NOT NULL
+        AND oi.sku_id IS NOT NULL
       GROUP BY oi.product_id
       ORDER BY MAX(o.created_at) DESC
       LIMIT 14
@@ -31410,6 +31449,7 @@ app.get('/api/rep/customers/:id/materials', repAuth, async (req, res) => {
         AND COALESCE(oi.is_sample, false) = false
         AND COALESCE(oi.item_type, 'product') <> 'labor'
         AND oi.product_id IS NOT NULL
+        AND oi.sku_id IS NOT NULL
     `, [param]);
 
     res.json({
@@ -37088,6 +37128,32 @@ async function runMigrations() {
       ALTER TABLE estimate_items ADD COLUMN IF NOT EXISTS custom_vendor TEXT;
       ALTER TABLE estimate_items ADD COLUMN IF NOT EXISTS vendor_sku TEXT;
     `);
+    // Phase 1 custom-item scaffolding: ensure the single global VENDORLESS sentinel
+    // "Special Order" product exists, then point every existing off-catalog custom
+    // line (sku_id NULL, not labor/sample/rug) at it so a custom line is a real FK
+    // rather than NULL. Inert — see getSpecialOrderProductId. Idempotent: only
+    // touches rows still NULL. [[custom-items-overhaul-phase0]]
+    await pool.query(`
+      INSERT INTO products (name, status, category_source, slug)
+      SELECT 'Special Order', 'draft', 'manual', '__special_order_sentinel'
+      WHERE NOT EXISTS (SELECT 1 FROM products WHERE slug = '__special_order_sentinel');
+    `);
+    await pool.query(`
+      UPDATE order_items SET product_id = (SELECT id FROM products WHERE slug = '__special_order_sentinel' LIMIT 1)
+        WHERE product_id IS NULL AND sku_id IS NULL
+          AND COALESCE(is_sample, false) = false
+          AND COALESCE(item_type, 'material') <> 'labor'
+          AND COALESCE(is_custom_rug, false) = false;
+      UPDATE quote_items SET product_id = (SELECT id FROM products WHERE slug = '__special_order_sentinel' LIMIT 1)
+        WHERE product_id IS NULL AND sku_id IS NULL
+          AND COALESCE(is_sample, false) = false
+          AND COALESCE(is_custom_rug, false) = false;
+      UPDATE estimate_items SET product_id = (SELECT id FROM products WHERE slug = '__special_order_sentinel' LIMIT 1)
+        WHERE product_id IS NULL AND sku_id IS NULL
+          AND COALESCE(item_type, 'material') <> 'labor'
+          AND COALESCE(is_custom_rug, false) = false;
+    `);
+    console.log('Migrations: Special Order sentinel product + custom-line product_id backfill applied');
     // Hard/soft 850 split is a Shaw-specific requirement — gate it behind an
     // explicit edi_config flag so other EDI vendors (Daltile/EF/TW) get ONE 850.
     await pool.query(`
