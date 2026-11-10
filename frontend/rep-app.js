@@ -384,6 +384,13 @@
         throw new Error("Unauthorized");
       }
       if (!r.ok) throw new Error("Failed to load document");
+      const ct = r.headers.get("content-type") || "";
+      if (ct.includes("text/html")) {
+        return r.text().then((text) => new Blob(
+          [text.replace(/<head([^>]*)>/i, '<head$1><base href="' + location.origin + '/">')],
+          { type: "text/html" }
+        ));
+      }
       return r.blob();
     }).then((blob) => {
       const url = URL.createObjectURL(blob);

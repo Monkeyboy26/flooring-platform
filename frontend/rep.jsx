@@ -443,6 +443,17 @@
       }).then(r => {
         if (r.status === 401) { sessionStorage.removeItem('rep_token'); sessionStorage.removeItem('rep_info'); window.location.reload(); throw new Error('Unauthorized'); }
         if (!r.ok) throw new Error('Failed to load document');
+        // Preview HTML references thumbnails by relative /api/img URLs, which
+        // cannot resolve against the blob: URL the iframe loads — inject an
+        // absolute <base> so they resolve against the site origin. PDFs and
+        // other binary docs pass through untouched.
+        const ct = r.headers.get('content-type') || '';
+        if (ct.includes('text/html')) {
+          return r.text().then(text => new Blob(
+            [text.replace(/<head([^>]*)>/i, '<head$1><base href="' + location.origin + '/">')],
+            { type: 'text/html' }
+          ));
+        }
         return r.blob();
       }).then(blob => {
         const url = URL.createObjectURL(blob);
