@@ -100,6 +100,7 @@ function parsePath(reqPath, query) {
   if (path === '/custom-accessories') return { type: 'static', page: 'custom-accessories' };
   if (path === '/custom-area-rugs') return { type: 'static', page: 'custom-area-rugs' };
   if (path === '/cabinets') return { type: 'static', page: 'cabinets' };
+  if (path === '/property-managers') return { type: 'static', page: 'property-managers' };
   if (path === '/privacy') return { type: 'static', page: 'privacy' };
   if (path === '/terms') return { type: 'static', page: 'terms' };
   if (path === '/sms-opt-in') return { type: 'static', page: 'sms-opt-in' };
@@ -1354,6 +1355,17 @@ function renderStaticPage(page) {
       description: 'Join the Roma Flooring Designs trade program for exclusive contractor and designer pricing, dedicated support, and streamlined bulk ordering in Anaheim, CA.',
       path: '/trade',
       body: `<h1>Trade Program</h1><p>Roma Flooring Designs offers a professional trade program with exclusive pricing, dedicated support, and streamlined ordering for contractors, designers, and architects.</p><p><a href="/trade">Learn More &amp; Apply</a></p>`
+    },
+    'property-managers': {
+      title: 'Flooring for Property Managers in Anaheim & Orange County | Roma Flooring Designs',
+      description: 'One vendor for unit turns, common areas and full-property refreshes — materials and installation from Roma Flooring Designs. Licensed, bonded & insured, CSLB #830966. Request a free on-site measure. Call (714) 999-0009.',
+      path: '/property-managers',
+      body: `<h1>Flooring for Property Managers in Anaheim &amp; Orange County</h1>
+<p>Roma Flooring Designs is one vendor for unit turns, common areas, and full-property refreshes across Anaheim and all of Orange County. We supply the material and install it with our own crew, so property managers get one written quote and one company accountable for the finished floor &mdash; no coordinating a separate supplier and installer between tenants. Licensed, bonded, and insured, CSLB #830966.</p>
+<h2>What we take on</h2><p>Unit turns, common areas (lobbies, hallways, leasing offices, and amenity spaces), kitchens and baths (countertops, tile, stone, and cabinets), and multi-unit projects across a single building or a whole portfolio &mdash; held to the same spec and finish in every unit.</p>
+<h2>How it works</h2><p>We measure the unit or property and send one written quote covering material and labor, you pick the material from our Anaheim showroom, and our own crew schedules and completes the installation.</p>
+<h2>Why managers call Roma</h2><p>One vendor for material and labor, crews that keep turns on schedule, a full Anaheim showroom behind every job, and the paperwork your owners expect &mdash; license on every quote and additional-insured certificates on request. Ask about a dedicated account contact and volume pricing as your door count grows.</p>
+<p><a href="/property-managers">Request a free on-site measure</a> &middot; <a href="/shop">Shop flooring</a> &middot; <a href="/installation">Flooring installation</a> &middot; <a href="/cabinets">Cabinets</a>. Call (714) 999-0009.</p>`
     },
     privacy: {
       title: 'Privacy Policy | Roma Flooring Designs',
