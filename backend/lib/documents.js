@@ -123,17 +123,31 @@ export function isPerPieceLine(i = {}) {
 
 /**
  * The per-sqft RATE behind a per-piece line's each-price, when derivable: the line's
- * per-piece price (unit_price / cost) ÷ the piece area. Piece area is sqft_per_box
- * when present, else the captured coverage ÷ pieces (sqft_needed / qty). Returns null
- * for non-per-piece lines or when the rate can't be computed — callers show it as a
- * "/sf" sub-figure beside the "/ea" tile price only "if available". Pass the same
- * money field the cell prints (unit_price on sell docs, cost on the vendor PO).
+ * per-piece price (unit_price / cost) ÷ the piece area. Returns null for non-per-piece
+ * lines or when the rate can't be computed — callers show it as a "/sf" sub-figure
+ * beside the "/ea" tile price only "if available". Pass the same money field the cell
+ * prints (unit_price on sell docs, cost on the vendor PO).
+ *
+ * Piece area depends on the pricing basis:
+ *   per-sqft stone — unit_price = rate × sqft_per_box BY CONVENTION (isPerPieceSku),
+ *     so sqft_per_box is the divisor as-is, whatever the physical carton looks like.
+ *   per-unit goods — unit_price buys ONE physical piece, but sqft_per_box is the
+ *     CARTON's coverage when pieces_per_box > 1 (mosaic sheets: an ELY sheet covers
+ *     ~0.98 sf yet ships 11/box with sqft_per_box 10.77 — dividing by the carton
+ *     printed "$2.04/sf" on a $22.47/sf mosaic). Divide down to the piece; if
+ *     pieces_per_box isn't on the row, sqft_per_box can't be trusted as a piece
+ *     area — fall back to captured coverage ÷ pieces (sqft_needed / qty).
  */
 export function perPieceSfRate(i = {}, priceField = 'unit_price', qty) {
   if (!isPerPieceLine(i)) return null;
   const price = parseFloat(i[priceField]);
   if (!(price > 0)) return null;
+  const perSqftBasis = i.price_basis === 'per_sqft' || i.price_basis === 'sqft';
   let area = parseFloat(i.sqft_per_box);
+  if (!perSqftBasis && area > 0) {
+    const ppb = parseFloat(i.pieces_per_box);
+    area = ppb >= 1 ? area / ppb : 0;
+  }
   if (!(area > 0)) {
     const cov = parseFloat(i.sqft_needed);
     const q = parseFloat(qty != null ? qty : (i.num_boxes ?? i.quantity ?? i.qty));
@@ -861,7 +875,7 @@ export async function generatePOHtml(pool, poId) {
   const items = await pool.query(`
     SELECT poi.*, ma.url as primary_image, sk.internal_sku,
            sk.variant_name, sk.accessory_label, sk.variant_type,
-           pr.collection AS collection, pk.sqft_per_box, prc.price_basis,
+           pr.collection AS collection, pk.sqft_per_box, pk.pieces_per_box, prc.price_basis,
            sac.value AS color, sac_sz.value AS size
     FROM purchase_order_items poi
     LEFT JOIN skus sk ON sk.id = poi.sku_id

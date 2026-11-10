@@ -84,6 +84,7 @@ export async function getEstimateBundle(pool, { id = null, token = null, include
     SELECT ei.*, v.name as vendor_name, v.code as vendor_code, v.public_code as vendor_public_code, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name,
       s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size,
       p.collection as current_collection, COALESCE(ei.cost, pr.cost) as vendor_cost,
+      (SELECT pieces_per_box FROM packaging WHERE sku_id = ei.sku_id LIMIT 1) AS pieces_per_box,
       (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
        ORDER BY CASE WHEN ma.sku_id = ei.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
     FROM estimate_items ei

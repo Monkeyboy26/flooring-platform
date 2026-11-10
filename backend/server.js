@@ -630,6 +630,44 @@ function isPerPieceSku(priceBasis, sellBy, sqftPerBox) {
     && parseFloat(sqftPerBox || 0) > 0;
 }
 
+// Coverage area of ONE counted unit of a line (for sqft_needed = qty × area).
+// Box-sold tile counts cartons, so the carton's sqft_per_box is the per-qty
+// area. Per-sqft-basis per-piece stone uses sqft_per_box as the PIECE area by
+// convention (isPerPieceSku). Per-UNIT goods count physical pieces, but
+// sqft_per_box describes the CARTON — a multi-piece pack (mosaic sheets,
+// pieces_per_box > 1) must divide down, else coverage inflates by the pack
+// count (an 18-sheet ELY line stored 193.86 sf instead of 17.62). Returns
+// null when the per-piece area is unknowable (per-unit, pieces_per_box unknown).
+function perQtyCoverageArea({ price_basis, sell_by, sqft_per_box, pieces_per_box }) {
+  const spb = parseFloat(sqft_per_box || 0);
+  if (!(spb > 0)) return null;
+  if (sell_by !== 'unit' && sell_by !== 'piece') return spb;
+  if (price_basis === 'per_sqft' || price_basis === 'sqft') return spb;
+  const ppb = parseFloat(pieces_per_box || 0);
+  return ppb >= 1 ? spb / ppb : null;
+}
+
+// Server-authoritative sqft_needed for a piece-counted catalog line: clients
+// historically sent qty × sqft_per_box, which is qty × CARTON coverage for
+// per-unit mosaic sheets (11× inflated on ELY — RDQ-10129/RD-10130). For
+// unit/piece SKU lines, recompute from packaging via perQtyCoverageArea; an
+// unknowable piece area stores NULL rather than a wrong figure. Non-unit
+// lines (box tile, carpet, customs) keep the client-sent value.
+async function authoritativeSqftNeeded(db, skuId, clientSqftNeeded, qty) {
+  const fallback = clientSqftNeeded || null;
+  if (!skuId) return fallback;
+  const r = await db.query(`
+    SELECT s.sell_by, pr.price_basis, pk.sqft_per_box, pk.pieces_per_box
+    FROM skus s
+    LEFT JOIN pricing pr ON pr.sku_id = s.id
+    LEFT JOIN packaging pk ON pk.sku_id = s.id
+    WHERE s.id = $1`, [skuId]);
+  const sk = r.rows[0];
+  if (!sk || (sk.sell_by !== 'unit' && sk.sell_by !== 'piece')) return fallback;
+  const area = perQtyCoverageArea(sk);
+  return area ? parseFloat((area * (parseInt(qty) || 1)).toFixed(2)) : null;
+}
+
 app.get('/api/products', optionalTradeAuth, async (req, res) => {
   try {
     const { category } = req.query;
@@ -16287,6 +16325,7 @@ app.get('/api/trade/quotes/:id', tradeAuth, async (req, res) => {
       SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         COALESCE(qi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1)) AS price_basis,
         COALESCE(qi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1)) AS sqft_per_box,
+        (SELECT pieces_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1) AS pieces_per_box,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -16714,6 +16753,7 @@ async function loadPublicQuoteItems(quoteId) {
       sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
       COALESCE(qi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1)) AS price_basis,
       COALESCE(qi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1)) AS sqft_per_box,
+        (SELECT pieces_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1) AS pieces_per_box,
       (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
        ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
     FROM quote_items qi
@@ -16826,6 +16866,9 @@ app.get('/api/trade/quotes/:id/pdf', tradeAuth, async (req, res) => {
     const items = await pool.query(`
       SELECT qi.*, sk.variant_name, sk.accessory_label, sk.variant_type, sa_c.value as color, sa_sz.value as size,
         COALESCE(br.name, v.name) as vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) as brand_hidden, v.code as vendor_code, v.public_code as vendor_public_code, sk.vendor_sku, sk.internal_sku, p.collection as current_collection,
+        COALESCE(qi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(qi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1)) AS sqft_per_box,
+        (SELECT pieces_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1) AS pieces_per_box,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -16946,7 +16989,7 @@ async function generateOrderInvoiceHtml(orderId) {
   `, [orderId]);
   if (!order.rows.length) return null;
   const items = await pool.query(`
-    SELECT oi.*, p.sqft_per_box, sk.variant_name, sk.accessory_label, sk.variant_type,
+    SELECT oi.*, p.sqft_per_box, p.pieces_per_box, sk.variant_name, sk.accessory_label, sk.variant_type,
       sk.vendor_sku, sk.internal_sku, sa_c.value as color, sa_sz.value as size, v.name as vendor_name,
       pr.collection as collection,
       (SELECT url FROM media_assets WHERE product_id = COALESCE(sk.product_id, oi.product_id) AND asset_type = 'primary' ORDER BY CASE WHEN sku_id = oi.sku_id THEN 0 WHEN sku_id IS NULL THEN 1 ELSE 2 END, sort_order LIMIT 1) AS primary_image
@@ -17090,7 +17133,7 @@ async function generateCreditMemoHtml(returnId, { repId = null } = {}) {
 
   const items = await pool.query(`
     SELECT cmi.*, sk.variant_name, sk.vendor_sku, sa_c.value AS color, sa_sz.value AS size, COALESCE(br.name, v.name) AS vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code,
-      ri.reason, ri.condition, oi.sell_by, oi.sqft_needed, pk.sqft_per_box,
+      ri.reason, ri.condition, oi.sell_by, oi.sqft_needed, pk.sqft_per_box, pk.pieces_per_box,
       (SELECT url FROM media_assets WHERE product_id = COALESCE(sk.product_id, oi.product_id) AND asset_type = 'primary' ORDER BY CASE WHEN sku_id = oi.sku_id THEN 0 WHEN sku_id IS NULL THEN 1 ELSE 2 END, sort_order LIMIT 1) AS primary_image
     FROM credit_memo_items cmi
     LEFT JOIN order_items oi ON oi.id = cmi.order_item_id
@@ -20267,7 +20310,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
           SELECT s.id as sku_id, s.product_id, s.vendor_sku, s.variant_name, s.sell_by, s.is_sample,
             COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id, c.slug as category_slug,
             pr.retail_price, pr.retail_locked, pr.cost, pr.price_basis,
-            pk.sqft_per_box
+            pk.sqft_per_box, pk.pieces_per_box
           FROM skus s
           JOIN products p ON p.id = s.product_id
           LEFT JOIN categories c ON c.id = p.category_id
@@ -20288,7 +20331,8 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         // sqft (from the client, else num_boxes × 9) so the order line shows sqft
         // and the carpet PO computes real sqyd — never leave it null. Pricing is
         // unchanged (unitPrice × sqft/9 == unitPrice × sqyd).
-        const sqftNeeded = sqftPerBox > 0 ? sqftPerBox * numBoxes
+        const coverArea = perQtyCoverageArea(sku);
+        const sqftNeeded = coverArea ? parseFloat((coverArea * numBoxes).toFixed(2))
           : (sku.price_basis === 'per_sqyd'
               ? (item.sqft_needed ? parseFloat(item.sqft_needed) : numBoxes * 9)
               : null);
@@ -26950,7 +26994,7 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
         `, [quote.id, resolvedProductId, item.sku_id || null,
             item.product_name || null, item.collection || null,
             item.description || null,
-            item.sqft_needed || null, item.num_boxes || 1,
+            await authoritativeSqftNeeded(client, item.sku_id, item.sqft_needed, item.num_boxes), item.num_boxes || 1,
             parseFloat(item.unit_price || 0).toFixed(2),
             parseFloat(item.subtotal || 0).toFixed(2),
             item.sell_by || null,
@@ -27023,6 +27067,7 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
         COALESCE(qi.cost, pr.cost) as vendor_cost,
         COALESCE(qi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1)) AS price_basis,
         COALESCE(qi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1)) AS sqft_per_box,
+        (SELECT pieces_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1) AS pieces_per_box,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -27066,6 +27111,7 @@ app.get('/api/rep/quotes/:id', repAuth, async (req, res) => {
         COALESCE(qi.cost, pr.cost) as vendor_cost,
         COALESCE(qi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1)) AS price_basis,
         COALESCE(qi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1)) AS sqft_per_box,
+        (SELECT pieces_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1) AS pieces_per_box,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -27279,7 +27325,7 @@ app.post('/api/rep/quotes/:id/items', repAuth, async (req, res) => {
     `, [id, resolvedProductId, rug ? rug.sku_id : (sku_id || null),
         rug ? rug.product_name : (product_name || null), rug ? rug.collection : (collection || null),
         rug ? rug.description : (description || null),
-        rug ? null : (sqft_needed || null), rug ? rug.num_boxes : (num_boxes || 1),
+        rug ? null : await authoritativeSqftNeeded(client, sku_id, sqft_needed, num_boxes), rug ? rug.num_boxes : (num_boxes || 1),
         parseFloat((rug ? rug.unit_price : unit_price) || 0).toFixed(2),
         parseFloat((rug ? rug.subtotal : subtotal) || 0).toFixed(2),
         rug ? 'unit' : (sell_by || null),
@@ -27312,6 +27358,15 @@ app.put('/api/rep/quotes/:id/items/:itemId', repAuth, async (req, res) => {
 
     await client.query('BEGIN');
 
+    // Server-authoritative coverage for unit/piece SKU lines — stale clients
+    // send qty × carton sqft for mosaic sheets (see authoritativeSqftNeeded).
+    let effSqftNeeded = sqft_needed;
+    if (sqft_needed != null) {
+      const rowQ = await client.query('SELECT sku_id, num_boxes FROM quote_items WHERE id = $1 AND quote_id = $2', [itemId, id]);
+      const row = rowQ.rows[0];
+      if (row && row.sku_id) effSqftNeeded = await authoritativeSqftNeeded(client, row.sku_id, sqft_needed, num_boxes != null ? num_boxes : row.num_boxes);
+    }
+
     // cost is the rep-only margin basis; a blank clears it back to the catalog cost.
     const result = await client.query(`
       UPDATE quote_items SET
@@ -27326,7 +27381,7 @@ app.put('/api/rep/quotes/:id/items/:itemId', repAuth, async (req, res) => {
         cost = CASE WHEN $11 THEN $12 ELSE cost END
       WHERE id = $5 AND quote_id = $6
       RETURNING *
-    `, [num_boxes, unit_price, sqft_needed, subtotal, itemId, id, product_name, collection, description, sell_by,
+    `, [num_boxes, unit_price, effSqftNeeded, subtotal, itemId, id, product_name, collection, description, sell_by,
         Object.prototype.hasOwnProperty.call(req.body, 'cost'),
         (cost == null || cost === '') ? null : parseFloat(cost).toFixed(2)]);
 
@@ -27456,6 +27511,7 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
       SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         COALESCE(qi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1)) AS price_basis,
         COALESCE(qi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1)) AS sqft_per_box,
+        (SELECT pieces_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1) AS pieces_per_box,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -27554,6 +27610,7 @@ app.get('/api/rep/quotes/:id/preview', repAuth, async (req, res) => {
       SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         COALESCE(qi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1)) AS price_basis,
         COALESCE(qi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1)) AS sqft_per_box,
+        (SELECT pieces_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1) AS pieces_per_box,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -28027,6 +28084,9 @@ app.get('/api/rep/quotes/:id/pdf', repAuth, async (req, res) => {
     const items = await pool.query(`
       SELECT qi.*, sk.variant_name, sk.accessory_label, sk.variant_type, sa_c.value as color, sa_sz.value as size,
         COALESCE(br.name, v.name) as vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) as brand_hidden, v.code as vendor_code, v.public_code as vendor_public_code, sk.vendor_sku, sk.internal_sku, p.collection as current_collection,
+        COALESCE(qi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(qi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1)) AS sqft_per_box,
+        (SELECT pieces_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1) AS pieces_per_box,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -28156,6 +28216,7 @@ app.get('/api/admin/quotes/:id', staffAuth, async (req, res) => {
         COALESCE(qi.cost, pr.cost) as vendor_cost,
         COALESCE(qi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1)) AS price_basis,
         COALESCE(qi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1)) AS sqft_per_box,
+        (SELECT pieces_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1) AS pieces_per_box,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -28314,6 +28375,9 @@ app.get('/api/staff/quotes/:id/pdf', staffDocAuth, async (req, res) => {
     const items = await pool.query(`
       SELECT qi.*, sk.variant_name, sk.accessory_label, sk.variant_type, sa_c.value as color, sa_sz.value as size,
         COALESCE(br.name, v.name) as vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) as brand_hidden, v.code as vendor_code, v.public_code as vendor_public_code, sk.vendor_sku, sk.internal_sku, p.collection as current_collection,
+        COALESCE(qi.price_basis, (SELECT price_basis FROM pricing WHERE sku_id = qi.sku_id LIMIT 1)) AS price_basis,
+        COALESCE(qi.sqft_per_box, (SELECT sqft_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1)) AS sqft_per_box,
+        (SELECT pieces_per_box FROM packaging WHERE sku_id = qi.sku_id LIMIT 1) AS pieces_per_box,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -28758,7 +28822,7 @@ app.post('/api/rep/estimates/:id/items', repAuth, async (req, res) => {
       RETURNING *
     `, [id, rug ? 'material' : (item_type || 'material'), estResolvedProductId, rug ? rug.sku_id : (sku_id || null),
         rug ? rug.product_name : (product_name || null), rug ? rug.collection : (collection || null), rug ? rug.description : (description || null),
-        rug ? null : (sqft_needed || null), rug ? rug.num_boxes : (num_boxes || null), rug ? 'unit' : (sell_by || null),
+        rug ? null : await authoritativeSqftNeeded(client, sku_id, sqft_needed, num_boxes || quantity), rug ? rug.num_boxes : (num_boxes || null), rug ? 'unit' : (sell_by || null),
         rug ? null : (labor_category || null), rug ? null : (rate_type || null), rug ? null : (rate_sqft || null), rug ? null : (labor_sqft || null),
         parseFloat((rug ? rug.unit_price : unit_price) || 0).toFixed(2), rug ? rug.num_boxes : (quantity || 1),
         parseFloat((rug ? rug.subtotal : subtotal) || 0).toFixed(2), sort_order || 0, area_id || null,
@@ -28799,6 +28863,18 @@ app.put('/api/rep/estimates/:id/items/:itemId', repAuth, async (req, res) => {
 
     await client.query('BEGIN');
 
+    // Server-authoritative coverage for unit/piece SKU lines — stale clients
+    // send qty × carton sqft for mosaic sheets (see authoritativeSqftNeeded).
+    let effSqftNeeded = sqft_needed;
+    if (sqft_needed != null) {
+      const rowQ = await client.query('SELECT sku_id, num_boxes, quantity FROM estimate_items WHERE id = $1 AND estimate_id = $2', [itemId, id]);
+      const row = rowQ.rows[0];
+      if (row && row.sku_id) {
+        const effQty = num_boxes != null ? num_boxes : (quantity != null ? quantity : (row.num_boxes || row.quantity));
+        effSqftNeeded = await authoritativeSqftNeeded(client, row.sku_id, sqft_needed, effQty);
+      }
+    }
+
     // area_id can be set to NULL ("move to General"), so it can't use COALESCE:
     // only touch it when the key is present in the request body. cost is the
     // rep-only margin basis; a blank clears it back to the catalog cost.
@@ -28822,7 +28898,7 @@ app.put('/api/rep/estimates/:id/items/:itemId', repAuth, async (req, res) => {
         cost = CASE WHEN $19 THEN $20 ELSE cost END
       WHERE id = $17 AND estimate_id = $18
       RETURNING *
-    `, [product_name, collection, description, sqft_needed, num_boxes, sell_by,
+    `, [product_name, collection, description, effSqftNeeded, num_boxes, sell_by,
         labor_category, rate_type, rate_sqft, labor_sqft,
         unit_price, quantity, subtotal, sort_order,
         Object.prototype.hasOwnProperty.call(req.body, 'area_id'), req.body.area_id || null,
@@ -37154,6 +37230,33 @@ async function runMigrations() {
           AND COALESCE(is_custom_rug, false) = false;
     `);
     console.log('Migrations: Special Order sentinel product + custom-line product_id backfill applied');
+
+    // Phase 2 custom-item overhaul: explicit line_kind discriminator replacing the
+    // implicit sku_id/product_id/item_type/is_custom_rug detection scattered across
+    // ~55 read sites. A GENERATED STORED column (derived from same-row columns) so it
+    // auto-populates existing rows, can never drift, and needs no write-path edits.
+    // quote_items has no item_type (labor is an order/estimate concept). Samples stay
+    // an orthogonal is_sample flag, not a kind. [[custom-items-overhaul-phase0]]
+    await pool.query(`
+      ALTER TABLE order_items ADD COLUMN IF NOT EXISTS line_kind TEXT
+        GENERATED ALWAYS AS (
+          CASE WHEN COALESCE(item_type, 'material') = 'labor' THEN 'labor'
+               WHEN COALESCE(is_custom_rug, false) THEN 'rug'
+               WHEN sku_id IS NULL THEN 'custom'
+               ELSE 'catalog' END) STORED;
+      ALTER TABLE estimate_items ADD COLUMN IF NOT EXISTS line_kind TEXT
+        GENERATED ALWAYS AS (
+          CASE WHEN COALESCE(item_type, 'material') = 'labor' THEN 'labor'
+               WHEN COALESCE(is_custom_rug, false) THEN 'rug'
+               WHEN sku_id IS NULL THEN 'custom'
+               ELSE 'catalog' END) STORED;
+      ALTER TABLE quote_items ADD COLUMN IF NOT EXISTS line_kind TEXT
+        GENERATED ALWAYS AS (
+          CASE WHEN COALESCE(is_custom_rug, false) THEN 'rug'
+               WHEN sku_id IS NULL THEN 'custom'
+               ELSE 'catalog' END) STORED;
+    `);
+    console.log('Migrations: line_kind generated column applied');
     // Hard/soft 850 split is a Shaw-specific requirement — gate it behind an
     // explicit edi_config flag so other EDI vendors (Daltile/EF/TW) get ONE 850.
     await pool.query(`

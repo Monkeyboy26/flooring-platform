@@ -9464,7 +9464,13 @@
         // Carpet: quick-add qty is square yards (priced per sqyd); store coverage
         // as sqft (qty × 9) so the line reads correctly.
         const isCarpet = r.price_basis === 'per_sqyd' || sellBy === 'roll';
-        const sqftNeeded = isCarpet ? numBoxes * 9 : (sqftPerBox ? sqftPerBox * numBoxes : null);
+        // Per-unit pieces (mosaic sheets): sqft_per_box is the CARTON's coverage,
+        // not the sheet's — leave coverage to the server, which derives the true
+        // piece area from pieces_per_box. Per-piece stone keeps qty × sqft_per_box
+        // (there sqft_per_box IS the piece area by convention).
+        const sqftNeeded = isCarpet ? numBoxes * 9
+          : (isUnit && !isPerPieceRow(r)) ? null
+          : (sqftPerBox ? sqftPerBox * numBoxes : null);
         const needsSlab = slabNeedsSize(r);
         let subtotal;
         if (needsSlab) subtotal = 0;                      // priced once the rep enters slab size
@@ -9549,7 +9555,12 @@
             // Carpet: catalog qty is square yards; price is per sqyd. Store the
             // coverage as sqft (qty × 9) so the line reads correctly downstream.
             const isCarpet = p.price_basis === 'per_sqyd' || sellBy === 'roll';
-            const sqftNeeded = isCarpet ? qty * 9 : (sqftPerBox ? sqftPerBox * qty : null);
+            // Per-unit pieces (mosaic sheets): sqft_per_box is the CARTON — the
+            // server derives true coverage from pieces_per_box; sending qty ×
+            // carton inflated it 11× (RDQ-10129).
+            const sqftNeeded = isCarpet ? qty * 9
+              : (isUnit && !isPerPieceRow(p)) ? null
+              : (sqftPerBox ? sqftPerBox * qty : null);
             const needsSlab = slabNeedsSize(p);
             let subtotal;
             if (needsSlab) subtotal = 0;
@@ -9693,7 +9704,12 @@
               const isCarpet = item.price_basis === 'per_sqyd' || item.sell_by === 'roll';
               // Custom carpet: qty IS the sq ft (÷9 for price); catalog carpet: qty is sq yd (×9 → sqft coverage).
               const isCustomCarpet = isCarpet && item.is_custom;
-              const sqft = isCustomCarpet ? qty : (isCarpet ? qty * 9 : (item.sqft_per_box ? item.sqft_per_box * qty : 0));
+              // Per-unit pieces (mosaic sheets): sqft_per_box is the CARTON's
+              // coverage — leave coverage alone; the server derives it exactly.
+              const sqft = isCustomCarpet ? qty
+                : isCarpet ? qty * 9
+                : (isUnit && !isPerPieceRow(item)) ? 0
+                : (item.sqft_per_box ? item.sqft_per_box * qty : 0);
               let sub;
               if (isUnit) sub = item.unit_price * qty;
               else if (isCustomCarpet) sub = item.unit_price * (qty / 9);
@@ -21736,8 +21752,14 @@
           const price = tradeUnit(retail, p.retail_locked, discount);
           const sqftPerBox = parseFloat(p.sqft_per_box || 0);
           const sellBy = isCarpet ? 'roll' : (p.sell_by || 'box');
+          const isUnit = sellBy === 'unit' || sellBy === 'piece';
           const productName = p.display_name || p.name || p.product_name || '';
-          const sqftNeeded = isCarpet ? 9 * qty : sqftPerBox * qty;
+          // Per-unit pieces (mosaic sheets): sqft_per_box is the CARTON — the
+          // server derives true coverage from pieces_per_box (qty × carton
+          // inflated it 11×, RDQ-10129). Per-piece stone keeps the convention.
+          const sqftNeeded = isCarpet ? 9 * qty
+            : (isUnit && !isPerPieceRow(p)) ? null
+            : sqftPerBox * qty;
           const subtotal = isCarpet ? price * qty
             : (sellBy === 'unit' || sellBy === 'piece') ? price * qty
             : sqftNeeded > 0 ? price * sqftNeeded : price * qty;
@@ -23911,7 +23933,11 @@
         const sqftPerBox = parseFloat(sku.sqft_per_box || 0);
         const sellBy = isCarpet ? 'roll' : (sku.sell_by || 'box');
         const numBoxes = 1;
-        const sqftNeeded = isCarpet ? 9 : (sqftPerBox || 0);
+        // Per-unit pieces (mosaic sheets): sqft_per_box is the CARTON's coverage,
+        // not the piece's — store no coverage rather than an inflated one.
+        const sqftNeeded = isCarpet ? 9
+          : ((sellBy === 'unit' || sellBy === 'piece') && !isPerPieceRow(sku)) ? null
+          : (sqftPerBox || 0);
         const ovFactor = 1;
         const sub = isCarpet
           ? parseFloat((price * (sqftNeeded / 9) * ovFactor).toFixed(2))
@@ -23999,8 +24025,14 @@
           const price = tradeUnit(retail, p.retail_locked, discount);
           const sqftPerBox = parseFloat(p.sqft_per_box || 0);
           const sellBy = isCarpet ? 'roll' : (p.sell_by || 'box');
+          const isUnit = sellBy === 'unit' || sellBy === 'piece';
           const productName = p.display_name || p.name || p.product_name || '';
-          const sqftNeeded = isCarpet ? 9 * qty : sqftPerBox * qty;
+          // Per-unit pieces (mosaic sheets): sqft_per_box is the CARTON — the
+          // server derives true coverage from pieces_per_box (qty × carton
+          // inflated it 11×, RDQ-10129). Per-piece stone keeps the convention.
+          const sqftNeeded = isCarpet ? 9 * qty
+            : (isUnit && !isPerPieceRow(p)) ? null
+            : sqftPerBox * qty;
           const sub = isCarpet ? price * (sqftNeeded / 9) * ovFactor
             : (sellBy === 'unit' || sellBy === 'piece') ? price * qty
             : sqftNeeded > 0 ? sqftNeeded * ovFactor * price : price * qty;

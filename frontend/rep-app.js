@@ -6088,7 +6088,7 @@
       const sellBy = r.sell_by || "box";
       const isUnit = sellBy === "unit" || sellBy === "piece";
       const isCarpet = r.price_basis === "per_sqyd" || sellBy === "roll";
-      const sqftNeeded = isCarpet ? numBoxes * 9 : sqftPerBox ? sqftPerBox * numBoxes : null;
+      const sqftNeeded = isCarpet ? numBoxes * 9 : isUnit && !isPerPieceRow(r) ? null : sqftPerBox ? sqftPerBox * numBoxes : null;
       const needsSlab = slabNeedsSize(r);
       let subtotal;
       if (needsSlab) subtotal = 0;
@@ -6165,7 +6165,7 @@
           const sellBy = p.sell_by || "box";
           const isUnit = sellBy === "unit" || sellBy === "piece";
           const isCarpet = p.price_basis === "per_sqyd" || sellBy === "roll";
-          const sqftNeeded = isCarpet ? qty * 9 : sqftPerBox ? sqftPerBox * qty : null;
+          const sqftNeeded = isCarpet ? qty * 9 : isUnit && !isPerPieceRow(p) ? null : sqftPerBox ? sqftPerBox * qty : null;
           const needsSlab = slabNeedsSize(p);
           let subtotal;
           if (needsSlab) subtotal = 0;
@@ -6317,7 +6317,7 @@
             const isUnit = item.sell_by === "unit" || item.sell_by === "piece";
             const isCarpet = item.price_basis === "per_sqyd" || item.sell_by === "roll";
             const isCustomCarpet = isCarpet && item.is_custom;
-            const sqft = isCustomCarpet ? qty : isCarpet ? qty * 9 : item.sqft_per_box ? item.sqft_per_box * qty : 0;
+            const sqft = isCustomCarpet ? qty : isCarpet ? qty * 9 : isUnit && !isPerPieceRow(item) ? 0 : item.sqft_per_box ? item.sqft_per_box * qty : 0;
             let sub;
             if (isUnit) sub = item.unit_price * qty;
             else if (isCustomCarpet) sub = item.unit_price * (qty / 9);
@@ -14571,8 +14571,9 @@
         const price = tradeUnit(retail, p.retail_locked, discount);
         const sqftPerBox = parseFloat(p.sqft_per_box || 0);
         const sellBy = isCarpet ? "roll" : p.sell_by || "box";
+        const isUnit = sellBy === "unit" || sellBy === "piece";
         const productName = p.display_name || p.name || p.product_name || "";
-        const sqftNeeded = isCarpet ? 9 * qty : sqftPerBox * qty;
+        const sqftNeeded = isCarpet ? 9 * qty : isUnit && !isPerPieceRow(p) ? null : sqftPerBox * qty;
         const subtotal = isCarpet ? price * qty : sellBy === "unit" || sellBy === "piece" ? price * qty : sqftNeeded > 0 ? price * sqftNeeded : price * qty;
         toAdd.push({
           item: {
@@ -16149,7 +16150,7 @@
       const sqftPerBox = parseFloat(sku.sqft_per_box || 0);
       const sellBy = isCarpet ? "roll" : sku.sell_by || "box";
       const numBoxes = 1;
-      const sqftNeeded = isCarpet ? 9 : sqftPerBox || 0;
+      const sqftNeeded = isCarpet ? 9 : (sellBy === "unit" || sellBy === "piece") && !isPerPieceRow(sku) ? null : sqftPerBox || 0;
       const ovFactor = 1;
       const sub = isCarpet ? parseFloat((price * (sqftNeeded / 9) * ovFactor).toFixed(2)) : sellBy === "box" ? parseFloat((sqftNeeded * ovFactor * price).toFixed(2)) : parseFloat((numBoxes * price).toFixed(2));
       const newItem = {
@@ -16249,8 +16250,9 @@
         const price = tradeUnit(retail, p.retail_locked, discount);
         const sqftPerBox = parseFloat(p.sqft_per_box || 0);
         const sellBy = isCarpet ? "roll" : p.sell_by || "box";
+        const isUnit = sellBy === "unit" || sellBy === "piece";
         const productName = p.display_name || p.name || p.product_name || "";
-        const sqftNeeded = isCarpet ? 9 * qty : sqftPerBox * qty;
+        const sqftNeeded = isCarpet ? 9 * qty : isUnit && !isPerPieceRow(p) ? null : sqftPerBox * qty;
         const sub = isCarpet ? price * (sqftNeeded / 9) * ovFactor : sellBy === "unit" || sellBy === "piece" ? price * qty : sqftNeeded > 0 ? sqftNeeded * ovFactor * price : price * qty;
         toAdd.push({
           item: {
