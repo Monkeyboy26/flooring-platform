@@ -2880,6 +2880,206 @@
       );
     }
 
+    // Property-manager lead form — reuses the installation-inquiries endpoint
+    // (no new backend route); PM-specific fields are folded into the message.
+    function PMQuoteForm() {
+      const [f, setF] = useState({ name: '', company: '', email: '', phone: '', property: '', project: 'Unit turn', units: '', notes: '' });
+      const [submitted, setSubmitted] = useState(false);
+      const [error, setError] = useState('');
+      const [saving, setSaving] = useState(false);
+      const set = (k) => (e) => setF(p => ({ ...p, [k]: k === 'phone' ? formatPhone(e.target.value) : e.target.value }));
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+        if (f.name.trim().split(/\s+/).length < 2) { setError('Please enter a first and last name.'); return; }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) { setError('Please enter a valid email address.'); return; }
+        if (String(f.phone).replace(/\D/g, '').length < 10) { setError('Please enter a 10-digit phone number.'); return; }
+        setSaving(true);
+        const message = [
+          'Property manager inquiry.',
+          'Project type: ' + f.project,
+          f.units ? 'Number of units: ' + f.units : null,
+          f.property ? 'Property: ' + f.property : null,
+          f.notes ? 'Notes: ' + f.notes : null,
+        ].filter(Boolean).join('\n');
+        try {
+          const body = { customer_name: f.name, customer_email: f.email, phone: f.phone, company_name: f.company, zip_code: '', estimated_sqft: null, message, source: 'property-managers' };
+          const res = await fetch(API + '/api/installation-inquiries', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+          });
+          const data = await res.json();
+          if (data.error) { setError(data.error); setSaving(false); return; }
+          setSubmitted(true);
+          try { if (window.gtag) window.gtag('event', 'generate_lead', { lead_source: 'property_manager' }); } catch (e) {}
+        } catch (e) { setError('Unable to submit. Please try again.'); setSaving(false); }
+      };
+
+      if (submitted) return (
+        <div className="install-form-success">
+          <div className="install-form-success-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h3>Thank You!</h3>
+          <p>Your request is in — we'll call to schedule your walk-through within 1 business day.</p>
+        </div>
+      );
+
+      return (
+        <form className="pm-form" onSubmit={handleSubmit}>
+          {error && <div className="checkout-error">{error}</div>}
+          <div className="pm-fld"><label>Your name</label><input value={f.name} onChange={set('name')} autoComplete="name" required /></div>
+          <div className="pm-fld"><label>Management company</label><input value={f.company} onChange={set('company')} autoComplete="organization" /></div>
+          <div className="pm-fld-row">
+            <div className="pm-fld"><label>Email</label><input type="email" value={f.email} onChange={set('email')} autoComplete="email" required /></div>
+            <div className="pm-fld"><label>Phone</label><input type="tel" value={f.phone} onChange={set('phone')} autoComplete="tel" required /></div>
+          </div>
+          <div className="pm-fld"><label>Property address or city</label><input value={f.property} onChange={set('property')} /></div>
+          <div className="pm-fld-row">
+            <div className="pm-fld"><label>Project type</label>
+              <select value={f.project} onChange={set('project')}>
+                <option>Unit turn</option><option>Common areas</option><option>Kitchens &amp; baths</option><option>Countertops</option><option>Multi-unit / portfolio</option><option>Other</option>
+              </select>
+            </div>
+            <div className="pm-fld"><label>Number of units</label><input inputMode="numeric" value={f.units} onChange={set('units')} /></div>
+          </div>
+          <div className="pm-fld"><label>Anything we should know</label><textarea rows={3} value={f.notes} onChange={set('notes')} style={{ resize: 'vertical' }} /></div>
+          <button type="submit" className="btn btn-dark" disabled={saving} style={{ width: '100%' }}>{saving ? 'Sending…' : 'Request a walk-through'}</button>
+          <p className="pm-form-fine">Roma Flooring Designs · Licensed, bonded and insured · CSLB #830966</p>
+        </form>
+      );
+    }
+
+    function PropertyManagersPage() {
+      const takeOn = [
+        ['Unit turns', 'Worn floors swapped between tenants for durable, rental-ready LVP — supplied and installed so the unit shows faster.'],
+        ['Common areas', 'Lobbies, hallways, stairs, leasing offices and amenity spaces, finished to match the property.'],
+        ['Kitchens & baths', 'Countertops, tile, stone and cabinets, supplied and installed together on one quote.'],
+        ['Multi-unit projects', 'One building or a whole portfolio, held to the same spec and finish in every unit.'],
+      ];
+      const steps = [
+        ['1', 'We measure and quote', 'We walk the unit or property and send one written quote covering material and labor — no separate bids to reconcile.'],
+        ['2', 'You pick the material', 'Flooring, tile, stone and countertops from our Anaheim showroom, matched to your budget and the way the unit gets used.'],
+        ['3', 'We install it', 'Our own crew schedules and completes the work, so one company is accountable from the first measure to the finished floor.'],
+      ];
+      const proof = [
+        ['One vendor for material and labor', 'One written quote, one crew, one company accountable for the finished floor — not a supplier and an installer pointing at each other.'],
+        ['Crews that keep turns on schedule', 'Roma schedules and manages the job start to finish, so a vacant unit is back on the market sooner.'],
+        ['A full showroom behind every job', 'Flooring, tile, stone, countertops and cabinets, selected in Anaheim — consistent product you can re-order across the portfolio.'],
+        ['Paperwork your owners expect', 'License on every quote and additional-insured certificates on request — ready for your owner and lender files.'],
+      ];
+      const builtFor = [
+        ['One point of contact', 'A dedicated account contact who knows your property and handles every turn.'],
+        ['Volume pricing', 'Better pricing as your unit volume grows across a property or portfolio.'],
+        ['Insured, and additional-insured on request', 'License on every quote; certificates for your owner and lender files.'],
+        ['Consistent, re-orderable spec', 'The same flooring across units, easy to match on the next turn.'],
+      ];
+      const pmFaq = [
+        ['Are you licensed and insured?', 'Yes — Roma Flooring Designs is licensed, bonded and insured under CSLB #830966. The license number is on every quote, and we can provide an additional-insured certificate for your owner or lender files on request.'],
+        ['Can you handle a whole property or portfolio, not just one unit?', 'Yes. We handle unit turns, common areas and multi-unit projects across a single building or an entire portfolio, holding the same spec and finish in every unit.'],
+        ['Do you offer better pricing as our volume grows?', 'Yes. Pricing improves as unit volume grows across a property or portfolio — tell us your door count and we will scope it accordingly.'],
+        ['Who do we work with on each turn?', 'A dedicated account contact who knows your property and handles every turn, so you are not starting over with a new rep each time.'],
+        ['What flooring holds up best in rentals?', 'For high-turn units we usually recommend durable luxury vinyl plank — waterproof, scratch-resistant and easy to match on the next turn — but we also carry tile, stone, hardwood, carpet and countertops.'],
+        ['Do you supply the material and install it, or just one?', 'Both. We supply the material from our Anaheim showroom and install it with our own crew, so there is one written quote and one company accountable for the finished floor.'],
+        ['How fast can you turn a unit?', 'We schedule turns to get vacant units back on the market as quickly as possible — tell us your deadline and we will work to it.'],
+        ['Where do you work?', 'We serve Anaheim and all of Orange County — including Orange, Fullerton, Santa Ana, Irvine and the surrounding cities — from our Anaheim showroom.'],
+      ];
+      return (
+        <div className="pm-page">
+          <section className="pm-hero">
+            <div className="pm-hero-inner">
+              <div className="pm-hero-copy">
+                <div className="pm-eyebrow">For property managers</div>
+                <h1 className="pm-h1">We supply the floor. <em>And</em> we install it.</h1>
+                <p className="pm-hero-sub"><strong>27 years of flooring experience.</strong> One vendor for the whole floor — Roma supplies the material and installs it, so turns move faster and you're not managing a supplier and an installer between tenants.</p>
+                <div className="pm-hero-cta">
+                  <a href="#pm-quote" className="btn btn-dark">Request a walk-through</a>
+                  <a href="tel:+17149990009" className="pm-link">or call (714) 999-0009</a>
+                </div>
+                <div className="pm-hero-cred"><span><b>Licensed</b> · <b>Bonded</b> · <b>Insured</b></span><span className="pm-cslb">CSLB #830966</span></div>
+              </div>
+              <div className="pm-hero-photo" role="img" aria-label="Bright finished room with freshly installed wood-look flooring" style={{ backgroundImage: "url('/uploads/mannington-sheet/js71500-lifestyle-2.webp')" }} />
+            </div>
+          </section>
+
+          <section className="pm-stats">
+            <div className="pm-stats-inner">
+              <div className="pm-stat"><h3>27 years</h3><div className="pm-stat-k">Flooring experience</div></div>
+              <div className="pm-stat"><h3>Licensed</h3><div className="pm-stat-k">CSLB #830966</div></div>
+              <div className="pm-stat"><h3>Bonded</h3><div className="pm-stat-k">Contractor's bond</div></div>
+              <div className="pm-stat"><h3>Insured</h3><div className="pm-stat-k">Certificate on request</div></div>
+            </div>
+          </section>
+
+          <section className="pm-band pm-band--cream">
+            <div className="pm-band-inner">
+              <div className="pm-eyebrow">What we take on</div>
+              <h2 className="pm-h2">From a single unit to a <em>whole portfolio</em>.</h2>
+              <div className="pm-cols4">
+                {takeOn.map(([t, d]) => <div className="pm-col" key={t}><h4>{t}</h4><p>{d}</p></div>)}
+              </div>
+            </div>
+          </section>
+
+          <section className="pm-band pm-band--paper">
+            <div className="pm-band-inner">
+              <div className="pm-eyebrow">How it works</div>
+              <h2 className="pm-h2">One quote. One crew. <em>One</em> call to make.</h2>
+              <div className="pm-steps">
+                {steps.map(([n, t, d]) => <div className="pm-step" key={n}><div className="pm-step-num">{n}</div><h4>{t}</h4><p>{d}</p></div>)}
+              </div>
+            </div>
+          </section>
+
+          <section className="pm-band">
+            <div className="pm-band-inner pm-why">
+              <div className="pm-why-copy">
+                <div className="pm-eyebrow">Why managers call Roma</div>
+                <h2 className="pm-h2">27 years of flooring experience, <em>on every job</em>.</h2>
+                <p className="pm-lead-sub">You get a licensed, bonded and insured contractor who also stocks the material — one company accountable for the whole floor, from the first measure to the final walk-through. No chasing a separate supplier and installer, no gap where a turn stalls.</p>
+              </div>
+              <div className="pm-proof">
+                {proof.map(([t, d]) => <div className="pm-proof-item" key={t}><b>{t}</b><span>{d}</span></div>)}
+              </div>
+            </div>
+          </section>
+
+          <section className="pm-strip">
+            <div className="pm-strip-inner">
+              <div className="pm-eyebrow pm-strip-eyebrow">Built for property management</div>
+              <div className="pm-strip-grid">
+                {builtFor.map(([t, d]) => <div className="pm-strip-item" key={t}><b>{t}</b><span>{d}</span></div>)}
+              </div>
+            </div>
+          </section>
+
+          <section className="pm-faq">
+            <div className="install-faq-section">
+              <h2>Property manager questions</h2>
+              <InstallFAQ items={pmFaq} />
+            </div>
+          </section>
+
+          <section className="pm-band pm-band--paper" id="pm-quote">
+            <div className="pm-band-inner pm-quote">
+              <div className="pm-quote-info">
+                <div className="pm-eyebrow">Get a quote</div>
+                <h2 className="pm-h2">Request a free on-site <em>measure and quote</em>.</h2>
+                <p className="pm-lead-sub">Tell us about the property — one unit or a portfolio — and we'll get back to you to schedule a walk-through. Set up an account and your quotes, invoices and re-orders stay in one place.</p>
+                <div className="pm-quote-contact">
+                  <a className="pm-tel-lg" href="tel:+17149990009">(714) 999-0009</a>
+                  <a href="mailto:sales@romaflooringdesigns.com">sales@romaflooringdesigns.com</a>
+                  <div className="pm-addr">1440 S State College Blvd Ste 6M, Anaheim, CA 92806</div>
+                  <div className="pm-addr">Serving Anaheim, Orange, Fullerton, Santa Ana and all of Orange County.</div>
+                </div>
+              </div>
+              <div className="pm-quote-card"><PMQuoteForm /></div>
+            </div>
+          </section>
+        </div>
+      );
+    }
+
     function CabinetsPage({ onRequestQuote }) {
       const theme = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e6b' };
       return (
@@ -3665,6 +3865,12 @@
         window.scrollTo(0, 0);
       };
 
+      const goPropertyManagers = () => {
+        setView('property-managers');
+        history.pushState({ view: 'property-managers' }, '', '/property-managers');
+        window.scrollTo(0, 0);
+      };
+
       const [comingSoonTitle, setComingSoonTitle] = useState('');
       const [newsletterEmail, setNewsletterEmail] = useState('');
       const [newsletterSubmitted, setNewsletterSubmitted] = useState(false);
@@ -3779,6 +3985,10 @@
         }
         if (path === '/cabinets') {
           goCabinets();
+          return;
+        }
+        if (path === '/property-managers') {
+          goPropertyManagers();
           return;
         }
         if (path === '/terms' || path === '/privacy' || path === '/accessibility' || path === '/returns' || path === '/about') {
@@ -4397,6 +4607,8 @@
           setView('sale');
         } else if (path === '/cabinets') {
           setView('cabinets');
+        } else if (path === '/property-managers') {
+          setView('property-managers');
         } else if (path === '/terms') {
           setView('terms');
         } else if (path === '/privacy') {
@@ -4586,6 +4798,7 @@
           'custom-accessories': { title: 'Custom Tile Trim & Wood Floor Moldings | Roma Flooring Designs', description: 'Custom floor accessories in Anaheim & Orange County — bullnose, cut-downs, mosaics & tile stair treads fabricated from your tile, plus color-matched wood moldings & stair parts. Made to order. Call (714) 999-0009.', url: SITE_URL + '/custom-accessories', image: SITE_URL + '/uploads/og-default.jpg' },
         'custom-area-rugs': { title: 'Custom Area Rugs & Runners in Anaheim & Orange County | Roma Flooring Designs', description: 'Custom area rugs & runners in Anaheim & Orange County — cut and bound to any size and shape from wool, nylon & natural-fiber carpet, with serged, bound, or leather edges. Made to order. Call (714) 999-0009.', url: SITE_URL + '/custom-area-rugs', image: SITE_URL + '/uploads/og-default.jpg' },
           cabinets: { title: 'Custom Kitchen & Bath Cabinets in Anaheim & Orange County | Roma Flooring Designs', description: 'Custom kitchen & bath cabinets in Anaheim & Orange County — American-built face-frame and Italian-engineered frameless lines, designed in-house and installed by our crew. Visit our showroom. Call (714) 999-0009.', url: SITE_URL + '/cabinets', image: SITE_URL + '/uploads/og-default.jpg' },
+          'property-managers': { title: 'Flooring for Property Managers in Anaheim & Orange County | Roma Flooring Designs', description: 'One vendor for unit turns, common areas and full-property refreshes — materials and installation from Roma Flooring Designs. Licensed, bonded & insured, CSLB #830966. Request a free on-site measure. Call (714) 999-0009.', url: SITE_URL + '/property-managers', image: SITE_URL + '/uploads/og-default.jpg' },
         };
 
         // Dynamic SEO for filtered browse views
@@ -5011,6 +5224,10 @@
 
           {view === 'cabinets' && (
             <CabinetsPage onRequestQuote={() => { setInstallModalProduct(null); setShowInstallModal(true); }} />
+          )}
+
+          {view === 'property-managers' && (
+            <PropertyManagersPage />
           )}
 
           {view === 'about' && (
@@ -21206,6 +21423,7 @@
             <div className="footer-col">
               <h4>Services</h4>
               <a href="/installation" onClick={e => { e.preventDefault(); onInstallClick && onInstallClick(); }}>Flooring Installation</a>
+              <a href="/property-managers" onClick={e => { e.preventDefault(); navigate('/property-managers'); }}>Property Managers</a>
               <a href="#" onClick={e => { e.preventDefault(); navigate('/shop'); }}>Design Consultation</a>
               <a href="#" onClick={e => { e.preventDefault(); navigate('/shop'); }}>Room Visualizer</a>
               <a href="#" onClick={e => { e.preventDefault(); navigate('/shop'); }}>Free Samples</a>

@@ -4204,3 +4204,102 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 /* INP: skip style/layout work for the offscreen footer on every re-render.
    contain-intrinsic-size keeps the scrollbar stable before it's reached. */
 .footer { content-visibility: auto; contain-intrinsic-size: auto 520px; }
+
+/* ==================== Property Managers landing (/property-managers) ==================== */
+/* Implemented from the Claude Design "Roma-website" artboard "Property Managers Landing". */
+.pm-page { background: #fff; }
+.pm-page .pm-eyebrow { font-family: var(--font-body); font-weight: 500; font-size: 0.6875rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); }
+.pm-h1 { font-family: var(--font-heading); font-weight: 300; font-size: 3.6rem; line-height: 1.04; letter-spacing: -0.02em; margin: 0.6rem 0 0; color: var(--stone-900); }
+.pm-h1 em { font-style: italic; color: var(--gold); }
+.pm-h2 { font-family: var(--font-heading); font-weight: 400; font-size: 2.5rem; line-height: 1.08; letter-spacing: -0.01em; margin: 0.75rem 0 0; color: var(--stone-900); }
+.pm-h2 em { font-style: italic; color: var(--gold); }
+.pm-lead-sub { font-family: var(--font-body); font-size: 1rem; line-height: 1.65; color: var(--stone-600); margin-top: 1.1rem; max-width: 34em; }
+.pm-band-inner { max-width: 1180px; margin: 0 auto; padding: 0 40px; }
+.pm-band { padding: 5.4rem 0; }
+.pm-band--cream { background: var(--cream); }
+.pm-band--paper { background: #f1ece2; }
+
+/* Hero */
+.pm-hero { background: var(--warm-bg); }
+.pm-hero-inner { max-width: 1180px; margin: 0 auto; padding: 5.2rem 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
+.pm-hero-sub { font-family: var(--font-body); font-size: 1rem; line-height: 1.65; color: var(--stone-600); margin-top: 1.4rem; max-width: 30em; }
+.pm-hero-sub strong { color: var(--stone-900); font-weight: 600; }
+.pm-hero-cta { display: flex; align-items: center; gap: 1.4rem; margin-top: 1.9rem; flex-wrap: wrap; }
+.pm-link { font-family: var(--font-body); font-size: 0.875rem; color: var(--stone-900); text-decoration: underline; text-underline-offset: 3px; }
+.pm-hero-cred { margin-top: 2.5rem; font-family: var(--font-body); font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--warm-muted); display: flex; gap: 1.1rem; align-items: center; }
+.pm-hero-cred b { color: var(--stone-900); font-weight: 600; }
+.pm-hero-photo { aspect-ratio: 5 / 6; background: #d8cdb6 center/cover no-repeat; border: 1px solid rgba(0,0,0,0.06); }
+
+/* Dark stats bar */
+.pm-stats { background: var(--stone-900); color: #fff; }
+.pm-stats-inner { max-width: 1180px; margin: 0 auto; padding: 2.9rem 40px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; }
+.pm-stat h3 { font-family: var(--font-heading); font-weight: 300; font-size: 2.1rem; line-height: 1; color: var(--gold-light); margin: 0; }
+.pm-stat-k { font-family: var(--font-body); font-weight: 500; font-size: 0.625rem; letter-spacing: 0.18em; text-transform: uppercase; color: #a8a29e; margin-top: 0.6rem; }
+
+/* What we take on — 4 cols */
+.pm-cols4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; margin-top: 3rem; }
+.pm-col { border-top: 1px solid rgba(28,25,23,0.2); padding-top: 1rem; }
+.pm-col h4 { font-family: var(--font-heading); font-weight: 400; font-size: 1.35rem; line-height: 1.1; margin: 0; color: var(--stone-900); }
+.pm-col p { font-family: var(--font-body); font-size: 0.85rem; line-height: 1.5; color: var(--stone-600); margin-top: 0.5rem; }
+
+/* How it works — 3 steps */
+.pm-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.5rem; margin-top: 3rem; }
+.pm-step { border-top: 1px solid rgba(28,25,23,0.2); padding-top: 1.1rem; }
+.pm-step-num { font-family: var(--font-heading); font-weight: 300; font-size: 1.9rem; line-height: 1; color: var(--gold); }
+.pm-step h4 { font-family: var(--font-heading); font-weight: 400; font-size: 1.35rem; line-height: 1.1; margin: 0.65rem 0 0; color: var(--stone-900); }
+.pm-step p { font-family: var(--font-body); font-size: 0.85rem; line-height: 1.55; color: var(--stone-600); margin-top: 0.5rem; }
+
+/* Why managers call Roma — two column */
+.pm-why { display: grid; grid-template-columns: 1fr 1fr; gap: 4.5rem; align-items: start; }
+.pm-proof-item { padding: 1.1rem 0; border-top: 1px solid rgba(28,25,23,0.13); }
+.pm-proof-item:first-child { padding-top: 0; border-top: 0; }
+.pm-proof-item:last-child { border-bottom: 1px solid rgba(28,25,23,0.13); }
+.pm-proof-item b { display: block; font-family: var(--font-body); font-weight: 600; font-size: 0.875rem; line-height: 1.3; color: var(--stone-900); }
+.pm-proof-item span { display: block; font-family: var(--font-body); font-size: 0.85rem; line-height: 1.5; color: var(--stone-600); margin-top: 0.25rem; }
+
+/* Get a quote — info + form */
+.pm-quote { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 4rem; align-items: start; }
+.pm-quote-contact { margin-top: 1.9rem; }
+.pm-tel-lg { display: block; font-family: var(--font-heading); font-size: 1.65rem; color: var(--stone-900); text-decoration: none; }
+.pm-quote-contact a { display: block; font-family: var(--font-body); font-size: 0.875rem; color: var(--stone-900); margin-top: 0.5rem; text-decoration: none; }
+.pm-quote-contact a:hover { color: var(--gold); }
+.pm-addr { font-family: var(--font-body); font-size: 0.875rem; line-height: 1.6; color: var(--warm-muted); margin-top: 0.25rem; }
+.pm-quote-card { background: #fff; border: 1px solid rgba(28,25,23,0.12); padding: 2.1rem; box-shadow: 0 14px 40px -28px rgba(28,25,23,0.4); }
+.pm-form .pm-fld { margin-bottom: 1rem; }
+.pm-form .pm-fld-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.pm-form label { display: block; font-family: var(--font-body); font-weight: 500; font-size: 0.625rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--warm-muted); margin-bottom: 0.45rem; }
+.pm-form input, .pm-form select, .pm-form textarea { width: 100%; font-family: var(--font-body); font-size: 0.9375rem; color: var(--stone-900); background: #fdfcfa; border: 1px solid rgba(28,25,23,0.15); padding: 0.7rem 0.75rem; border-radius: 2px; }
+.pm-form input:focus, .pm-form select:focus, .pm-form textarea:focus { outline: none; border-color: var(--gold); background: #fff; }
+.pm-form .btn { margin-top: 0.5rem; }
+.pm-form-fine { font-family: var(--font-body); font-size: 0.72rem; line-height: 1.5; color: var(--warm-muted); margin-top: 1rem; }
+
+@media (max-width: 860px) {
+  .pm-hero-inner { grid-template-columns: 1fr; gap: 2.4rem; padding: 3.4rem 22px; }
+  .pm-band-inner, .pm-stats-inner { padding-left: 22px; padding-right: 22px; }
+  .pm-band { padding: 3.6rem 0; }
+  .pm-h1 { font-size: 2.6rem; }
+  .pm-h2 { font-size: 1.9rem; }
+  .pm-cols4 { grid-template-columns: 1fr 1fr; gap: 1.6rem; }
+  .pm-stats-inner { grid-template-columns: 1fr 1fr; gap: 1.6rem; }
+  .pm-steps, .pm-why, .pm-quote { grid-template-columns: 1fr; gap: 2rem; }
+  .pm-form .pm-fld-row { grid-template-columns: 1fr; gap: 0; }
+  .pm-form .pm-fld-row .pm-fld { margin-bottom: 1rem; }
+}
+
+/* PM — "Built for property management" strip */
+.pm-strip { background: var(--warm-bg); }
+.pm-strip-inner { max-width: 1180px; margin: 0 auto; padding: 3.6rem 40px; }
+.pm-strip-eyebrow { margin-bottom: 1.6rem; }
+.pm-strip-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; }
+.pm-strip-item { border-top: 2px solid var(--gold); padding-top: 0.9rem; }
+.pm-strip-item b { display: block; font-family: var(--font-body); font-weight: 600; font-size: 0.95rem; line-height: 1.3; color: var(--stone-900); }
+.pm-strip-item span { display: block; font-family: var(--font-body); font-size: 0.8rem; line-height: 1.5; color: var(--stone-600); margin-top: 0.4rem; }
+
+/* PM — FAQ band (reuses .install-faq-* component styles) */
+.pm-faq { background: #fff; }
+.pm-faq .install-faq-section h2 { font-family: var(--font-heading); font-weight: 400; }
+
+@media (max-width: 860px) {
+  .pm-strip-inner { padding: 2.6rem 22px; }
+  .pm-strip-grid { grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+}
