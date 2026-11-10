@@ -75,8 +75,8 @@ function publicPage({ title, inner }) {
   *{box-sizing:border-box;}
   body{margin:0;background:${T.inbox};font-family:${SANS};color:${T.ink};-webkit-font-smoothing:antialiased;}
   .wrap{max-width:520px;margin:0 auto;padding:44px 18px 56px;}
-  .brand{text-align:center;font-family:${SERIF};letter-spacing:0.34em;font-size:20px;color:${T.ink};margin-bottom:22px;}
-  .brand span{display:block;font-family:'Pinyon Script','Brush Script MT',${SERIF};letter-spacing:normal;font-size:26px;color:${T.accent};margin-top:-6px;}
+  .brand{text-align:center;margin-bottom:22px;}
+  .brand img{display:inline-block;border:0;width:226px;max-width:70%;height:auto;}
   .card{background:${T.paper};padding:40px 30px;text-align:center;}
   h1{font-family:${SERIF};font-weight:300;font-size:34px;line-height:1.05;margin:0 0 14px;letter-spacing:-0.01em;}
   h1 em{font-style:italic;}
@@ -95,7 +95,7 @@ function publicPage({ title, inner }) {
 </head>
 <body>
 <div class="wrap">
-  <div class="brand">ROMA FLOORING<span>Designs</span></div>
+  <div class="brand"><img src="${SITE_URL}/assets/logo/email-wordmark-inbox.png" width="226" height="57" alt="ROMA FLOORING Designs"></div>
   <div class="card">${inner}</div>
   <p class="foot">Roma Flooring Designs &middot; 1440 S. State College Blvd #6M, Anaheim, CA 92806 &middot; ${PHONE}</p>
 </div>

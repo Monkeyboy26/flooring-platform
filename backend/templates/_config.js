@@ -2,11 +2,12 @@ const BASE = process.env.SITE_URL || 'http://localhost:3001';
 export const LOGO_URL = BASE + '/assets/logo/roma-square.png';
 export const SITE_URL = BASE;
 
-// Text logo lockup — email-safe inline styles, centered, for light backgrounds.
-// Pinyon Script degrades to Brush Script MT / serif in clients without web fonts.
+// Logo lockup — pre-rendered wordmark image on white (backend/data/
+// gen-email-wordmark.mjs, 2x). Email clients strip @import webfonts, so the
+// old text lockup degraded to Times + a generic script face; the alt text
+// keeps the brand legible when images are blocked.
 export const LOGO_LOCKUP = `<div style="text-align:center;">
-<p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:24px;line-height:1;font-weight:400;letter-spacing:0.34em;color:#1c1917;">ROMA <span style="font-size:24px;letter-spacing:normal;color:#1c1917;">FLOORING</span></p>
-<p style="margin:-10px 0 0;font-family:'Pinyon Script','Brush Script MT','Segoe Script','Cormorant Garamond',cursive;font-size:33px;line-height:1;color:#a87935;">Designs</p>
+<img src="${BASE}/assets/logo/email-wordmark-white.png" width="272" height="68" alt="ROMA FLOORING Designs" style="display:inline-block;border:0;width:272px;max-width:80%;height:auto;">
 </div>`;
 
 // CAN-SPAM: every MARKETING email must include the physical address and a
