@@ -64,11 +64,6 @@ function laborRow(item, isLast) {
     : (num(item.quantity) > 1 ? `${money(item.unit_price)} &times; ${num(item.quantity).toFixed(0)}` : 'Flat rate');
 
   return `<tr>
-    <td width="72" valign="middle" style="padding:16px 16px 16px 0;${rowBorder}">
-      <div style="width:72px;height:72px;background:${T.warm};border:1px solid ${T.border};text-align:center;">
-        <span style="font-family:${MONO};font-size:9px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:${T.ink};line-height:72px;">Labor</span>
-      </div>
-    </td>
     <td valign="middle" style="padding:16px 0;${rowBorder}">
       <p style="margin:0;font-family:${SERIF};font-size:18px;line-height:1.2;letter-spacing:-0.012em;color:${T.ink};">${cat}</p>
       ${desc ? `<p style="margin:2px 0 0;font-family:${SANS};font-size:12px;line-height:1.4;color:${T.soft};">${desc}</p>` : ''}
