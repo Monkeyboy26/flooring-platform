@@ -23554,7 +23554,7 @@
         project_name: '',
         project_address_line1: '', project_address_line2: '',
         project_city: '', project_state: '', project_zip: '',
-        notes: '', internal_notes: '', sidemark: ''
+        notes: '', internal_notes: ''
       });
 
       // "✓ Saved" stays after a save until the rep adjusts the form again (the
@@ -23678,15 +23678,16 @@
               customer_name: data.estimate.customer_name || '',
               customer_email: data.estimate.customer_email || '',
               phone: data.estimate.phone || '',
-              project_name: data.estimate.project_name || '',
+              // Legacy estimates may have only a sidemark — surface it as the
+              // project name (the two fields were merged; see convert fallback)
+              project_name: data.estimate.project_name || data.estimate.sidemark || '',
               project_address_line1: data.estimate.project_address_line1 || '',
               project_address_line2: data.estimate.project_address_line2 || '',
               project_city: data.estimate.project_city || '',
               project_state: data.estimate.project_state || '',
               project_zip: data.estimate.project_zip || '',
               notes: data.estimate.notes || '',
-              internal_notes: data.estimate.internal_notes || '',
-              sidemark: data.estimate.sidemark || ''
+              internal_notes: data.estimate.internal_notes || ''
             });
             // Deposit: pre-fill the house default (percent/50) when it was never
             // set (type none/null AND value 0/null); otherwise show saved values.
@@ -25449,9 +25450,14 @@
               {/* Project */}
               <WizRepCard title="Project">
                 <div className="rof-field">
-                  <label>Project Name</label>
-                  <input type="text" placeholder="e.g. Kitchen Renovation" value={form.project_name} disabled={isReadonly}
-                    onChange={e => setForm(f => ({ ...f, project_name: e.target.value }))} />
+                  <label>Project Name / Sidemark</label>
+                  <SidemarkSelect value={form.project_name} disabled={isReadonly}
+                    onChange={v => setForm(f => ({ ...f, project_name: v }))}
+                    customerId={selectedCustomer && selectedCustomer.id} email={form.customer_email}
+                    placeholder="e.g. Smith Residence — Kitchen Renovation" />
+                  <div style={{ font: '400 0.6875rem/1.4 Inter, sans-serif', color: '#8a7e68', marginTop: '0.4rem' }}>
+                    Shown on the estimate email and PDF. Carried onto the order, vendor POs, and documents on conversion.
+                  </div>
                 </div>
                 <div className="rof-field-row">
                   <div className="rof-field">
@@ -25504,20 +25510,6 @@
                     <label>ZIP</label>
                     <input type="text" maxLength={10} value={form.project_zip} disabled={isReadonly}
                       onChange={e => setForm(f => ({ ...f, project_zip: e.target.value }))} />
-                  </div>
-                </div>
-              </WizRepCard>
-
-              {/* Sidemark / job reference — carried onto the order on conversion */}
-              <WizRepCard title="Sidemark">
-                <div className="rof-field" style={{ marginBottom: 0 }}>
-                  <label>Sidemark / job reference</label>
-                  <SidemarkSelect value={form.sidemark} disabled={isReadonly}
-                    onChange={v => setForm(f => ({ ...f, sidemark: v }))}
-                    customerId={selectedCustomer && selectedCustomer.id} email={form.customer_email}
-                    placeholder="e.g. Smith Residence — Master Bath" />
-                  <div style={{ font: '400 0.6875rem/1.4 Inter, sans-serif', color: '#8a7e68', marginTop: '0.4rem' }}>
-                    Prints on the order, vendor POs, and documents. Carried over when the estimate converts to an order.
                   </div>
                 </div>
               </WizRepCard>

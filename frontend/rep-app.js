@@ -15775,8 +15775,7 @@
       project_state: "",
       project_zip: "",
       notes: "",
-      internal_notes: "",
-      sidemark: ""
+      internal_notes: ""
     });
     useEffect(() => {
       setSavedFlash(false);
@@ -15888,15 +15887,16 @@
           customer_name: data.estimate.customer_name || "",
           customer_email: data.estimate.customer_email || "",
           phone: data.estimate.phone || "",
-          project_name: data.estimate.project_name || "",
+          // Legacy estimates may have only a sidemark — surface it as the
+          // project name (the two fields were merged; see convert fallback)
+          project_name: data.estimate.project_name || data.estimate.sidemark || "",
           project_address_line1: data.estimate.project_address_line1 || "",
           project_address_line2: data.estimate.project_address_line2 || "",
           project_city: data.estimate.project_city || "",
           project_state: data.estimate.project_state || "",
           project_zip: data.estimate.project_zip || "",
           notes: data.estimate.notes || "",
-          internal_notes: data.estimate.internal_notes || "",
-          sidemark: data.estimate.sidemark || ""
+          internal_notes: data.estimate.internal_notes || ""
         });
         const dt = data.estimate.deposit_type;
         const dv = parseFloat(data.estimate.deposit_value || 0);
@@ -17339,16 +17339,17 @@
           placeholder: "(555) 123-4567"
         }
       ))))
-    ), /* @__PURE__ */ React.createElement(WizRepCard, { title: "Project" }, /* @__PURE__ */ React.createElement("div", { className: "rof-field" }, /* @__PURE__ */ React.createElement("label", null, "Project Name"), /* @__PURE__ */ React.createElement(
-      "input",
+    ), /* @__PURE__ */ React.createElement(WizRepCard, { title: "Project" }, /* @__PURE__ */ React.createElement("div", { className: "rof-field" }, /* @__PURE__ */ React.createElement("label", null, "Project Name / Sidemark"), /* @__PURE__ */ React.createElement(
+      SidemarkSelect,
       {
-        type: "text",
-        placeholder: "e.g. Kitchen Renovation",
         value: form.project_name,
         disabled: isReadonly,
-        onChange: (e) => setForm((f) => ({ ...f, project_name: e.target.value }))
+        onChange: (v) => setForm((f) => ({ ...f, project_name: v })),
+        customerId: selectedCustomer && selectedCustomer.id,
+        email: form.customer_email,
+        placeholder: "e.g. Smith Residence \u2014 Kitchen Renovation"
       }
-    )), /* @__PURE__ */ React.createElement("div", { className: "rof-field-row" }, /* @__PURE__ */ React.createElement("div", { className: "rof-field" }, /* @__PURE__ */ React.createElement("label", null, "Project Address"), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("div", { style: { font: "400 0.6875rem/1.4 Inter, sans-serif", color: "#8a7e68", marginTop: "0.4rem" } }, "Shown on the estimate email and PDF. Carried onto the order, vendor POs, and documents on conversion.")), /* @__PURE__ */ React.createElement("div", { className: "rof-field-row" }, /* @__PURE__ */ React.createElement("div", { className: "rof-field" }, /* @__PURE__ */ React.createElement("label", null, "Project Address"), /* @__PURE__ */ React.createElement(
       "input",
       {
         ref: estAddrRef,
@@ -17416,17 +17417,7 @@
         disabled: isReadonly,
         onChange: (e) => setForm((f) => ({ ...f, project_zip: e.target.value }))
       }
-    )))), /* @__PURE__ */ React.createElement(WizRepCard, { title: "Sidemark" }, /* @__PURE__ */ React.createElement("div", { className: "rof-field", style: { marginBottom: 0 } }, /* @__PURE__ */ React.createElement("label", null, "Sidemark / job reference"), /* @__PURE__ */ React.createElement(
-      SidemarkSelect,
-      {
-        value: form.sidemark,
-        disabled: isReadonly,
-        onChange: (v) => setForm((f) => ({ ...f, sidemark: v })),
-        customerId: selectedCustomer && selectedCustomer.id,
-        email: form.customer_email,
-        placeholder: "e.g. Smith Residence \u2014 Master Bath"
-      }
-    ), /* @__PURE__ */ React.createElement("div", { style: { font: "400 0.6875rem/1.4 Inter, sans-serif", color: "#8a7e68", marginTop: "0.4rem" } }, "Prints on the order, vendor POs, and documents. Carried over when the estimate converts to an order."))), actionError && /* @__PURE__ */ React.createElement("div", { className: "rof-alert error", style: { marginBottom: "1rem", display: "flex", justifyContent: "space-between", gap: 12 } }, /* @__PURE__ */ React.createElement("span", null, actionError), /* @__PURE__ */ React.createElement("button", { className: "rof-btn-light", style: { padding: "0.15rem 0.5rem", fontSize: "0.5rem" }, onClick: () => setActionError(null) }, "Dismiss")), /* @__PURE__ */ React.createElement(
+    )))), actionError && /* @__PURE__ */ React.createElement("div", { className: "rof-alert error", style: { marginBottom: "1rem", display: "flex", justifyContent: "space-between", gap: 12 } }, /* @__PURE__ */ React.createElement("span", null, actionError), /* @__PURE__ */ React.createElement("button", { className: "rof-btn-light", style: { padding: "0.15rem 0.5rem", fontSize: "0.5rem" }, onClick: () => setActionError(null) }, "Dismiss")), /* @__PURE__ */ React.createElement(
       WizRepCard,
       {
         title: "Materials",

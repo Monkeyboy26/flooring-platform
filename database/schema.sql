@@ -2117,8 +2117,9 @@ CREATE TABLE IF NOT EXISTS estimates (
 );
 CREATE INDEX IF NOT EXISTS idx_estimates_rep ON estimates(sales_rep_id);
 CREATE INDEX IF NOT EXISTS idx_estimates_status ON estimates(status);
--- Sidemark / job reference (e.g. "Smith Residence — Master Bath"). Mirrors the
--- quotes.sidemark field; carried onto the order's job_name on conversion.
+-- LEGACY sidemark / job reference. The rep UI merged this into project_name
+-- (one "Project Name / Sidemark" field); kept for old rows — conversion to
+-- order/quote uses COALESCE(sidemark, project_name) for the job reference.
 ALTER TABLE estimates ADD COLUMN IF NOT EXISTS sidemark VARCHAR(200);
 
 -- Rooms/areas within an estimate ("Master Bath", "Kitchen"). Items reference an

@@ -21713,6 +21713,7 @@ async function getSidemarkSuggestions({ customerId, email }) {
         UNION ALL SELECT job_name AS val, created_at FROM orders
         UNION ALL SELECT sidemark AS val, created_at FROM sample_requests
         UNION ALL SELECT sidemark AS val, created_at FROM showroom_visits
+        UNION ALL SELECT COALESCE(NULLIF(btrim(sidemark), ''), project_name) AS val, created_at FROM estimates
       ) u WHERE val IS NOT NULL AND btrim(val) <> ''
       GROUP BY val ORDER BY last_used DESC LIMIT 25`);
     return r.rows.map(row => row.val);
@@ -21754,6 +21755,7 @@ async function getSidemarkSuggestions({ customerId, email }) {
       UNION ALL SELECT job_name AS val, created_at FROM orders WHERE ${withTrade}
       UNION ALL SELECT sidemark AS val, created_at FROM sample_requests WHERE ${noTrade}
       UNION ALL SELECT sidemark AS val, created_at FROM showroom_visits WHERE ${noTrade}
+      UNION ALL SELECT COALESCE(NULLIF(btrim(sidemark), ''), project_name) AS val, created_at FROM estimates WHERE ${noTrade}
     ) u WHERE val IS NOT NULL AND btrim(val) <> ''
     GROUP BY val ORDER BY last_used DESC LIMIT 100`, params);
   return r.rows.map(row => row.val);
@@ -29583,13 +29585,14 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
     const quoteResult = await client.query(`
       INSERT INTO quotes (quote_number, sales_rep_id, customer_name, customer_email, phone,
         shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
-        notes, customer_id, delivery_method)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'shipping')
+        notes, customer_id, delivery_method, sidemark)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'shipping', $13)
       RETURNING *
     `, [quoteNumber, req.rep.id, e.customer_name, e.customer_email, e.phone,
         e.project_address_line1 || null, e.project_address_line2 || null,
         e.project_city || null, e.project_state || null, e.project_zip || null,
-        quoteNotes, cust.id]);
+        quoteNotes, cust.id,
+        String(e.sidemark || e.project_name || '').trim().slice(0, 200) || null]);
 
     const quote = quoteResult.rows[0];
 
@@ -29735,10 +29738,13 @@ async function convertEstimateToOrderTx(client, e, materialItems, laborItems, op
 
   const order = orderResult.rows[0];
 
-  // Carry the estimate's sidemark onto the order as job_name (same as the quote
-  // convert path) — it prints on the order, vendor POs, and documents.
-  if (e.sidemark && String(e.sidemark).trim()) {
-    await client.query('UPDATE orders SET job_name = $1 WHERE id = $2', [String(e.sidemark).trim().slice(0, 200), order.id]);
+  // Carry the estimate's job reference onto the order as job_name (same as the
+  // quote convert path) — it prints on the order, vendor POs, and documents.
+  // project_name is the live field (the UI merged sidemark into it); legacy
+  // estimates may only have sidemark, which wins when both exist.
+  const jobRef = String(e.sidemark || e.project_name || '').trim();
+  if (jobRef) {
+    await client.query('UPDATE orders SET job_name = $1 WHERE id = $2', [jobRef.slice(0, 200), order.id]);
   }
 
   // Copy material items to order items (custom rug metadata + cost carried so the
