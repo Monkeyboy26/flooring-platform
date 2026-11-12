@@ -15854,7 +15854,14 @@
     const [previewLoading, setPreviewLoading] = useState(false);
     const [sendFeedback, setSendFeedback] = useState(null);
     const [sending, setSending] = useState(false);
-    const [sendTo, setSendTo] = useState("");
+    const [previewRecipients, setPreviewRecipients] = useState([]);
+    const [recipientDraft, setRecipientDraft] = useState("");
+    const addRecipient = (raw) => {
+      const found = String(raw).split(/[\s,;]+/).map((s) => s.trim()).filter((s) => s && isValidEmail(s));
+      if (found.length) setPreviewRecipients((prev) => [.../* @__PURE__ */ new Set([...prev, ...found])]);
+      setRecipientDraft("");
+    };
+    const removeRecipient = (email) => setPreviewRecipients((prev) => prev.filter((e) => e !== email));
     const [pdfViewer, setPdfViewer] = useState(null);
     const [showConvertQuoteModal, setShowConvertQuoteModal] = useState(false);
     const [showConvertOrderModal, setShowConvertOrderModal] = useState(false);
@@ -16642,7 +16649,8 @@
     };
     const sendEstimate = async () => {
       if (!estimate || sending) return;
-      const recipients = sendTo.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+      const draft = recipientDraft.trim();
+      const recipients = [.../* @__PURE__ */ new Set([...previewRecipients, ...isValidEmail(draft) ? [draft] : []])];
       if (!recipients.length) {
         setSendFeedback("Add at least one recipient email.");
         return;
@@ -16722,13 +16730,18 @@
         return;
       }
       setPreviewLoading(true);
+      setShowPreview(true);
+      setPreviewHtml("");
+      setPreviewMeta(null);
       try {
         const data = await repFetch("/api/rep/estimates/" + estimate.id + "/preview");
         setPreviewHtml(data.html);
         setPreviewMeta(data);
-        setSendTo(data && data.to || form.customer_email || "");
-        setShowPreview(true);
+        const to = data && data.to || form.customer_email || "";
+        setPreviewRecipients(to ? [to] : []);
+        setRecipientDraft("");
       } catch (e) {
+        setPreviewHtml('<p style="padding:2rem;color:#dc2626;">Failed to load email preview.</p>');
       }
       setPreviewLoading(false);
     };
@@ -17603,22 +17616,46 @@
         onClose: () => setRugModalItem(null),
         onAdd: addRugToEstimate
       }
-    ), showPreview && /* @__PURE__ */ React.createElement("div", { className: "modal-backdrop", onClick: () => setShowPreview(false) }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", onClick: (e) => e.stopPropagation(), style: { maxWidth: 700 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h2", null, "Email Preview"), /* @__PURE__ */ React.createElement("button", { className: "modal-close", onClick: () => setShowPreview(false) }, "x")), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, previewMeta && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "1rem", fontSize: "0.8125rem", color: "var(--stone-500)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 4 } }, /* @__PURE__ */ React.createElement("strong", { style: { flexShrink: 0 } }, "To:"), /* @__PURE__ */ React.createElement(
+    ), showPreview && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay", onClick: () => setShowPreview(false) }, /* @__PURE__ */ React.createElement("div", { className: "modal-box modal-wide qw-email-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "qw-email-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "qw-email-eyebrow" }, "\u25CF", " Email preview"), /* @__PURE__ */ React.createElement("h3", { style: { margin: "3px 0 0" } }, previewMeta ? previewMeta.subject : "Estimate email")), /* @__PURE__ */ React.createElement("button", { className: "qw-email-x", onClick: () => setShowPreview(false), "aria-label": "Close" }, "\u2715")), previewLoading ? /* @__PURE__ */ React.createElement("div", { className: "qw-email-loading" }, "Loading preview", "\u2026") : /* @__PURE__ */ React.createElement(React.Fragment, null, previewMeta && /* @__PURE__ */ React.createElement("div", { className: "qw-email-meta" }, /* @__PURE__ */ React.createElement("div", { className: "qw-email-row" }, /* @__PURE__ */ React.createElement("span", { className: "qw-email-k" }, "To"), /* @__PURE__ */ React.createElement("div", { className: "qw-recip-field", onClick: (e) => {
+      const el = e.currentTarget.querySelector("input");
+      if (el) el.focus();
+    } }, previewRecipients.map((r) => /* @__PURE__ */ React.createElement("span", { className: "qw-recip-chip", key: r }, r, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => removeRecipient(r), "aria-label": "Remove " + r }, "\u2715"))), /* @__PURE__ */ React.createElement(
       "input",
       {
-        type: "text",
-        value: sendTo,
-        onChange: (e) => setSendTo(e.target.value),
-        placeholder: "customer@example.com, ap@example.com",
-        style: { flex: 1, padding: "0.35rem 0.5rem", border: "1px solid var(--stone-200)", fontSize: "0.8125rem", color: "var(--stone-800)" }
+        type: "email",
+        value: recipientDraft,
+        placeholder: previewRecipients.length ? "Add another\u2026" : "name@email.com",
+        onChange: (e) => setRecipientDraft(e.target.value),
+        onKeyDown: (e) => {
+          if ((e.key === "Enter" || e.key === "," || e.key === ";") && recipientDraft.trim()) {
+            e.preventDefault();
+            addRecipient(recipientDraft);
+          } else if (e.key === "Backspace" && !recipientDraft && previewRecipients.length) {
+            removeRecipient(previewRecipients[previewRecipients.length - 1]);
+          }
+        },
+        onBlur: () => {
+          if (recipientDraft.trim()) addRecipient(recipientDraft);
+        }
       }
-    )), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.6875rem", color: "var(--stone-400)", marginBottom: 6 } }, "Separate multiple recipients with commas \xB7 doesn't change the saved customer"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, "Subject:"), " ", previewMeta.subject), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, "Reply-To:"), " ", previewMeta.reply_to)), /* @__PURE__ */ React.createElement("div", { style: { border: "1px solid var(--stone-200)", borderRadius: "var(--radius-sm)", maxHeight: 400, overflowY: "auto" } }, /* @__PURE__ */ React.createElement("iframe", { srcDoc: previewHtml, sandbox: "", style: { width: "100%", height: 400, border: "none" } }))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", onClick: () => setShowPreview(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: sendEstimate, disabled: sending }, sending ? "Sending\u2026" : "Send to Customer")))), showConvertQuoteModal && /* @__PURE__ */ React.createElement("div", { className: "modal-backdrop", onClick: () => setShowConvertQuoteModal(false) }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", onClick: (e) => e.stopPropagation(), style: { maxWidth: 500 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h2", null, "Convert to Quote"), /* @__PURE__ */ React.createElement("button", { className: "modal-close", onClick: () => setShowConvertQuoteModal(false) }, "x")), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("p", { style: { marginBottom: "1rem", fontSize: "0.875rem", color: "var(--stone-600)" } }, "This will create a new quote with ", /* @__PURE__ */ React.createElement("strong", null, materialItems.length, " material item", materialItems.length !== 1 ? "s" : ""), " totaling ", /* @__PURE__ */ React.createElement("strong", null, "$", parseFloat(estimate.materials_subtotal || 0).toFixed(2)), "."), laborItems.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { padding: "0.75rem", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "var(--radius-sm)", fontSize: "0.8125rem", marginBottom: "1rem" } }, /* @__PURE__ */ React.createElement("strong", null, laborItems.length, " labor item", laborItems.length !== 1 ? "s" : ""), " totaling ", /* @__PURE__ */ React.createElement("strong", null, "$", parseFloat(estimate.labor_subtotal || 0).toFixed(2)), " will be excluded from the quote but summarized in the quote notes.", /* @__PURE__ */ React.createElement("div", { style: { marginTop: "0.5rem", color: "#8a7e68" } }, "Tip: convert to an ", /* @__PURE__ */ React.createElement("strong", null, "order"), " instead to bill labor alongside materials."))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", onClick: () => setShowConvertQuoteModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: () => convertToQuote(), disabled: converting }, converting ? "Converting..." : "Convert to Quote")))), showConvertOrderModal && (() => {
+    ))), /* @__PURE__ */ React.createElement("div", { className: "qw-email-row" }, /* @__PURE__ */ React.createElement("span", { className: "qw-email-k" }, "Reply-To"), /* @__PURE__ */ React.createElement("span", { className: "qw-email-v" }, previewMeta.reply_to))), /* @__PURE__ */ React.createElement("iframe", { className: "qw-email-frame", srcDoc: previewHtml, sandbox: "", title: "Email preview" })), /* @__PURE__ */ React.createElement("div", { className: "qw-email-actions" }, /* @__PURE__ */ React.createElement("span", { className: "qw-email-count" }, (() => {
+      const n = previewRecipients.length + (isValidEmail(recipientDraft.trim()) ? 1 : 0);
+      return n + " recipient" + (n === 1 ? "" : "s");
+    })()), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "0.5rem" } }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", onClick: () => setShowPreview(false) }, "Cancel"), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-primary",
+        onClick: sendEstimate,
+        disabled: sending || previewLoading || previewRecipients.length === 0 && !isValidEmail(recipientDraft.trim())
+      },
+      sending ? "Sending\u2026" : "Confirm & Send"
+    ))))), showConvertQuoteModal && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay", onClick: () => setShowConvertQuoteModal(false) }, /* @__PURE__ */ React.createElement("div", { className: "modal-box", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("h3", null, "Convert to Quote"), /* @__PURE__ */ React.createElement("p", { style: { marginBottom: "1rem", fontSize: "0.875rem", color: "var(--stone-600)" } }, "This will create a new quote with ", /* @__PURE__ */ React.createElement("strong", null, materialItems.length, " material item", materialItems.length !== 1 ? "s" : ""), " totaling ", /* @__PURE__ */ React.createElement("strong", null, "$", parseFloat(estimate.materials_subtotal || 0).toFixed(2)), "."), laborItems.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { padding: "0.75rem", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "var(--radius-sm)", fontSize: "0.8125rem", marginBottom: "1rem" } }, /* @__PURE__ */ React.createElement("strong", null, laborItems.length, " labor item", laborItems.length !== 1 ? "s" : ""), " totaling ", /* @__PURE__ */ React.createElement("strong", null, "$", parseFloat(estimate.labor_subtotal || 0).toFixed(2)), " will be excluded from the quote but summarized in the quote notes.", /* @__PURE__ */ React.createElement("div", { style: { marginTop: "0.5rem", color: "#8a7e68" } }, "Tip: convert to an ", /* @__PURE__ */ React.createElement("strong", null, "order"), " instead to bill labor alongside materials.")), /* @__PURE__ */ React.createElement("div", { className: "modal-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", onClick: () => setShowConvertQuoteModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: () => convertToQuote(), disabled: converting }, converting ? "Converting..." : "Convert to Quote")))), showConvertOrderModal && (() => {
       const total = parseFloat(estimate.total || 0);
       const depositNum = Math.max(0, Math.min(parseFloat(convertDeposit) || 0, total));
       const balance = Math.max(0, parseFloat((total - depositNum).toFixed(2)));
       const isFull = depositNum >= total - 5e-3;
       const primaryLabel = converting ? "Working\u2026" : convertOnTerms ? "Start on terms" : isFull ? "Collect $" + total.toFixed(2) + " & create order" : "Collect $" + depositNum.toFixed(2) + " & create order";
-      return /* @__PURE__ */ React.createElement("div", { className: "modal-backdrop", onClick: () => setShowConvertOrderModal(false) }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", onClick: (e) => e.stopPropagation(), style: { maxWidth: 500 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h2", null, "Create order"), /* @__PURE__ */ React.createElement("button", { className: "modal-close", onClick: () => setShowConvertOrderModal(false) }, "x")), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("p", { style: { marginBottom: "0.85rem", fontSize: "0.8125rem", color: "var(--stone-600)", lineHeight: 1.5 } }, "Creates an order at the estimate pricing \u2014 ", [
+      return /* @__PURE__ */ React.createElement("div", { className: "modal-overlay", onClick: () => setShowConvertOrderModal(false) }, /* @__PURE__ */ React.createElement("div", { className: "modal-box", onClick: (e) => e.stopPropagation(), style: { maxHeight: "85vh", overflowY: "auto" } }, /* @__PURE__ */ React.createElement("h3", null, "Create order"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { style: { marginBottom: "0.85rem", fontSize: "0.8125rem", color: "var(--stone-600)", lineHeight: 1.5 } }, "Creates an order at the estimate pricing \u2014 ", [
         materialItems.length > 0 ? materialItems.length + " material item" + (materialItems.length !== 1 ? "s" : "") : null,
         laborItems.length > 0 ? laborItems.length + " labor item" + (laborItems.length !== 1 ? "s" : "") : null
       ].filter(Boolean).join(" and "), materialItems.length > 0 && laborItems.length > 0 ? " (tax on materials only)" : "", ". Order total ", /* @__PURE__ */ React.createElement("strong", null, "$", total.toFixed(2)), "."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: "1rem" } }, /* @__PURE__ */ React.createElement(
@@ -17666,7 +17703,7 @@
           onClick: () => setConvertDeposit(total.toFixed(2))
         },
         "Full"
-      )), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 6, fontSize: "0.75rem", color: "var(--stone-500)" } }, isFull ? "Paid in full \u2014 no balance due." : /* @__PURE__ */ React.createElement(React.Fragment, null, "Balance due after: ", /* @__PURE__ */ React.createElement("strong", null, "$", balance.toFixed(2)), " (bill later with a payment request)."))), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", null, "Payment Method"), /* @__PURE__ */ React.createElement("select", { className: "form-input", value: convertMethod, onChange: (e) => setConvertMethod(e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "cash" }, "Cash"), /* @__PURE__ */ React.createElement("option", { value: "check" }, "Check"), /* @__PURE__ */ React.createElement("option", { value: "card" }, "Card"), /* @__PURE__ */ React.createElement("option", { value: "offline" }, "Offline / Other"))))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", onClick: () => setShowConvertOrderModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: () => convertToOrder(), disabled: converting }, primaryLabel))));
+      )), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 6, fontSize: "0.75rem", color: "var(--stone-500)" } }, isFull ? "Paid in full \u2014 no balance due." : /* @__PURE__ */ React.createElement(React.Fragment, null, "Balance due after: ", /* @__PURE__ */ React.createElement("strong", null, "$", balance.toFixed(2)), " (bill later with a payment request)."))), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", null, "Payment Method"), /* @__PURE__ */ React.createElement("select", { className: "form-input", value: convertMethod, onChange: (e) => setConvertMethod(e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "cash" }, "Cash"), /* @__PURE__ */ React.createElement("option", { value: "check" }, "Check"), /* @__PURE__ */ React.createElement("option", { value: "card" }, "Card"), /* @__PURE__ */ React.createElement("option", { value: "offline" }, "Offline / Other"))))), /* @__PURE__ */ React.createElement("div", { className: "modal-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", onClick: () => setShowConvertOrderModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: () => convertToOrder(), disabled: converting }, primaryLabel))));
     })());
   }
   function RepCashDrawerView({ navigate }) {
@@ -18309,7 +18346,7 @@
       /* @__PURE__ */ React.createElement("span", { className: "pl-status", style: { color: getStatusTone(po.status) } }, "\u25CF", " ", po.status),
       /* @__PURE__ */ React.createElement("span", { className: "pl-age" }, getAge(po.created_at)),
       /* @__PURE__ */ React.createElement("span", { style: { font: '400 14px/1 "Cormorant Garamond", serif', color: "var(--brass-muted)", textAlign: "right" } }, "\u2192")
-    )), filteredPOs.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { padding: "40px 22px", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { color: "var(--brass-muted)", font: "400 13px/1.4 Inter, sans-serif", marginBottom: tab === "standalone" ? 14 : 0 } }, tab === "order" ? "No order-linked purchase orders match this view." : "No standalone purchase orders match this view."), tab === "standalone" && /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn", onClick: () => setShowCreate(true) }, "+ New purchase order")), filteredPOs.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "pl-footer" }, /* @__PURE__ */ React.createElement("span", null, filteredPOs.length, " purchase order", filteredPOs.length !== 1 ? "s" : ""), /* @__PURE__ */ React.createElement("span", null, "$", viewSubtotal.toLocaleString(void 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 }), " combined subtotal"))), showCreate && /* @__PURE__ */ React.createElement("div", { className: "modal-backdrop", onClick: () => setShowCreate(false) }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", onClick: (e) => e.stopPropagation(), style: { maxWidth: "480px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h2", null, "New Purchase Order")), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", null, "Vendor *"), /* @__PURE__ */ React.createElement(
+    )), filteredPOs.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { padding: "40px 22px", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { color: "var(--brass-muted)", font: "400 13px/1.4 Inter, sans-serif", marginBottom: tab === "standalone" ? 14 : 0 } }, tab === "order" ? "No order-linked purchase orders match this view." : "No standalone purchase orders match this view."), tab === "standalone" && /* @__PURE__ */ React.createElement("button", { className: "ol-header-btn", onClick: () => setShowCreate(true) }, "+ New purchase order")), filteredPOs.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "pl-footer" }, /* @__PURE__ */ React.createElement("span", null, filteredPOs.length, " purchase order", filteredPOs.length !== 1 ? "s" : ""), /* @__PURE__ */ React.createElement("span", null, "$", viewSubtotal.toLocaleString(void 0, { minimumFractionDigits: 0, maximumFractionDigits: 0 }), " combined subtotal"))), showCreate && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay", onClick: () => setShowCreate(false) }, /* @__PURE__ */ React.createElement("div", { className: "modal-box", onClick: (e) => e.stopPropagation(), style: { maxHeight: "85vh", overflowY: "auto" } }, /* @__PURE__ */ React.createElement("h3", null, "New Purchase Order"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", null, "Vendor *"), /* @__PURE__ */ React.createElement(
       "select",
       {
         value: newVendorId,
@@ -18360,7 +18397,7 @@
         placeholder: "Optional notes...",
         style: { width: "100%", minHeight: "80px", padding: "0.5rem", border: "1px solid var(--stone-300)", borderRadius: "6px", fontFamily: "Inter, sans-serif", resize: "vertical" }
       }
-    ))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", onClick: () => setShowCreate(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: !newVendorId || creating, onClick: createPO }, creating ? "Creating..." : "Create PO")))));
+    ))), /* @__PURE__ */ React.createElement("div", { className: "modal-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", onClick: () => setShowCreate(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: !newVendorId || creating, onClick: createPO }, creating ? "Creating..." : "Create PO")))));
   }
   const PD_INK = "#1c1917";
   const PD_PAPER = "#ece5d8";

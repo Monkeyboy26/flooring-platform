@@ -23634,9 +23634,16 @@
       const [previewLoading, setPreviewLoading] = useState(false);
       const [sendFeedback, setSendFeedback] = useState(null);
       const [sending, setSending] = useState(false);
-      // Editable recipient list in the preview modal (comma/space separated);
-      // defaults to the customer email, lets the rep retarget / add recipients.
-      const [sendTo, setSendTo] = useState('');
+      // Editable recipient chips in the preview modal — defaults to the
+      // customer email, lets the rep retarget / add recipients.
+      const [previewRecipients, setPreviewRecipients] = useState([]);
+      const [recipientDraft, setRecipientDraft] = useState('');
+      const addRecipient = (raw) => {
+        const found = String(raw).split(/[\s,;]+/).map(s => s.trim()).filter(s => s && isValidEmail(s));
+        if (found.length) setPreviewRecipients(prev => [...new Set([...prev, ...found])]);
+        setRecipientDraft('');
+      };
+      const removeRecipient = (email) => setPreviewRecipients(prev => prev.filter(e => e !== email));
       const [pdfViewer, setPdfViewer] = useState(null);
 
       // Conversion modals
@@ -24371,7 +24378,8 @@
       // Send estimate
       const sendEstimate = async () => {
         if (!estimate || sending) return;   // re-entry guard: one send per click
-        const recipients = sendTo.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+        const draft = recipientDraft.trim();
+        const recipients = [...new Set([...previewRecipients, ...(isValidEmail(draft) ? [draft] : [])])];
         if (!recipients.length) { setSendFeedback('Add at least one recipient email.'); return; }
         setSending(true);
         setSendFeedback(null);
@@ -24436,13 +24444,19 @@
           return;
         }
         setPreviewLoading(true);
+        setShowPreview(true);
+        setPreviewHtml('');
+        setPreviewMeta(null);
         try {
           const data = await repFetch('/api/rep/estimates/' + estimate.id + '/preview');
           setPreviewHtml(data.html);
           setPreviewMeta(data);
-          setSendTo((data && data.to) || form.customer_email || '');
-          setShowPreview(true);
-        } catch (e) {}
+          const to = (data && data.to) || form.customer_email || '';
+          setPreviewRecipients(to ? [to] : []);
+          setRecipientDraft('');
+        } catch (e) {
+          setPreviewHtml('<p style="padding:2rem;color:#dc2626;">Failed to load email preview.</p>');
+        }
         setPreviewLoading(false);
       };
 
@@ -26003,33 +26017,57 @@
 
           {/* Email Preview Modal */}
           {showPreview && (
-            <div className="modal-backdrop" onClick={() => setShowPreview(false)}>
-              <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 700 }}>
-                <div className="modal-header">
-                  <h2>Email Preview</h2>
-                  <button className="modal-close" onClick={() => setShowPreview(false)}>x</button>
-                </div>
-                <div className="modal-body">
-                  {previewMeta && (
-                    <div style={{ marginBottom: '1rem', fontSize: '0.8125rem', color: 'var(--stone-500)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                        <strong style={{ flexShrink: 0 }}>To:</strong>
-                        <input type="text" value={sendTo} onChange={e => setSendTo(e.target.value)}
-                          placeholder="customer@example.com, ap@example.com"
-                          style={{ flex: 1, padding: '0.35rem 0.5rem', border: '1px solid var(--stone-200)', fontSize: '0.8125rem', color: 'var(--stone-800)' }} />
-                      </div>
-                      <div style={{ fontSize: '0.6875rem', color: 'var(--stone-400)', marginBottom: 6 }}>Separate multiple recipients with commas · doesn't change the saved customer</div>
-                      <div><strong>Subject:</strong> {previewMeta.subject}</div>
-                      <div><strong>Reply-To:</strong> {previewMeta.reply_to}</div>
-                    </div>
-                  )}
-                  <div style={{ border: '1px solid var(--stone-200)', borderRadius: 'var(--radius-sm)', maxHeight: 400, overflowY: 'auto' }}>
-                    <iframe srcDoc={previewHtml} sandbox="" style={{ width: '100%', height: 400, border: 'none' }} />
+            <div className="modal-overlay" onClick={() => setShowPreview(false)}>
+              <div className="modal-box modal-wide qw-email-modal" onClick={e => e.stopPropagation()}>
+                <div className="qw-email-head">
+                  <div>
+                    <div className="qw-email-eyebrow">{'●'} Email preview</div>
+                    <h3 style={{ margin: '3px 0 0' }}>{previewMeta ? previewMeta.subject : 'Estimate email'}</h3>
                   </div>
+                  <button className="qw-email-x" onClick={() => setShowPreview(false)} aria-label="Close">{'✕'}</button>
                 </div>
-                <div className="modal-footer">
-                  <button className="btn btn-secondary" onClick={() => setShowPreview(false)}>Cancel</button>
-                  <button className="btn btn-primary" onClick={sendEstimate} disabled={sending}>{sending ? 'Sending…' : 'Send to Customer'}</button>
+                {previewLoading ? (
+                  <div className="qw-email-loading">Loading preview{'…'}</div>
+                ) : (
+                  <React.Fragment>
+                    {previewMeta && (
+                      <div className="qw-email-meta">
+                        <div className="qw-email-row">
+                          <span className="qw-email-k">To</span>
+                          <div className="qw-recip-field" onClick={e => { const el = e.currentTarget.querySelector('input'); if (el) el.focus(); }}>
+                            {previewRecipients.map(r => (
+                              <span className="qw-recip-chip" key={r}>
+                                {r}
+                                <button type="button" onClick={() => removeRecipient(r)} aria-label={'Remove ' + r}>{'✕'}</button>
+                              </span>
+                            ))}
+                            <input type="email" value={recipientDraft}
+                              placeholder={previewRecipients.length ? 'Add another…' : 'name@email.com'}
+                              onChange={e => setRecipientDraft(e.target.value)}
+                              onKeyDown={e => {
+                                if ((e.key === 'Enter' || e.key === ',' || e.key === ';') && recipientDraft.trim()) { e.preventDefault(); addRecipient(recipientDraft); }
+                                else if (e.key === 'Backspace' && !recipientDraft && previewRecipients.length) { removeRecipient(previewRecipients[previewRecipients.length - 1]); }
+                              }}
+                              onBlur={() => { if (recipientDraft.trim()) addRecipient(recipientDraft); }} />
+                          </div>
+                        </div>
+                        <div className="qw-email-row"><span className="qw-email-k">Reply-To</span><span className="qw-email-v">{previewMeta.reply_to}</span></div>
+                      </div>
+                    )}
+                    <iframe className="qw-email-frame" srcDoc={previewHtml} sandbox="" title="Email preview" />
+                  </React.Fragment>
+                )}
+                <div className="qw-email-actions">
+                  <span className="qw-email-count">
+                    {(() => { const n = previewRecipients.length + (isValidEmail(recipientDraft.trim()) ? 1 : 0); return n + ' recipient' + (n === 1 ? '' : 's'); })()}
+                  </span>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className="btn btn-secondary" onClick={() => setShowPreview(false)}>Cancel</button>
+                    <button className="btn btn-primary" onClick={sendEstimate}
+                      disabled={sending || previewLoading || (previewRecipients.length === 0 && !isValidEmail(recipientDraft.trim()))}>
+                      {sending ? 'Sending…' : 'Confirm & Send'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -26037,24 +26075,19 @@
 
           {/* Convert to Quote Modal */}
           {showConvertQuoteModal && (
-            <div className="modal-backdrop" onClick={() => setShowConvertQuoteModal(false)}>
-              <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 500 }}>
-                <div className="modal-header">
-                  <h2>Convert to Quote</h2>
-                  <button className="modal-close" onClick={() => setShowConvertQuoteModal(false)}>x</button>
-                </div>
-                <div className="modal-body">
-                  <p style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--stone-600)' }}>
-                    This will create a new quote with <strong>{materialItems.length} material item{materialItems.length !== 1 ? 's' : ''}</strong> totaling <strong>${parseFloat(estimate.materials_subtotal || 0).toFixed(2)}</strong>.
-                  </p>
-                  {laborItems.length > 0 && (
-                    <div style={{ padding: '0.75rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius-sm)', fontSize: '0.8125rem', marginBottom: '1rem' }}>
-                      <strong>{laborItems.length} labor item{laborItems.length !== 1 ? 's' : ''}</strong> totaling <strong>${parseFloat(estimate.labor_subtotal || 0).toFixed(2)}</strong> will be excluded from the quote but summarized in the quote notes.
-                      <div style={{ marginTop: '0.5rem', color: '#8a7e68' }}>Tip: convert to an <strong>order</strong> instead to bill labor alongside materials.</div>
-                    </div>
-                  )}
-                </div>
-                <div className="modal-footer">
+            <div className="modal-overlay" onClick={() => setShowConvertQuoteModal(false)}>
+              <div className="modal-box" onClick={e => e.stopPropagation()}>
+                <h3>Convert to Quote</h3>
+                <p style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--stone-600)' }}>
+                  This will create a new quote with <strong>{materialItems.length} material item{materialItems.length !== 1 ? 's' : ''}</strong> totaling <strong>${parseFloat(estimate.materials_subtotal || 0).toFixed(2)}</strong>.
+                </p>
+                {laborItems.length > 0 && (
+                  <div style={{ padding: '0.75rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius-sm)', fontSize: '0.8125rem', marginBottom: '1rem' }}>
+                    <strong>{laborItems.length} labor item{laborItems.length !== 1 ? 's' : ''}</strong> totaling <strong>${parseFloat(estimate.labor_subtotal || 0).toFixed(2)}</strong> will be excluded from the quote but summarized in the quote notes.
+                    <div style={{ marginTop: '0.5rem', color: '#8a7e68' }}>Tip: convert to an <strong>order</strong> instead to bill labor alongside materials.</div>
+                  </div>
+                )}
+                <div className="modal-actions">
                   <button className="btn btn-secondary" onClick={() => setShowConvertQuoteModal(false)}>Cancel</button>
                   <button className="btn btn-primary" onClick={() => convertToQuote()} disabled={converting}>
                     {converting ? 'Converting...' : 'Convert to Quote'}
@@ -26075,13 +26108,10 @@
               : isFull ? ('Collect $' + total.toFixed(2) + ' & create order')
               : ('Collect $' + depositNum.toFixed(2) + ' & create order');
             return (
-            <div className="modal-backdrop" onClick={() => setShowConvertOrderModal(false)}>
-              <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 500 }}>
-                <div className="modal-header">
-                  <h2>Create order</h2>
-                  <button className="modal-close" onClick={() => setShowConvertOrderModal(false)}>x</button>
-                </div>
-                <div className="modal-body">
+            <div className="modal-overlay" onClick={() => setShowConvertOrderModal(false)}>
+              <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxHeight: '85vh', overflowY: 'auto' }}>
+                <h3>Create order</h3>
+                <div>
                   <p style={{ marginBottom: '0.85rem', fontSize: '0.8125rem', color: 'var(--stone-600)', lineHeight: 1.5 }}>
                     Creates an order at the estimate pricing — {[
                       materialItems.length > 0 ? materialItems.length + ' material item' + (materialItems.length !== 1 ? 's' : '') : null,
@@ -26138,7 +26168,7 @@
                     </React.Fragment>
                   )}
                 </div>
-                <div className="modal-footer">
+                <div className="modal-actions">
                   <button className="btn btn-secondary" onClick={() => setShowConvertOrderModal(false)}>Cancel</button>
                   <button className="btn btn-primary" onClick={() => convertToOrder()} disabled={converting}>
                     {primaryLabel}
@@ -27113,10 +27143,10 @@
           )}
 
           {showCreate && (
-            <div className="modal-backdrop" onClick={() => setShowCreate(false)}>
-              <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
-                <div className="modal-header"><h2>New Purchase Order</h2></div>
-                <div className="modal-body">
+            <div className="modal-overlay" onClick={() => setShowCreate(false)}>
+              <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxHeight: '85vh', overflowY: 'auto' }}>
+                <h3>New Purchase Order</h3>
+                <div>
                   <div className="form-group">
                     <label>Vendor *</label>
                     <select value={newVendorId} onChange={e => setNewVendorId(e.target.value)}
@@ -27153,7 +27183,7 @@
                       style={{ width: '100%', minHeight: '80px', padding: '0.5rem', border: '1px solid var(--stone-300)', borderRadius: '6px', fontFamily: 'Inter, sans-serif', resize: 'vertical' }} />
                   </div>
                 </div>
-                <div className="modal-footer">
+                <div className="modal-actions">
                   <button className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button>
                   <button className="btn btn-primary" disabled={!newVendorId || creating} onClick={createPO}>
                     {creating ? 'Creating...' : 'Create PO'}
