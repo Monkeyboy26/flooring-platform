@@ -24636,9 +24636,7 @@
       // Engagement summary (estimate_events)
       const engOpens = engagement ? engagement.opens : 0;
       const engViewers = engagement ? engagement.viewers : 0;
-      const engReplies = engagement ? engagement.replies : 0;
       const lastViewedAt = engagement && engagement.last_viewed_at ? engagement.last_viewed_at : null;
-      const lastReplyAt = engagement && engagement.last_reply_at ? engagement.last_reply_at : null;
 
       // ── Quote-workspace shell derivations ──
       // Avatar initials (estimate has no stored initials — derive from the name)
@@ -25573,7 +25571,7 @@
                     {engOpens > 0 && <span className="qw-card-hint">{'●'} {engOpens === 1 ? '1 open' : engOpens + ' opens'}</span>}
                   </div>
                   <div style={{ padding: '12px 20px 0', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-                    {[[engOpens, engOpens === 1 ? 'open' : 'opens'], [engViewers, engViewers === 1 ? 'viewer' : 'viewers'], [engReplies, engReplies === 1 ? 'reply' : 'replies']].map(([n, l]) => (
+                    {[[engOpens, engOpens === 1 ? 'open' : 'opens'], [engViewers, engViewers === 1 ? 'viewer' : 'viewers']].map(([n, l]) => (
                       <div key={l}>
                         <div style={{ font: '400 22px/1 "Cormorant Garamond", serif', color: '#1c1917' }}>{n}</div>
                         <div style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--brass-muted)', marginTop: 3 }}>{l}</div>
@@ -25595,7 +25593,7 @@
                       } else { entries.push({ ...e, _count: 1 }); }
                     });
                     if (entries.length === 0) {
-                      return <div className="qw-thread-empty">No activity yet — opens, replies, and accept/decline land here.</div>;
+                      return <div className="qw-thread-empty">No activity yet — opens and accept/decline land here.</div>;
                     }
                     return (
                       <div className="qw-thread-list">
@@ -25633,13 +25631,12 @@
                     );
                   })()}
                   <div className="qw-composer">
-                    <textarea rows={2} maxLength={2000} placeholder="Log a customer reply or an internal note…"
+                    <textarea rows={2} maxLength={2000} placeholder="Add an internal note…"
                       value={threadText} onChange={e => setThreadText(e.target.value)} disabled={threadPosting} />
                     <div className="qw-composer-bar">
                       <span className="qw-composer-hint">Internal record — nothing here emails the customer</span>
                       <div className="qw-composer-actions">
-                        <button className="qw-composer-btn ghost" onClick={() => postThreadEntry('note')} disabled={threadPosting || !threadText.trim()}>+ Internal note</button>
-                        <button className="qw-composer-btn" onClick={() => postThreadEntry('reply')} disabled={threadPosting || !threadText.trim()}>Log customer reply</button>
+                        <button className="qw-composer-btn" onClick={() => postThreadEntry('note')} disabled={threadPosting || !threadText.trim()}>+ Internal note</button>
                       </div>
                     </div>
                   </div>
@@ -25858,7 +25855,7 @@
                 <div className="qw-rail-card">
                   <h3>Engagement</h3>
                   <div className="qw-engage-grid">
-                    {[[engOpens, engOpens === 1 ? 'open' : 'opens'], [engViewers, engViewers === 1 ? 'viewer' : 'viewers'], [engReplies, engReplies === 1 ? 'reply' : 'replies']].map(([n, l]) => (
+                    {[[engOpens, engOpens === 1 ? 'open' : 'opens'], [engViewers, engViewers === 1 ? 'viewer' : 'viewers']].map(([n, l]) => (
                       <div key={l}>
                         <div className="qw-engage-n">{n}</div>
                         <div className="qw-engage-l">{l}</div>
@@ -25867,7 +25864,7 @@
                   </div>
                   <div className="qw-engage-foot">
                     {engOpens > 0
-                      ? <React.Fragment>Last opened {fmtDT(lastViewedAt)}{lastReplyAt ? ' · last reply ' + fmtDT(lastReplyAt) : ''}.</React.Fragment>
+                      ? <React.Fragment>Last opened {fmtDT(lastViewedAt)}.</React.Fragment>
                       : estimate.status === 'draft'
                         ? 'Send the estimate to start tracking opens.'
                         : 'No opens yet — tracking starts when the customer opens the email.'}
