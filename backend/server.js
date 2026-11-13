@@ -12820,12 +12820,15 @@ async function runScraper(source, configOverride = null) {
     // Wait for browser concurrency slot if needed
     await acquireBrowserSlot(source);
 
-    // Wrap execution in a timeout
+    // Wrap execution in a timeout (per-source override via config.timeout_minutes —
+    // e.g. the MSI website crawl needs >4h; don't raise the global default for that)
+    const sourceTimeoutMin = parseInt(source.config?.timeout_minutes, 10);
+    const scraperTimeoutMs = sourceTimeoutMin > 0 ? sourceTimeoutMin * 60000 : SCRAPER_TIMEOUT_MS;
     let timeoutHandle;
     const timeoutPromise = new Promise((_, reject) => {
       timeoutHandle = setTimeout(() => {
-        reject(new Error(`Scraper timed out after ${Math.round(SCRAPER_TIMEOUT_MS / 60000)} minutes`));
-      }, SCRAPER_TIMEOUT_MS);
+        reject(new Error(`Scraper timed out after ${Math.round(scraperTimeoutMs / 60000)} minutes`));
+      }, scraperTimeoutMs);
     });
 
     // Wrap abort signal as a rejecting promise
