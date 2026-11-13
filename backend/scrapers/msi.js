@@ -91,6 +91,12 @@ export async function run(pool, job, source) {
   let totalAttributesSet = 0;
   let totalPackagingUpdated = 0;
 
+  // Absence detection: every product (by id) whose page was crawled and matched
+  // a live DB SKU this run. A product in our catalog but NOT in this set — in a
+  // category the crawl covered well — is a discontinuation candidate. See
+  // detectAbsentProducts() below for the per-category coverage guard.
+  const seenProductIds = new Set();
+
   try {
     await appendLog(pool, job.id, `Launching browser (enrichment mode). Pre-loaded ${skuIndex.size} MSI SKUs for matching.`);
     browser = await launchBrowser();
@@ -198,6 +204,9 @@ export async function run(pool, job, source) {
             continue;
           }
 
+          // Record every product this page proved is still live on MSI's site.
+          for (const m of matchedSkus) seenProductIds.add(m.productId);
+
           // Use the first matched product for enrichment
           const productId = matchedSkus[0].productId;
 
@@ -302,8 +311,169 @@ export async function run(pool, job, source) {
       images_added: totalImagesAdded,
       attributes_set: totalAttributesSet
     });
+
+    // Discontinuation detection from site absence — only on a FULL crawl. A
+    // partial re-scrape (onlyCategories) sees a slice of the catalog, so every
+    // product outside that slice would look "absent"; never run it then.
+    if (onlyCategories) {
+      await appendLog(pool, job.id, 'Absence detection skipped: partial re-scrape (onlyCategories set).');
+    } else {
+      try {
+        await detectAbsentProducts(pool, job, seenProductIds, config);
+      } catch (err) {
+        await appendLog(pool, job.id, `Absence detection error (non-fatal): ${err.message}`);
+        await addJobError(pool, job.id, `Absence detection: ${err.message}`);
+      }
+    }
   } finally {
     if (browser) await browser.close();
+  }
+}
+
+/**
+ * Discontinuation detection from website absence.
+ *
+ * A product in our active MSI catalog that a full site crawl did NOT find is a
+ * candidate for being discontinued. The danger is false positives: a category
+ * page that failed to load, or the enrichment matcher missing a product, would
+ * make live products look absent. Guards, strongest first:
+ *
+ *   1. Full crawl only (caller gates on onlyCategories) + a global floor on how
+ *      many products were seen at all — a dead browser sees ~0 and must not act.
+ *   2. Per-category coverage: within each DB category, only trust absence if the
+ *      crawl saw at least `absenceMinCategoryProducts` and covered at least
+ *      `absenceMinCoverage` of that category's active products. Categories the
+ *      crawl doesn't feed (e.g. countertops) stay at 0% coverage → never touched.
+ *   3. Global safety cap: if candidates exceed `absenceMaxDropRatio` of the active
+ *      catalog, a systemic matcher/site failure is likelier than a real purge —
+ *      abort all writes and alarm.
+ *   4. Two-strike + grace: a first miss only MARKS (skus.discontinued_at = now),
+ *      leaving the SKU active and sellable. A later crawl that finds it again
+ *      CLEARS the mark (self-healing). Actual deactivation happens only when
+ *      `absenceDeactivate` is on AND the mark has stood past `absenceGraceDays`.
+ *
+ * Default mode is mark-only (absenceDeactivate false): produces a reviewable
+ * list (SELECT … WHERE discontinued_at IS NOT NULL) without removing anything.
+ */
+export async function detectAbsentProducts(pool, job, seenProductIds, config) {
+  const MIN_CAT_PRODUCTS = config.absenceMinCategoryProducts ?? 10;
+  const MIN_COVERAGE      = config.absenceMinCoverage ?? 0.6;
+  const MIN_SEEN_TOTAL    = config.absenceMinSeenTotal ?? 200;
+  const MAX_DROP_RATIO    = config.absenceMaxDropRatio ?? 0.25;
+  const GRACE_DAYS        = config.absenceGraceDays ?? 14;
+  const DEACTIVATE        = config.absenceDeactivate === true;
+  const log = (msg) => appendLog(pool, job.id, msg);
+
+  if (seenProductIds.size < MIN_SEEN_TOTAL) {
+    await log(`Absence detection skipped: only ${seenProductIds.size} products seen this crawl (< ${MIN_SEEN_TOTAL}) — crawl likely incomplete.`);
+    return;
+  }
+
+  // All sellable active MSI products (≥1 active SKU), with category and current
+  // mark state (flagged = some active SKU already carries discontinued_at).
+  const { rows } = await pool.query(`
+    SELECT p.id,
+           p.name,
+           COALESCE(p.category_id::text, 'none') AS cat_key,
+           COALESCE(c.name, '(uncategorized)')   AS cat_name,
+           COUNT(s.id) FILTER (WHERE s.status = 'active')                          AS active_skus,
+           bool_or(s.discontinued_at IS NOT NULL) FILTER (WHERE s.status='active') AS flagged,
+           MIN(s.discontinued_at) FILTER (WHERE s.status = 'active')               AS marked_at
+    FROM products p
+    JOIN vendors v ON v.id = p.vendor_id
+    LEFT JOIN categories c ON c.id = p.category_id
+    JOIN skus s ON s.product_id = p.id
+    WHERE v.code = 'MSI' AND p.is_active = true AND p.status = 'active'
+    GROUP BY p.id, p.name, cat_key, cat_name
+    HAVING COUNT(s.id) FILTER (WHERE s.status = 'active') > 0
+  `);
+
+  // Bucket products by DB category and compute per-category coverage.
+  const byCat = new Map(); // cat_key → { name, products: [] }
+  for (const r of rows) {
+    if (!byCat.has(r.cat_key)) byCat.set(r.cat_key, { name: r.cat_name, products: [] });
+    byCat.get(r.cat_key).products.push(r);
+  }
+
+  const recoveredIds = [];   // seen again → clear mark
+  const newCandidates = [];  // absent, not yet marked → first strike
+  const standingIds = [];    // absent, already marked → eligible for deactivation after grace
+  const graceMs = GRACE_DAYS * 24 * 60 * 60 * 1000;
+  const nowMs = Date.now();
+
+  for (const [, cat] of byCat) {
+    const total = cat.products.length;
+    const seen = cat.products.filter(p => seenProductIds.has(p.id)).length;
+    const coverage = total > 0 ? seen / total : 0;
+
+    // Recovery is safe regardless of coverage: a product the crawl positively
+    // found cannot be discontinued, so always clear a stale mark on it.
+    for (const p of cat.products) {
+      if (seenProductIds.has(p.id) && p.flagged) recoveredIds.push(p.id);
+    }
+
+    if (total < MIN_CAT_PRODUCTS || coverage < MIN_COVERAGE) {
+      await log(`  ${cat.name}: coverage ${(coverage * 100).toFixed(0)}% (${seen}/${total}) — below trust threshold, absence not scored.`);
+      continue;
+    }
+
+    for (const p of cat.products) {
+      if (seenProductIds.has(p.id)) continue; // present → alive
+      if (!p.flagged) newCandidates.push(p);
+      else {
+        const markedMs = p.marked_at ? new Date(p.marked_at).getTime() : nowMs;
+        if (nowMs - markedMs >= graceMs) standingIds.push(p.id);
+        else standingIds.push(null); // still within grace — counted, not deactivated
+      }
+    }
+    await log(`  ${cat.name}: coverage ${(coverage * 100).toFixed(0)}% (${seen}/${total}) — trusted; ${total - seen} absent.`);
+  }
+
+  // Always clear recovered marks (self-healing), even if the cap trips below.
+  if (recoveredIds.length) {
+    await pool.query(
+      `UPDATE skus SET discontinued_at = NULL, updated_at = NOW()
+        WHERE product_id = ANY($1) AND discontinued_at IS NOT NULL`, [recoveredIds]);
+    await log(`Cleared discontinued mark on ${recoveredIds.length} product(s) found alive again.`);
+  }
+
+  const totalCandidates = newCandidates.length + standingIds.length;
+  const totalActive = rows.length;
+  if (totalActive > 0 && totalCandidates / totalActive > MAX_DROP_RATIO) {
+    await log(`⚠ Absence detection ABORTED: ${totalCandidates}/${totalActive} (${(totalCandidates / totalActive * 100).toFixed(0)}%) products absent — exceeds ${(MAX_DROP_RATIO * 100).toFixed(0)}% cap. Likely a crawl/matcher failure, not a real purge. No products marked or deactivated.`);
+    await addJobError(pool, job.id, `Absence detection aborted: candidate ratio ${(totalCandidates / totalActive * 100).toFixed(0)}% over cap`);
+    return;
+  }
+
+  // First strike: mark new candidates (stay active + sellable, now reviewable).
+  if (newCandidates.length) {
+    const ids = newCandidates.map(p => p.id);
+    await pool.query(
+      `UPDATE skus SET discontinued_at = NOW(), updated_at = NOW()
+        WHERE product_id = ANY($1) AND status = 'active' AND discontinued_at IS NULL`, [ids]);
+    await log(`Marked ${newCandidates.length} new discontinuation candidate(s) (absent from site this crawl). First 20: ${newCandidates.slice(0, 20).map(p => p.name).join('; ')}`);
+  }
+
+  const readyToDeactivate = standingIds.filter(Boolean);
+  const withinGrace = standingIds.length - readyToDeactivate.length;
+  if (withinGrace) await log(`${withinGrace} standing candidate(s) still within the ${GRACE_DAYS}-day grace window.`);
+
+  if (!DEACTIVATE) {
+    await log(`Absence detection: mark-only mode. ${readyToDeactivate.length} candidate(s) past grace are ready to deactivate (set config.absenceDeactivate=true to act). Review: SELECT internal_sku FROM skus WHERE discontinued_at IS NOT NULL.`);
+    return;
+  }
+
+  if (readyToDeactivate.length) {
+    await pool.query(
+      `UPDATE skus SET status = 'inactive', updated_at = NOW()
+        WHERE product_id = ANY($1) AND status = 'active'`, [readyToDeactivate]);
+    // Product-level integrity: deactivate any product left with no active SKU.
+    const { rowCount: prodsOff } = await pool.query(
+      `UPDATE products p SET is_active = false, status = 'discontinued', updated_at = NOW()
+        WHERE p.id = ANY($1)
+          AND NOT EXISTS (SELECT 1 FROM skus s WHERE s.product_id = p.id AND s.status = 'active')`,
+      [readyToDeactivate]);
+    await log(`Deactivated ${readyToDeactivate.length} product(s) absent from site > ${GRACE_DAYS} days; ${prodsOff} product record(s) flipped to discontinued.`);
   }
 }
 
