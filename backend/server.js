@@ -35583,6 +35583,9 @@ const STALE_JOB_HOURS = parseInt(process.env.STALE_JOB_HOURS || '4', 10);
 // long — catches scrapers hung on a dead socket (laptop sleep, network blip)
 // long before the absolute limit, so the next scheduled run isn't blocked.
 const STALL_ABORT_MINUTES = parseInt(process.env.STALL_ABORT_MINUTES || '45', 10);
+// Grace the absolute reaper waits PAST a source's own timeout before force-failing
+// a still-running row — keeps it a backstop behind runScraper's own timeout.
+const STALE_JOB_GRACE_MINUTES = parseInt(process.env.STALE_JOB_GRACE_MINUTES || '15', 10);
 const jobProgressSnapshots = new Map(); // jobId → { sig, since }
 
 cron.schedule('*/15 * * * *', async () => {
@@ -35626,17 +35629,27 @@ cron.schedule('*/15 * * * *', async () => {
       jobProgressSnapshots.delete(row.id);
     }
 
+    // Absolute limit is per-source: a long crawl (e.g. the MSI website scrape,
+    // 4-7h) sets vendor_sources.config.timeout_minutes to raise its own ceiling
+    // (see runScraper). The reaper must respect that, else it marks the row
+    // failed — and fires a false ScraperFailure alert — mid-crawl at the global
+    // 4h default. A grace buffer keeps the reaper a backstop BEHIND the process's
+    // own timeout, so a cleanly finishing long job isn't reaped out from under it.
     const result = await pool.query(`
-      UPDATE scrape_jobs SET
+      UPDATE scrape_jobs sj SET
         status = 'failed',
         completed_at = CURRENT_TIMESTAMP,
         errors = errors || $1::jsonb
-      WHERE status = 'running'
-        AND COALESCE(started_at, created_at) < NOW() - INTERVAL '1 hour' * $2
-      RETURNING id, vendor_source_id, started_at
+      FROM vendor_sources vs
+      WHERE sj.vendor_source_id = vs.id
+        AND sj.status = 'running'
+        AND COALESCE(sj.started_at, sj.created_at)
+            < NOW() - (INTERVAL '1 minute' * (COALESCE((vs.config->>'timeout_minutes')::int, $2) + $3))
+      RETURNING sj.id, sj.vendor_source_id, sj.started_at
     `, [
-      JSON.stringify([{ message: `Reaped: job exceeded ${STALE_JOB_HOURS}h time limit`, time: new Date().toISOString() }]),
-      STALE_JOB_HOURS
+      JSON.stringify([{ message: `Reaped: job exceeded its time limit (source timeout + ${STALE_JOB_GRACE_MINUTES}m grace)`, time: new Date().toISOString() }]),
+      STALE_JOB_HOURS * 60,
+      STALE_JOB_GRACE_MINUTES,
     ]);
 
     if (result.rows.length > 0) {
@@ -35649,9 +35662,9 @@ cron.schedule('*/15 * * * *', async () => {
           source_name: src.name || 'Unknown',
           scraper_key: src.scraper_key || 'unknown',
           job_id: stale.id,
-          error: `Job exceeded ${STALE_JOB_HOURS}-hour time limit and was reaped`,
+          error: `Job exceeded its time limit and was reaped`,
           started_at: stale.started_at,
-          duration_minutes: STALE_JOB_HOURS * 60
+          duration_minutes: Math.round((Date.now() - new Date(stale.started_at).getTime()) / 60000)
         }).catch(() => {});
       }
     }
