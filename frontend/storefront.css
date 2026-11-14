@@ -4218,6 +4218,9 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 .pm-band { padding: 5.4rem 0; }
 .pm-band--cream { background: var(--cream); }
 .pm-band--paper { background: #f1ece2; }
+/* Offset for the sticky site header (~90px) so the "Request a walk-through"
+   hero button lands the quote form's heading below the header, not under it. */
+#pm-quote { scroll-margin-top: 110px; }
 
 /* Hero */
 .pm-hero { background: var(--warm-bg); }

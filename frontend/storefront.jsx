@@ -2993,7 +2993,7 @@
                 <h1 className="pm-h1">We supply the floor. <em>And</em> we install it.</h1>
                 <p className="pm-hero-sub"><strong>27 years of flooring experience.</strong> One vendor for the whole floor — Roma supplies the material and installs it, so turns move faster and you're not managing a supplier and an installer between tenants.</p>
                 <div className="pm-hero-cta">
-                  <a href="#pm-quote" className="btn btn-dark">Request a walk-through</a>
+                  <a href="#pm-quote" className="btn btn-dark" onClick={(e) => { const t = document.getElementById('pm-quote'); if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth', block: 'start' }); history.replaceState(history.state, '', '#pm-quote'); } }}>Request a walk-through</a>
                   <a href="tel:+17149990009" className="pm-link">or call (714) 999-0009</a>
                 </div>
                 <div className="pm-hero-cred"><span><b>Licensed</b> · <b>Bonded</b> · <b>Insured</b></span><span className="pm-cslb">CSLB #830966</span></div>
