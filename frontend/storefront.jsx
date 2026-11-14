@@ -2883,7 +2883,7 @@
     // Property-manager lead form — reuses the installation-inquiries endpoint
     // (no new backend route); PM-specific fields are folded into the message.
     function PMQuoteForm() {
-      const [f, setF] = useState({ name: '', company: '', email: '', phone: '', property: '', project: 'Unit turn', units: '', notes: '' });
+      const [f, setF] = useState({ name: '', company: '', email: '', phone: '', property: '', project: 'Unit turnover', units: '', notes: '' });
       const [submitted, setSubmitted] = useState(false);
       const [error, setError] = useState('');
       const [saving, setSaving] = useState(false);
@@ -2938,7 +2938,7 @@
           <div className="pm-fld-row">
             <div className="pm-fld"><label>Project type</label>
               <select value={f.project} onChange={set('project')}>
-                <option>Unit turn</option><option>Common areas</option><option>Kitchens &amp; baths</option><option>Countertops</option><option>Multi-unit / portfolio</option><option>Other</option>
+                <option>Unit turnover</option><option>Common areas</option><option>Kitchens &amp; baths</option><option>Countertops</option><option>Multi-unit / portfolio</option><option>Other</option>
               </select>
             </div>
             <div className="pm-fld"><label>Number of units</label><input inputMode="numeric" value={f.units} onChange={set('units')} /></div>
@@ -2952,7 +2952,7 @@
 
     function PropertyManagersPage() {
       const takeOn = [
-        ['Unit turns', 'Worn floors swapped between tenants for durable, rental-ready LVP — supplied and installed so the unit shows faster.'],
+        ['Unit turnovers', 'Worn floors swapped between tenants for durable, rental-ready LVP — supplied and installed so the unit shows faster.'],
         ['Common areas', 'Lobbies, hallways, stairs, leasing offices and amenity spaces, finished to match the property.'],
         ['Kitchens & baths', 'Countertops, tile, stone and cabinets, supplied and installed together on one quote.'],
         ['Multi-unit projects', 'One building or a whole portfolio, held to the same spec and finish in every unit.'],
@@ -2964,24 +2964,24 @@
       ];
       const proof = [
         ['One vendor for material and labor', 'One written quote, one crew, one company accountable for the finished floor — not a supplier and an installer pointing at each other.'],
-        ['Crews that keep turns on schedule', 'Roma schedules and manages the job start to finish, so a vacant unit is back on the market sooner.'],
+        ['Crews that keep turnovers on schedule', 'Roma schedules and manages the job start to finish, so a vacant unit is back on the market sooner.'],
         ['A full showroom behind every job', 'Flooring, tile, stone, countertops and cabinets, selected in Anaheim — consistent product you can re-order across the portfolio.'],
         ['Paperwork your owners expect', 'License on every quote and additional-insured certificates on request — ready for your owner and lender files.'],
       ];
       const builtFor = [
-        ['One point of contact', 'A dedicated account contact who knows your property and handles every turn.'],
+        ['One point of contact', 'A dedicated account contact who knows your property and handles every turnover.'],
         ['Volume pricing', 'Better pricing as your unit volume grows across a property or portfolio.'],
         ['Insured, and additional-insured on request', 'License on every quote; certificates for your owner and lender files.'],
-        ['Consistent, re-orderable spec', 'The same flooring across units, easy to match on the next turn.'],
+        ['Consistent, re-orderable spec', 'The same flooring across units, easy to match on the next turnover.'],
       ];
       const pmFaq = [
         ['Are you licensed and insured?', 'Yes — Roma Flooring Designs is licensed, bonded and insured under CSLB #830966. The license number is on every quote, and we can provide an additional-insured certificate for your owner or lender files on request.'],
-        ['Can you handle a whole property or portfolio, not just one unit?', 'Yes. We handle unit turns, common areas and multi-unit projects across a single building or an entire portfolio, holding the same spec and finish in every unit.'],
+        ['Can you handle a whole property or portfolio, not just one unit?', 'Yes. We handle unit turnovers, common areas and multi-unit projects across a single building or an entire portfolio, holding the same spec and finish in every unit.'],
         ['Do you offer better pricing as our volume grows?', 'Yes. Pricing improves as unit volume grows across a property or portfolio — tell us your door count and we will scope it accordingly.'],
-        ['Who do we work with on each turn?', 'A dedicated account contact who knows your property and handles every turn, so you are not starting over with a new rep each time.'],
-        ['What flooring holds up best in rentals?', 'For high-turn units we usually recommend durable luxury vinyl plank — waterproof, scratch-resistant and easy to match on the next turn — but we also carry tile, stone, hardwood, carpet and countertops.'],
+        ['Who do we work with on each turnover?', 'A dedicated account contact who knows your property and handles every turnover, so you are not starting over with a new rep each time.'],
+        ['What flooring holds up best in rentals?', 'For high-turnover units we usually recommend durable luxury vinyl plank — waterproof, scratch-resistant and easy to match on the next turnover — but we also carry tile, stone, hardwood, carpet and countertops.'],
         ['Do you supply the material and install it, or just one?', 'Both. We supply the material from our Anaheim showroom and install it with our own crew, so there is one written quote and one company accountable for the finished floor.'],
-        ['How fast can you turn a unit?', 'We schedule turns to get vacant units back on the market as quickly as possible — tell us your deadline and we will work to it.'],
+        ['How fast can you turn over a unit?', 'We prioritize getting vacant units back on the market as quickly as possible — tell us your deadline and we will schedule the work to meet it.'],
         ['Where do you work?', 'We serve Anaheim and all of Orange County — including Orange, Fullerton, Santa Ana, Irvine and the surrounding cities — from our Anaheim showroom.'],
       ];
       return (
@@ -2991,7 +2991,7 @@
               <div className="pm-hero-copy">
                 <div className="pm-eyebrow">For property managers</div>
                 <h1 className="pm-h1">We supply the floor. <em>And</em> we install it.</h1>
-                <p className="pm-hero-sub"><strong>27 years of flooring experience.</strong> One vendor for the whole floor — Roma supplies the material and installs it, so turns move faster and you're not managing a supplier and an installer between tenants.</p>
+                <p className="pm-hero-sub"><strong>27 years of flooring experience.</strong> One vendor for the whole floor — Roma supplies the material and installs it, so turnovers move faster and you're not managing a supplier and an installer between tenants.</p>
                 <div className="pm-hero-cta">
                   <a href="#pm-quote" className="btn btn-dark" onClick={(e) => { const t = document.getElementById('pm-quote'); if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth', block: 'start' }); history.replaceState(history.state, '', '#pm-quote'); } }}>Request a walk-through</a>
                   <a href="tel:+17149990009" className="pm-link">or call (714) 999-0009</a>
@@ -3036,7 +3036,7 @@
               <div className="pm-why-copy">
                 <div className="pm-eyebrow">Why managers call Roma</div>
                 <h2 className="pm-h2">27 years of flooring experience, <em>on every job</em>.</h2>
-                <p className="pm-lead-sub">You get a licensed, bonded and insured contractor who also stocks the material — one company accountable for the whole floor, from the first measure to the final walk-through. No chasing a separate supplier and installer, no gap where a turn stalls.</p>
+                <p className="pm-lead-sub">You get a licensed, bonded and insured contractor who also stocks the material — one company accountable for the whole floor, from the first measure to the final walk-through. No chasing a separate supplier and installer, no gap where a turnover stalls.</p>
               </div>
               <div className="pm-proof">
                 {proof.map(([t, d]) => <div className="pm-proof-item" key={t}><b>{t}</b><span>{d}</span></div>)}
@@ -4798,7 +4798,7 @@
           'custom-accessories': { title: 'Custom Tile Trim & Wood Floor Moldings | Roma Flooring Designs', description: 'Custom floor accessories in Anaheim & Orange County — bullnose, cut-downs, mosaics & tile stair treads fabricated from your tile, plus color-matched wood moldings & stair parts. Made to order. Call (714) 999-0009.', url: SITE_URL + '/custom-accessories', image: SITE_URL + '/uploads/og-default.jpg' },
         'custom-area-rugs': { title: 'Custom Area Rugs & Runners in Anaheim & Orange County | Roma Flooring Designs', description: 'Custom area rugs & runners in Anaheim & Orange County — cut and bound to any size and shape from wool, nylon & natural-fiber carpet, with serged, bound, or leather edges. Made to order. Call (714) 999-0009.', url: SITE_URL + '/custom-area-rugs', image: SITE_URL + '/uploads/og-default.jpg' },
           cabinets: { title: 'Custom Kitchen & Bath Cabinets in Anaheim & Orange County | Roma Flooring Designs', description: 'Custom kitchen & bath cabinets in Anaheim & Orange County — American-built face-frame and Italian-engineered frameless lines, designed in-house and installed by our crew. Visit our showroom. Call (714) 999-0009.', url: SITE_URL + '/cabinets', image: SITE_URL + '/uploads/og-default.jpg' },
-          'property-managers': { title: 'Flooring for Property Managers in Anaheim & Orange County | Roma Flooring Designs', description: 'One vendor for unit turns, common areas and full-property refreshes — materials and installation from Roma Flooring Designs. Licensed, bonded & insured, CSLB #830966. Request a free on-site measure. Call (714) 999-0009.', url: SITE_URL + '/property-managers', image: SITE_URL + '/uploads/og-default.jpg' },
+          'property-managers': { title: 'Flooring for Property Managers in Anaheim & Orange County | Roma Flooring Designs', description: 'One vendor for unit turnovers, common areas and full-property refreshes — materials and installation from Roma Flooring Designs. Licensed, bonded & insured, CSLB #830966. Request a free on-site measure. Call (714) 999-0009.', url: SITE_URL + '/property-managers', image: SITE_URL + '/uploads/og-default.jpg' },
         };
 
         // Dynamic SEO for filtered browse views
