@@ -11084,7 +11084,7 @@
       setReviewSending(false);
     };
     const updateStatus = async (newStatus, extras) => {
-      if (newStatus === "shipped" && order.delivery_method === "shipping" && !showTrackingForm) {
+      if (newStatus === "shipped" && order.delivery_method === "shipping" && !isInstall && !showTrackingForm) {
         setShowTrackingForm(true);
         return;
       }

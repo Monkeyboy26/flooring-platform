@@ -16835,7 +16835,9 @@
       };
 
       const updateStatus = async (newStatus, extras) => {
-        if (newStatus === 'shipped' && order.delivery_method === 'shipping' && !showTrackingForm) {
+        // Install jobs have no carrier/tracking — the crew goes to the job site —
+        // so skip the shipment form and advance straight to "Installing".
+        if (newStatus === 'shipped' && order.delivery_method === 'shipping' && !isInstall && !showTrackingForm) {
           setShowTrackingForm(true);
           return;
         }
