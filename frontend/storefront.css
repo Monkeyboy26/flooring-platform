@@ -4183,6 +4183,8 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 .pdp-zoom-hint svg { width: 17px; height: 17px; }
 .pdp-lightbox { position: fixed; inset: 0; background: rgba(21,18,15,0.94); z-index: calc(var(--z-trade-modal) + 50); display: flex; align-items: center; justify-content: center; animation: pdpFadeIn 160ms ease-out; cursor: default; }
 .pdp-lightbox img { max-width: 92vw; max-height: 88vh; object-fit: contain; }
+.pdp-lightbox-img { opacity: 0; transition: opacity 180ms ease; }
+.pdp-lightbox-img.is-loaded { opacity: 1; }
 .pdp-lightbox-close { position: absolute; top: 16px; right: 16px; width: 40px; height: 40px; border-radius: 50%; background: rgba(250,248,245,0.12); border: 0.5px solid rgba(250,248,245,0.3); color: #faf8f5; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background var(--transition-base); }
 .pdp-lightbox-close:hover { background: rgba(250,248,245,0.25); }
 .pdp-lightbox-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%; background: rgba(250,248,245,0.12); border: 0.5px solid rgba(250,248,245,0.3); color: #faf8f5; font-size: 26px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background var(--transition-base); }
