@@ -30625,7 +30625,7 @@ app.get('/api/rep/customers', repAuth, async (req, res) => {
     if (type === 'all' || type === 'retail') {
       queries.push(pool.query(`
         SELECT c.id, c.first_name || ' ' || c.last_name as name, c.email, c.phone, c.city,
-          'retail' as customer_type, c.created_at,
+          'retail' as customer_type, c.created_at, c.sms_consent,
           c.assigned_rep_id, sr.first_name || ' ' || sr.last_name as assigned_rep_name,
           COUNT(o.id)::int as order_count,
           COALESCE(SUM(o.total), 0) as total_spent,
@@ -30855,7 +30855,7 @@ app.post('/api/rep/customers', repAuth, async (req, res) => {
 app.put('/api/rep/customers/:id', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { first_name, last_name, middle_initial, email, phone, company_name, address_line1, address_line2, city, state, zip } = req.body || {};
+    const { first_name, last_name, middle_initial, email, phone, company_name, address_line1, address_line2, city, state, zip, sms_consent } = req.body || {};
     if (!first_name || !first_name.trim()) return res.status(400).json({ error: 'First name is required' });
     if (!last_name || !last_name.trim()) return res.status(400).json({ error: 'Last name is required' });
     if (!email || !email.trim()) return res.status(400).json({ error: 'Email is required' });
@@ -30886,10 +30886,10 @@ app.put('/api/rep/customers/:id', repAuth, async (req, res) => {
       await client.query(
         `UPDATE customers SET first_name = $1, last_name = $2, middle_initial = $3, email = $4, phone = $5,
           company_name = $6, address_line1 = $7, address_line2 = $8, city = $9, state = $10, zip = $11,
-          updated_at = CURRENT_TIMESTAMP
-         WHERE id = $12`,
+          sms_consent = $12, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $13`,
         [titleCaseName(first_name), titleCaseName(last_name), normMiddleInitial(middle_initial), emailNorm, formatPhone(phone) || null,
-         collapse(company_name), collapse(address_line1), collapse(address_line2), collapse(city), normState(state), (zip || '').trim() || null, id]);
+         collapse(company_name), collapse(address_line1), collapse(address_line2), collapse(city), normState(state), (zip || '').trim() || null, sms_consent === true, id]);
       if (emailChanged) {
         migration = await migrateCustomerEmail(client, { customerId: id, oldEmail, newEmail: emailNorm });
       }
@@ -30924,7 +30924,7 @@ app.get('/api/rep/customers/:id', repAuth, async (req, res) => {
         SELECT c.id, c.first_name, c.last_name, c.middle_initial,
           c.first_name || COALESCE(' ' || c.middle_initial, '') || ' ' || c.last_name as name, c.email, c.phone,
           c.address_line1, c.address_line2, c.city, c.state, c.zip, c.created_at, c.created_via,
-          c.assigned_rep_id, sr.first_name || ' ' || sr.last_name as rep_name
+          c.sms_consent, c.assigned_rep_id, sr.first_name || ' ' || sr.last_name as rep_name
         FROM customers c
         LEFT JOIN staff_accounts sr ON sr.id = c.assigned_rep_id
         WHERE c.id = $1
@@ -33754,7 +33754,7 @@ app.get('/api/admin/customers/:id', staffAuth, requireRole('admin', 'manager', '
         SELECT c.id, c.first_name, c.last_name, c.middle_initial,
           c.first_name || COALESCE(' ' || c.middle_initial, '') || ' ' || c.last_name as name, c.email, c.phone,
           c.address_line1, c.address_line2, c.city, c.state, c.zip, c.created_at, c.created_via,
-          c.assigned_rep_id, sr.first_name || ' ' || sr.last_name as rep_name
+          c.sms_consent, c.assigned_rep_id, sr.first_name || ' ' || sr.last_name as rep_name
         FROM customers c
         LEFT JOIN staff_accounts sr ON sr.id = c.assigned_rep_id
         WHERE c.id = $1
