@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import dns from 'dns';
 import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendProductInquiryNotification, sendProductInquiryConfirmation, sendNewProductInquiryRepAlert, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendWeeklyTrafficReport, sendBankTransferAwaitingEmail, sendNewOrderStaffAlert, sendNewOrderRepAlert, sendNewSampleRequestRepAlert, sendNewInstallInquiryRepAlert, sendMaterialRelease, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer, sendQualityDiffAlert, SCRAPER_ALERT_ADDR } from './services/emailService.js';
+import { sendOrderStatusSms } from './services/orderSmsService.js';
 import { queueReviewRequest, processDueReviewRequests, recordRating, saveFeedback, recordPublicClick, getByToken as getReviewByToken, reviewsEnabled, autoReviewEnabled, sendTestReviewRequest, saveFirstPartyReview, listFirstPartyReviews, setReviewPublished, MIN_PUBLIC_RATING } from './services/reviewService.js';
 import { queueTradeInvite, processDueTradeInvites, tradeInvitesEnabled, autoTradeInviteEnabled, computeOrderTradeSavings } from './services/tradeInviteService.js';
 import { reviewStarPickerPage, reviewWriteReviewPage, reviewPrivateFeedbackPage, reviewGenericThanksPage } from './templates/reviewRequest.js';
@@ -10775,7 +10776,7 @@ function firePickupAdvanceEffects(sync, orderId) {
   if (!(sync && sync.changed && sync.newStatus === 'ready_for_pickup')) return;
   setImmediate(async () => {
     const fresh = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
-    if (fresh.rows.length) { const o = fresh.rows[0]; await attachRep(o); sendOrderStatusUpdate(o, 'ready_for_pickup'); }
+    if (fresh.rows.length) { const o = fresh.rows[0]; await attachRep(o); sendOrderStatusUpdate(o, 'ready_for_pickup'); sendOrderStatusSms(o, 'ready_for_pickup'); }
   });
   setImmediate(() => recalculateCommission(pool, orderId));
 }
@@ -10818,7 +10819,7 @@ app.put('/api/admin/orders/:id/items/:itemId/ready', staffAuth, requireRole('adm
     const fresh = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const order = fresh.rows[0];
     if (sync.changed && sync.newStatus === 'ready_for_pickup') {
-      setImmediate(async () => { await attachRep(order); sendOrderStatusUpdate(order, 'ready_for_pickup'); });
+      setImmediate(async () => { await attachRep(order); sendOrderStatusUpdate(order, 'ready_for_pickup'); sendOrderStatusSms(order, 'ready_for_pickup'); });
       setImmediate(() => recalculateCommission(pool, id));
       if (order.sales_rep_id) {
         setImmediate(() => createRepNotification(pool, order.sales_rep_id, 'order_status_changed',
@@ -11001,7 +11002,7 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
     // Fire-and-forget: send status update email for shipped/delivered/cancelled
     setImmediate(async () => {
       await attachRep(updatedOrder);
-      sendOrderStatusUpdate(updatedOrder, status);
+      sendOrderStatusUpdate(updatedOrder, status); sendOrderStatusSms(updatedOrder, status);
       // Delivered → queue the discreet review-request (auto path).
       if (status === 'delivered' && autoReviewEnabled()) queueReviewRequest(updatedOrder, { createdBy: 'auto' });
       // Delivered + pro-looking retail buyer → queue the one-time trade invite.
@@ -21408,7 +21409,7 @@ app.put('/api/rep/orders/:id/items/:itemId/ready', repAuth, async (req, res) => 
     const fresh = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const order = fresh.rows[0];
     if (sync.changed && sync.newStatus === 'ready_for_pickup') {
-      setImmediate(async () => { await attachRep(order); sendOrderStatusUpdate(order, 'ready_for_pickup'); });
+      setImmediate(async () => { await attachRep(order); sendOrderStatusUpdate(order, 'ready_for_pickup'); sendOrderStatusSms(order, 'ready_for_pickup'); });
       setImmediate(() => recalculateCommission(pool, id));
     }
     res.json({ order, item_id: itemId, qty_received: received, ready_at: readyAt, ready_summary: { total: sync.total, ready: sync.ready } });
@@ -21647,7 +21648,7 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
           const bal = await recalculateBalance(pool, id);
           sendInstallComplete(updatedOrder, bal ? bal.balance : null);
         } else {
-          sendOrderStatusUpdate(updatedOrder, status);
+          sendOrderStatusUpdate(updatedOrder, status); sendOrderStatusSms(updatedOrder, status);
         }
         // Queue the discreet "how did we do?" satisfaction check (auto path).
         // Sends after REVIEW_REQUEST_DELAY_HOURS; rating self-routes to public vs. private.
@@ -21656,7 +21657,7 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
         if (autoTradeInviteEnabled()) queueTradeInvite(updatedOrder, { createdBy: 'auto' });
         return;
       }
-      sendOrderStatusUpdate(updatedOrder, status);
+      sendOrderStatusUpdate(updatedOrder, status); sendOrderStatusSms(updatedOrder, status);
     });
 
     // Notify assigned rep if a different rep made the change
@@ -23973,7 +23974,7 @@ app.post('/api/rep/releases/:releaseId/complete', repAuth, async (req, res) => {
     // Fire the same side effects as a manual "Mark picked up / delivered".
     if (autoClosed && closedOrder) {
       setImmediate(() => recalculateCommission(pool, rel.order_id));
-      setImmediate(async () => { await attachRep(closedOrder); sendOrderStatusUpdate(closedOrder, 'delivered'); });
+      setImmediate(async () => { await attachRep(closedOrder); sendOrderStatusUpdate(closedOrder, 'delivered'); sendOrderStatusSms(closedOrder, 'delivered'); });
       setImmediate(() => createAutoTask(pool, req.rep.id, 'order_delivered', rel.order_id,
         `Post-delivery follow-up — ${closedOrder.customer_name} (${closedOrder.order_number})`, {
           priority: 'low', customer_name: closedOrder.customer_name,
@@ -36073,7 +36074,7 @@ async function pollEasyPostTracking(orderId, trackingNumber, carrier) {
         console.log(`[Tracking] Auto-marked order ${orderId} as delivered (EasyPost)`);
         const fullOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
         if (fullOrder.rows.length) {
-          setImmediate(async () => { const fo = fullOrder.rows[0]; await attachRep(fo); sendOrderStatusUpdate(fo, 'delivered'); });
+          setImmediate(async () => { const fo = fullOrder.rows[0]; await attachRep(fo); sendOrderStatusUpdate(fo, 'delivered'); sendOrderStatusSms(fo, 'delivered'); });
           setImmediate(() => recalculateCommission(pool, orderId));
         }
       }
@@ -37827,6 +37828,14 @@ async function runMigrations() {
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_review_requests_status ON review_requests(status)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_review_requests_due ON review_requests(send_after) WHERE status = 'scheduled'`);
     console.log('Migrations: review_requests table applied');
+    await pool.query(`CREATE TABLE IF NOT EXISTS order_sms_log (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      order_id UUID NOT NULL,
+      status VARCHAR(40) NOT NULL,
+      sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (order_id, status)
+    )`);
+    console.log('Migrations: order_sms_log table applied');
   } catch (err) {
     console.error('Migration warning:', err.message);
   }
