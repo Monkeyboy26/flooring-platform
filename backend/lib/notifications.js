@@ -24,12 +24,19 @@ export async function notifyAllActiveReps(queryable, type, title, message, entit
 export const AUTO_TASK_DEFAULT_DAYS = {
   quote_sent: 3, estimate_sent: 3, estimate_accepted: 1, estimate_declined: 1,
   order_deposit_paid: 1, sample_shipped: 5, order_delivered: 7,
-  deal_stuck: 0, payment_failed: 0, visit_quote_request: 1
+  deal_stuck: 0, payment_failed: 0, visit_quote_request: 1,
+  // Fulfillment watchdog (lib/fulfillmentWatchdog.js) — these fire once the
+  // state is ALREADY overdue, so they are all due immediately.
+  fulfillment_stuck_pending: 0, fulfillment_no_pos: 0, fulfillment_po_draft: 0,
+  fulfillment_po_unacked: 0, fulfillment_no_tracking: 0,
+  fulfillment_stale_transit: 0, fulfillment_pickup_stale: 0
 };
 
 export async function createAutoTask(pool, repId, sourceType, sourceId, title, options = {}) {
   try {
-    const defaultDays = AUTO_TASK_DEFAULT_DAYS[sourceType] || 3;
+    // ?? not || — several types (deal_stuck, payment_failed, fulfillment_*)
+    // are intentionally 0 = due today, which || would coerce to the 3-day fallback.
+    const defaultDays = AUTO_TASK_DEFAULT_DAYS[sourceType] ?? 3;
     const dueDate = options.due_date || new Date(Date.now() + defaultDays * 86400000).toISOString().split('T')[0];
     const result = await pool.query(`
       INSERT INTO rep_tasks (rep_id, title, description, due_date, priority, source, source_type, source_id,

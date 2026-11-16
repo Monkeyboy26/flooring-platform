@@ -9,7 +9,7 @@ import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
 import dns from 'dns';
-import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendProductInquiryNotification, sendProductInquiryConfirmation, sendNewProductInquiryRepAlert, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendWeeklyTrafficReport, sendBankTransferAwaitingEmail, sendNewOrderStaffAlert, sendNewOrderRepAlert, sendNewSampleRequestRepAlert, sendNewInstallInquiryRepAlert, sendMaterialRelease, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer, sendQualityDiffAlert, SCRAPER_ALERT_ADDR } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendProductInquiryNotification, sendProductInquiryConfirmation, sendNewProductInquiryRepAlert, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendWeeklyTrafficReport, sendBankTransferAwaitingEmail, sendNewOrderStaffAlert, sendNewOrderRepAlert, sendNewSampleRequestRepAlert, sendNewInstallInquiryRepAlert, sendMaterialRelease, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer, sendQualityDiffAlert, sendFulfillmentDigest, SCRAPER_ALERT_ADDR } from './services/emailService.js';
 import { sendOrderStatusSms } from './services/orderSmsService.js';
 import { queueReviewRequest, processDueReviewRequests, recordRating, saveFeedback, recordPublicClick, getByToken as getReviewByToken, reviewsEnabled, autoReviewEnabled, sendTestReviewRequest, saveFirstPartyReview, listFirstPartyReviews, setReviewPublished, MIN_PUBLIC_RATING } from './services/reviewService.js';
 import { queueTradeInvite, processDueTradeInvites, tradeInvitesEnabled, autoTradeInviteEnabled, computeOrderTradeSavings } from './services/tradeInviteService.js';
@@ -29,6 +29,7 @@ import { createAuthMiddleware } from './lib/auth.js';
 import { calculateSalesTax, isTradeTaxExempt, isPickupOnly, getNextBusinessDay, CA_TAX_RATES } from './lib/helpers.js';
 import { recalculateBalance, recalcOrderTotals, logOrderActivity, recalculateCommission, syncOrderPaymentToInvoice, getStoreCreditBalance, grantStoreCredit, redeemStoreCredit } from './lib/orderHelpers.js';
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
+import { runFulfillmentWatchdog, collectFulfillmentIssues } from './lib/fulfillmentWatchdog.js';
 import { getEstimateBundle, bundleSections, effectiveStatus, depositAmount, computeSchedule, LABOR_CATEGORY_LABELS, laborUnitShort, laborDisplayName } from './lib/estimateBundle.js';
 import { createCustomerHelpers, findExactDuplicate, claimGuestRecords, migrateCustomerEmail } from './lib/customerHelpers.js';
 import { titleCaseName, formatPhone, normMiddleInitial, normState, collapse } from './lib/customerNormalize.js';
@@ -34825,6 +34826,43 @@ cron.schedule('0 9 * * *', async () => {
   } finally {
     seoCronRunning = false;
   }
+});
+
+// --- Fulfillment watchdog (daily 15:30 UTC = 7:30 AM PST) ---
+// Push side of the orders ledger: files rep tasks + emails a staff digest for
+// every overdue fulfillment step (shipped w/o tracking, draft POs never sent,
+// unacked POs, confirmed w/o POs, stale transit, uncollected pickups). The
+// digest only sends when something is overdue — no email means all clear.
+let fulfillmentWatchdogRunning = false;
+cron.schedule('30 15 * * *', async () => {
+  if (process.env.NODE_ENV !== 'production' && process.env.ENABLE_SCHEDULER !== '1') return;
+  if (fulfillmentWatchdogRunning) return;
+  fulfillmentWatchdogRunning = true;
+  try {
+    const { issues, tasksCreated } = await runFulfillmentWatchdog(pool, { sendDigest: sendFulfillmentDigest });
+    console.log(`[Fulfillment watchdog] ${issues.length} overdue issue(s), ${tasksCreated} new rep task(s)`);
+  } catch (err) {
+    console.error('[Fulfillment watchdog] cron error:', err.message);
+  } finally {
+    fulfillmentWatchdogRunning = false;
+  }
+});
+
+// Manual trigger / preview. GET returns the current overdue list without side
+// effects; POST files the rep tasks (and sends the digest when send_digest=true).
+app.get('/api/admin/fulfillment-watchdog', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const issues = await collectFulfillmentIssues(pool);
+    res.json({ issues });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.post('/api/admin/fulfillment-watchdog/run', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const sendDigest = req.body && req.body.send_digest ? sendFulfillmentDigest : null;
+    const { issues, tasksCreated } = await runFulfillmentWatchdog(pool, { sendDigest });
+    res.json({ issues, tasks_created: tasksCreated, digest_sent: !!(sendDigest && issues.length) });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // --- Bills (AP) ---

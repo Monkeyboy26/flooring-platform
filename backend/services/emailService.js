@@ -569,6 +569,57 @@ export async function sendNewOrderStaffAlert(order) {
 }
 
 /**
+ * Fulfillment watchdog digest — one email listing every order whose
+ * tracking/fulfillment step is overdue (see lib/fulfillmentWatchdog.js).
+ * Sent by the daily cron only when something is actually overdue, so an
+ * empty inbox means everything is on time.
+ */
+export async function sendFulfillmentDigest(issues) {
+  if (!transporter) {
+    console.log(`[Email] Skipping fulfillment digest (${issues.length} issue(s)) — SMTP not configured`);
+    return;
+  }
+  try {
+    const toAddress = process.env.FULFILLMENT_DIGEST_EMAIL || process.env.ORDER_NOTIFY_EMAIL || 'Sales@romaflooringdesigns.com';
+    const groups = [];
+    for (const i of issues) {
+      let g = groups.find(g => g.label === i.label);
+      if (!g) { g = { label: i.label, rows: [] }; groups.push(g); }
+      g.rows.push(i);
+    }
+    const sections = groups.map(g => `
+      <h3 style="color:#1c1917;margin:20px 0 6px;font-size:15px;">${escapeHtml(g.label)} (${g.rows.length})</h3>
+      <table style="border-collapse:collapse;font-size:14px;width:100%;">
+        ${g.rows.map(i =>
+          `<tr>
+            <td style="padding:4px 12px 4px 0;color:#1c1917;white-space:nowrap;"><strong>${escapeHtml(i.order_number)}</strong></td>
+            <td style="padding:4px 12px 4px 0;color:#44403c;">${escapeHtml(i.customer_name || '')}</td>
+            <td style="padding:4px 12px 4px 0;color:#78716c;">${escapeHtml(i.rep_name || 'no rep')}</td>
+            <td style="padding:4px 0;color:#b91c1c;white-space:nowrap;">${i.overdue_days}d</td>
+          </tr>`).join('')}
+      </table>`).join('');
+    const html = `
+      <div style="font-family:Inter,Arial,sans-serif;max-width:560px;">
+        <h2 style="color:#1c1917;margin:0 0 4px;">Fulfillment watchdog</h2>
+        <p style="margin:0 0 8px;color:#44403c;">${issues.length} item${issues.length === 1 ? '' : 's'} overdue. Tasks have been filed for the assigned reps.</p>
+        ${sections}
+        <p style="margin:20px 0 0;">
+          <a href="https://romaflooringdesigns.com/admin" style="color:#8a6d3b;">Open in admin</a>
+        </p>
+      </div>`;
+    await deliver({
+      from: NOREPLY_FROM,
+      to: toAddress,
+      subject: `Fulfillment watchdog — ${issues.length} order step${issues.length === 1 ? '' : 's'} overdue`,
+      html
+    });
+    console.log(`[Email] Fulfillment digest sent to ${toAddress} (${issues.length} issue(s))`);
+  } catch (err) {
+    console.error('[Email] Failed to send fulfillment digest:', err.message);
+  }
+}
+
+/**
  * Personal new-order alert to the assigned sales rep. Complements the shared
  * staff alert: sent only when the order carries a rep (rep_email attached via
  * attachRep). Reply-To is the customer so the rep can respond in one step.
