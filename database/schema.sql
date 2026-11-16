@@ -3006,3 +3006,21 @@ CREATE TABLE IF NOT EXISTS reprice_proposals (
 CREATE INDEX IF NOT EXISTS idx_reprice_proposals_run ON reprice_proposals(run_id);
 CREATE INDEX IF NOT EXISTS idx_reprice_proposals_sku ON reprice_proposals(sku_id);
 CREATE INDEX IF NOT EXISTS idx_reprice_proposals_action ON reprice_proposals(action);
+
+-- Vendor inbox automation journal (services/vendorInbox.js): one row per
+-- purchasing-inbox message seen — unique message_id is the idempotency claim;
+-- action records what (if anything) the automation did with it.
+CREATE TABLE IF NOT EXISTS vendor_inbox_events (
+    id SERIAL PRIMARY KEY,
+    account TEXT NOT NULL,
+    message_id TEXT NOT NULL UNIQUE,
+    from_addr TEXT,
+    subject TEXT,
+    received_at TIMESTAMPTZ,
+    snippet TEXT,
+    classification JSONB,
+    purchase_order_id UUID REFERENCES purchase_orders(id) ON DELETE SET NULL,
+    order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
+    action TEXT NOT NULL DEFAULT 'none',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

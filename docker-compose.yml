@@ -167,6 +167,17 @@ services:
       SMTP_FROM: ${SMTP_FROM:-noreply@romaflooringdesigns.com}
       NOREPLY_FROM: ${NOREPLY_FROM:-}
       SALES_FROM: ${SALES_FROM:-}
+      # Vendor inbox automation (services/vendorInbox.js): polls the purchasing
+      # mailbox for vendor pickup/ship confirmations and auto-advances orders.
+      # Credentials default to the SMTP (Gmail app-password) account; set
+      # VENDOR_INBOX_ENABLED=0 to kill, VENDOR_INBOX_DRY_RUN=1 to observe only.
+      VENDOR_INBOX_ENABLED: ${VENDOR_INBOX_ENABLED:-}
+      VENDOR_INBOX_DRY_RUN: ${VENDOR_INBOX_DRY_RUN:-}
+      VENDOR_INBOX_USER: ${VENDOR_INBOX_USER:-}
+      VENDOR_INBOX_PASS: ${VENDOR_INBOX_PASS:-}
+      VENDOR_INBOX_HOST: ${VENDOR_INBOX_HOST:-}
+      VENDOR_INBOX_ACCOUNTS: ${VENDOR_INBOX_ACCOUNTS:-}
+      VENDOR_INBOX_MIN_CONFIDENCE: ${VENDOR_INBOX_MIN_CONFIDENCE:-}
     ports:
       - "127.0.0.1:3001:3001"
     depends_on:

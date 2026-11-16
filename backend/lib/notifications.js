@@ -29,7 +29,9 @@ export const AUTO_TASK_DEFAULT_DAYS = {
   // state is ALREADY overdue, so they are all due immediately.
   fulfillment_stuck_pending: 0, fulfillment_no_pos: 0, fulfillment_po_draft: 0,
   fulfillment_po_unacked: 0, fulfillment_no_tracking: 0,
-  fulfillment_stale_transit: 0, fulfillment_pickup_stale: 0
+  fulfillment_stale_transit: 0, fulfillment_pickup_stale: 0,
+  // Vendor inbox automation (services/vendorInbox.js)
+  vendor_email_review: 0, vendor_ready_at_vendor: 0, vendor_shipped_hold: 0
 };
 
 export async function createAutoTask(pool, repId, sourceType, sourceId, title, options = {}) {

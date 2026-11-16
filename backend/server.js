@@ -30,6 +30,7 @@ import { calculateSalesTax, isTradeTaxExempt, isPickupOnly, getNextBusinessDay, 
 import { recalculateBalance, recalcOrderTotals, logOrderActivity, recalculateCommission, syncOrderPaymentToInvoice, getStoreCreditBalance, grantStoreCredit, redeemStoreCredit } from './lib/orderHelpers.js';
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
 import { runFulfillmentWatchdog, collectFulfillmentIssues } from './lib/fulfillmentWatchdog.js';
+import { pollVendorInboxes, vendorInboxEnabled } from './services/vendorInbox.js';
 import { getEstimateBundle, bundleSections, effectiveStatus, depositAmount, computeSchedule, LABOR_CATEGORY_LABELS, laborUnitShort, laborDisplayName } from './lib/estimateBundle.js';
 import { createCustomerHelpers, findExactDuplicate, claimGuestRecords, migrateCustomerEmail } from './lib/customerHelpers.js';
 import { titleCaseName, formatPhone, normMiddleInitial, normState, collapse } from './lib/customerNormalize.js';
@@ -34865,6 +34866,62 @@ app.post('/api/admin/fulfillment-watchdog/run', staffAuth, requireRole('admin', 
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
+// --- Vendor inbox automation (every 10 min) ---
+// Vendors email the purchasing inbox when an order leaves their warehouse;
+// this matches those confirmations to open POs and advances the platform:
+// store pickup → ready_for_pickup, will-call → delivered, shipping → shipped.
+// See services/vendorInbox.js for the matching/guardrail details.
+const vendorInboxDeps = { syncOrderReadyFromPoReceipts, firePickupAdvanceEffects, attachRep, unsettledPaymentInfo, autoGenerateAndSendInvoice };
+let vendorInboxRunning = false;
+cron.schedule('*/10 * * * *', async () => {
+  if (process.env.NODE_ENV !== 'production' && process.env.ENABLE_SCHEDULER !== '1') return;
+  if (!vendorInboxEnabled()) return;
+  if (vendorInboxRunning) return;
+  vendorInboxRunning = true;
+  try {
+    const s = await pollVendorInboxes(vendorInboxDeps);
+    if (s.new > 0 || s.errors.length) {
+      console.log(`[VendorInbox] poll: ${s.fetched} fetched, ${s.new} new, ${s.screened} screened, ${s.acted} acted${s.errors.length ? ', errors: ' + s.errors.join(' | ') : ''}`);
+    }
+  } catch (err) {
+    console.error('[VendorInbox] poll error:', err.message);
+  } finally {
+    vendorInboxRunning = false;
+  }
+});
+
+// Manual poll + event journal for visibility/debugging.
+app.post('/api/admin/vendor-inbox/poll', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    if (!vendorInboxEnabled()) return res.status(400).json({ error: 'Vendor inbox not configured (set SMTP or VENDOR_INBOX_* credentials)' });
+    if (vendorInboxRunning) return res.status(409).json({ error: 'A poll is already running' });
+    vendorInboxRunning = true;
+    let summary;
+    try {
+      summary = await pollVendorInboxes(vendorInboxDeps);
+    } finally {
+      vendorInboxRunning = false;
+    }
+    res.json({ summary });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.get('/api/admin/vendor-inbox/events', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+    const onlyActed = req.query.acted === '1';
+    const r = await pool.query(`
+      SELECT e.*, po.po_number, o.order_number
+      FROM vendor_inbox_events e
+      LEFT JOIN purchase_orders po ON po.id = e.purchase_order_id
+      LEFT JOIN orders o ON o.id = e.order_id
+      ${onlyActed ? "WHERE e.action NOT IN ('ignored') AND e.action NOT LIKE 'no action%'" : ''}
+      ORDER BY e.created_at DESC LIMIT $1
+    `, [limit]);
+    res.json({ events: r.rows });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
 // --- Bills (AP) ---
 async function getNextBillNumber() {
   const result = await pool.query("SELECT internal_bill_number FROM bills ORDER BY created_at DESC LIMIT 1");
@@ -38015,6 +38072,31 @@ async function runMigrations() {
       );
     `);
     console.log('Migrations: media_asset_overrides table applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
+
+  // Vendor inbox automation journal (services/vendorInbox.js): one row per
+  // inbox message seen — unique message_id is the idempotency claim; action
+  // records what (if anything) the automation did with it.
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS vendor_inbox_events (
+        id SERIAL PRIMARY KEY,
+        account TEXT NOT NULL,
+        message_id TEXT NOT NULL UNIQUE,
+        from_addr TEXT,
+        subject TEXT,
+        received_at TIMESTAMPTZ,
+        snippet TEXT,
+        classification JSONB,
+        purchase_order_id UUID REFERENCES purchase_orders(id) ON DELETE SET NULL,
+        order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
+        action TEXT NOT NULL DEFAULT 'none',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+    `);
+    console.log('Migrations: vendor_inbox_events table applied');
   } catch (err) {
     console.error('Migration warning:', err.message);
   }
