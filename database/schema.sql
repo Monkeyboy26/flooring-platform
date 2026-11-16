@@ -2034,6 +2034,7 @@ CREATE TABLE IF NOT EXISTS analytics_sessions (
     utm_medium TEXT,
     utm_campaign TEXT,
     device_type VARCHAR(20),
+    ip TEXT,
     first_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     page_count INTEGER DEFAULT 1,
