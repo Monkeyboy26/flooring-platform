@@ -433,13 +433,18 @@ export async function pollVendorInboxes(deps) {
             : `DRY RUN: would process event=${classification.event} for ${po.po_number} (matched by ${matched_by})`;
         } else if (classification.confidence < MIN_CONFIDENCE) {
           action = `no action: low confidence ${classification.confidence}`;
-          // Looks actionable but we're not sure — hand it to a human.
-          const o = po.order_id ? (await pool.query('SELECT * FROM orders WHERE id = $1', [po.order_id])).rows[0] : null;
-          const repId = await fallbackRepId(pool, o ? o.sales_rep_id : null);
-          if (repId && o) {
-            await createAutoTask(pool, repId, 'vendor_email_review', po.order_id,
-              `Review vendor email for PO ${po.po_number} — looks like a pickup/ship confirmation ("${msg.subject.slice(0, 80)}")`,
-              { priority: 'high', customer_name: o.customer_name, linked_order_id: po.order_id });
+          // A shaky picked_up/shipped goes to a human; a shaky ready_at_vendor
+          // is usually a newsletter that pattern-matched — journal only
+          // (backtest: Goton marketing classified ready_at_vendor@0.7).
+          if (['picked_up', 'shipped'].includes(classification.event)) {
+            const o = po.order_id ? (await pool.query('SELECT * FROM orders WHERE id = $1', [po.order_id])).rows[0] : null;
+            const repId = await fallbackRepId(pool, o ? o.sales_rep_id : null);
+            if (repId && o) {
+              await createAutoTask(pool, repId, 'vendor_email_review', po.order_id,
+                `Review vendor email for PO ${po.po_number} — looks like a pickup/ship confirmation ("${msg.subject.slice(0, 80)}")`,
+                { priority: 'high', customer_name: o.customer_name, linked_order_id: po.order_id });
+              action += ' — review task filed';
+            }
           }
         } else if (classification.event === 'ready_at_vendor') {
           action = await handleReadyAtVendor(po, msg, deps);
