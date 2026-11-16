@@ -13,13 +13,16 @@ import { sendSms, smsConfigured } from './smsService.js';
 
 const ENABLED = process.env.ORDER_SMS_ENABLED !== 'false';
 
-const SHOWROOM = '1440 S. State College Blvd Suite 6M, Anaheim';
+const SHOWROOM = '1440 S State College Blvd #6M, Anaheim';
 const PHONE = '(714) 999-0009';
 
+// Keep every template GSM-7-safe (plain ASCII, no en/em dashes or curly
+// quotes) and under 160 chars with an 8-char order number — non-GSM chars
+// force UCS-2 and a ~190-char message bills as THREE segments instead of one.
 const MESSAGES = {
-  ready_for_pickup: (o) => `Roma Flooring Designs: Order ${o.order_number} is ready for pickup! ${SHOWROOM} — Mon–Fri 9am–5pm, Sat 10am–5pm. Questions? ${PHONE}. Reply STOP to opt out.`,
-  shipped: (o) => `Roma Flooring Designs: Order ${o.order_number} is on its way! We'll follow up once it arrives. Questions? ${PHONE}. Reply STOP to opt out.`,
-  delivered: (o) => `Roma Flooring Designs: Order ${o.order_number} has been delivered. Thank you for choosing us! Questions? ${PHONE}. Reply STOP to opt out.`
+  ready_for_pickup: (o) => `Roma Flooring: Order ${o.order_number} is ready for pickup! ${SHOWROOM}. Mon-Fri 9-5, Sat 10-5. Call ${PHONE}. Reply STOP to opt out`,
+  shipped: (o) => `Roma Flooring: Order ${o.order_number} is on its way! We'll text you when it arrives. Call ${PHONE} with questions. Reply STOP to opt out`,
+  delivered: (o) => `Roma Flooring: Order ${o.order_number} has been delivered. Thank you for choosing us! Call ${PHONE} with questions. Reply STOP to opt out`
 };
 
 async function hasStandingConsent(order) {
