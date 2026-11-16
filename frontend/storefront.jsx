@@ -20122,6 +20122,7 @@
       const [depositError, setDepositError] = useState('');
       // No-deposit estimates approve without paying (converts to an order, balance due).
       const [approveLoading, setApproveLoading] = useState(false);
+      const [smsOk, setSmsOk] = useState(false);
       // Read ?deposit=success|cancelled once on mount (return from Stripe Checkout)
       const [depositResult, setDepositResult] = useState(() => {
         if (typeof window === 'undefined') return null;
@@ -20175,10 +20176,17 @@
       const money = (v) => '$' + parseFloat(v || 0).toFixed(2);
       const fmtDay = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
 
+      const smsOptIn = (
+        <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', margin: '0 0 0.75rem', font: '400 12px/1.5 Inter, sans-serif', color: 'var(--stone-500)', cursor: 'pointer', textAlign: 'left' }}>
+          <input type="checkbox" checked={smsOk} onChange={e => setSmsOk(e.target.checked)} style={{ width: 15, height: 15, marginTop: 2, flexShrink: 0 }} />
+          <span>Text me updates about my order (delivery notices &amp; a quick review link). Msg &amp; data rates may apply; reply STOP to opt out.</span>
+        </label>
+      );
+
       const payDeposit = async () => {
         setDepositError(''); setDepositLoading(true);
         try {
-          const resp = await fetch(API + '/api/estimate-view/' + token + '/pay-deposit', { method: 'POST' });
+          const resp = await fetch(API + '/api/estimate-view/' + token + '/pay-deposit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sms_consent: smsOk }) });
           const body = await resp.json().catch(() => ({}));
           if (!resp.ok || !body.checkout_url) {
             setDepositError(body.error || 'Something went wrong. Please try again.');
@@ -20195,7 +20203,7 @@
       const approveEstimate = async () => {
         setDepositError(''); setApproveLoading(true);
         try {
-          const resp = await fetch(API + '/api/estimate-view/' + token + '/approve', { method: 'POST' });
+          const resp = await fetch(API + '/api/estimate-view/' + token + '/approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sms_consent: smsOk }) });
           const body = await resp.json().catch(() => ({}));
           if (!resp.ok) {
             setDepositError(body.error || 'Something went wrong. Please try again.');
@@ -20220,7 +20228,8 @@
         return (
           <div style={{ maxWidth: 620, margin: '4rem auto 6rem', padding: '0 1.5rem', textAlign: 'center' }}>
             <div style={{ fontSize: '0.6875rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: '0.75rem' }}>
-              {docType}{est.estimate_number ? ' · ' + est.estimate_number : ''}
+              {/* docType is declared after the early returns (TDZ) — derive locally */}
+              {est.doc_type === 'Quote' ? 'Quote' : 'Estimate'}{est.estimate_number ? ' · ' + est.estimate_number : ''}
             </div>
             <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '2.25rem', fontWeight: 400, margin: '0 0 1rem' }}>This estimate has expired</h1>
             <p style={{ color: 'var(--stone-600)', fontSize: '1rem', lineHeight: 1.65, margin: '0 auto 1.5rem', maxWidth: 460 }}>
@@ -20451,9 +20460,9 @@
           {showActions && !isNarrow && (
             <div style={{ padding: '1.25rem 1.5rem 1.4rem' }}>
               {hasDeposit ? (
-                <button className="btn" style={{ width: '100%', padding: '0.95rem', fontSize: '0.9375rem' }} onClick={payDeposit} disabled={depositLoading}>{acceptPayLabel}</button>
+                <React.Fragment>{smsOptIn}<button className="btn" style={{ width: '100%', padding: '0.95rem', fontSize: '0.9375rem' }} onClick={payDeposit} disabled={depositLoading}>{acceptPayLabel}</button></React.Fragment>
               ) : (
-                <button className="btn" style={{ width: '100%', padding: '0.95rem', fontSize: '0.9375rem' }} onClick={approveEstimate} disabled={approveLoading}>{approveLabel}</button>
+                <React.Fragment>{smsOptIn}<button className="btn" style={{ width: '100%', padding: '0.95rem', fontSize: '0.9375rem' }} onClick={approveEstimate} disabled={approveLoading}>{approveLabel}</button></React.Fragment>
               )}
               {depositError && <div className="checkout-error" style={{ marginTop: '0.6rem' }}>{depositError}</div>}
               <div style={{ marginTop: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--stone-400)', textAlign: 'center' }}>
@@ -20613,9 +20622,9 @@
             <div className="est-sticky-bar" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 900, background: '#fff', borderTop: '1px solid var(--stone-200)', boxShadow: '0 -4px 20px rgba(0,0,0,0.08)', padding: '0.75rem 1rem' }}>
               <div style={{ maxWidth: 820, margin: '0 auto' }}>
                 {hasDeposit ? (
-                  <button className="btn" style={{ width: '100%', padding: '0.9rem' }} onClick={payDeposit} disabled={depositLoading}>{acceptPayLabel}</button>
+                  <React.Fragment>{smsOptIn}<button className="btn" style={{ width: '100%', padding: '0.9rem' }} onClick={payDeposit} disabled={depositLoading}>{acceptPayLabel}</button></React.Fragment>
                 ) : (
-                  <button className="btn" style={{ width: '100%', padding: '0.9rem' }} onClick={approveEstimate} disabled={approveLoading}>{approveLabel}</button>
+                  <React.Fragment>{smsOptIn}<button className="btn" style={{ width: '100%', padding: '0.9rem' }} onClick={approveEstimate} disabled={approveLoading}>{approveLabel}</button></React.Fragment>
                 )}
                 {depositError && <div className="checkout-error" style={{ marginTop: '0.5rem', textAlign: 'center' }}>{depositError}</div>}
               </div>
@@ -20637,6 +20646,7 @@
       const [isWide, setIsWide] = useState(typeof window !== 'undefined' && window.innerWidth >= 900);
       const [payLoading, setPayLoading] = useState(false);
       const [payError, setPayError] = useState('');
+      const [smsOk, setSmsOk] = useState(false);
       const [payResult, setPayResult] = useState(() => {
         if (typeof window === 'undefined') return null;
         const p = new URLSearchParams(window.location.search).get('payment');
@@ -20680,10 +20690,17 @@
       const money = (v) => '$' + parseFloat(v || 0).toFixed(2);
       const fmtDay = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
 
+      const smsOptIn = (
+        <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', margin: '0 0 0.75rem', font: '400 12px/1.5 Inter, sans-serif', color: 'var(--stone-500)', cursor: 'pointer', textAlign: 'left' }}>
+          <input type="checkbox" checked={smsOk} onChange={e => setSmsOk(e.target.checked)} style={{ width: 15, height: 15, marginTop: 2, flexShrink: 0 }} />
+          <span>Text me updates about my order (delivery notices &amp; a quick review link). Msg &amp; data rates may apply; reply STOP to opt out.</span>
+        </label>
+      );
+
       const acceptPay = async () => {
         setPayError(''); setPayLoading(true);
         try {
-          const resp = await fetch(API + '/api/quote-view/' + token + '/pay', { method: 'POST' });
+          const resp = await fetch(API + '/api/quote-view/' + token + '/pay', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sms_consent: smsOk }) });
           const body = await resp.json().catch(() => ({}));
           if (!resp.ok || !body.checkout_url) { setPayError(body.error || 'Something went wrong. Please try again.'); setPayLoading(false); return; }
           window.location.href = body.checkout_url;
@@ -20811,7 +20828,7 @@
           </div>
           {showActions && !isNarrow && (
             <div style={{ padding: '1.25rem 1.5rem 1.4rem' }}>
-              <button className="btn" style={{ width: '100%', padding: '0.95rem', fontSize: '0.9375rem' }} onClick={acceptPay} disabled={payLoading}>{acceptLabel}</button>
+              <React.Fragment>{smsOptIn}<button className="btn" style={{ width: '100%', padding: '0.95rem', fontSize: '0.9375rem' }} onClick={acceptPay} disabled={payLoading}>{acceptLabel}</button></React.Fragment>
               {payError && <div className="checkout-error" style={{ marginTop: '0.6rem' }}>{payError}</div>}
               <div style={{ marginTop: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--stone-400)', textAlign: 'center' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" width="12" height="12"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -20918,7 +20935,7 @@
           {showActions && isNarrow && (
             <div className="est-sticky-bar" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 900, background: '#fff', borderTop: '1px solid var(--stone-200)', boxShadow: '0 -4px 20px rgba(0,0,0,0.08)', padding: '0.75rem 1rem' }}>
               <div style={{ maxWidth: 820, margin: '0 auto' }}>
-                <button className="btn" style={{ width: '100%', padding: '0.9rem' }} onClick={acceptPay} disabled={payLoading}>{acceptLabel}</button>
+                <React.Fragment>{smsOptIn}<button className="btn" style={{ width: '100%', padding: '0.9rem' }} onClick={acceptPay} disabled={payLoading}>{acceptLabel}</button></React.Fragment>
                 {payError && <div className="checkout-error" style={{ marginTop: '0.5rem', textAlign: 'center' }}>{payError}</div>}
               </div>
             </div>

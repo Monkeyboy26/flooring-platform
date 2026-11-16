@@ -16799,9 +16799,28 @@ app.get('/api/quote-view/:token', async (req, res) => {
 });
 
 // SPA "Accept & Pay" — returns a Stripe Checkout URL (JSON) for the whole total.
+// Customer ticked the SMS opt-in on a hosted quote/estimate page. Standing
+// consent lives on the customer row (reviewService falls back to it for rep
+// orders), keyed by id when the doc carries one, else by email match. Grant
+// only — an unticked box is not a revocation (STOP handles opt-out).
+async function grantSmsConsentFromDoc({ customerId = null, email = null }) {
+  if (!customerId && !email) return;
+  try {
+    await pool.query(
+      `UPDATE customers SET sms_consent = true, updated_at = CURRENT_TIMESTAMP
+       WHERE sms_consent = false
+         AND (($1::uuid IS NOT NULL AND id = $1::uuid) OR ($2::text IS NOT NULL AND LOWER(email) = LOWER($2)))`,
+      [customerId, email]);
+  } catch (err) { console.error('[SmsConsent] grant failed:', err.message); }
+}
+
 app.post('/api/quote-view/:token/pay', async (req, res) => {
   const site = process.env.SITE_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
   try {
+    if (req.body && req.body.sms_consent === true) {
+      const qc = await pool.query('SELECT customer_id, customer_email FROM quotes WHERE public_token::text = $1', [req.params.token]);
+      if (qc.rows[0]) await grantSmsConsentFromDoc({ customerId: qc.rows[0].customer_id, email: qc.rows[0].customer_email });
+    }
     const r = await resolveQuotePayment(req.params.token, { site });
     if (r.checkout_url) return res.json({ checkout_url: r.checkout_url });
     const page = QUOTE_PAY_STATE_PAGES[r.state] || QUOTE_PAY_STATE_PAGES.error;
@@ -30210,6 +30229,7 @@ app.post('/api/estimate-view/:token/pay-deposit', async (req, res) => {
     const bundle = await getEstimateBundle(pool, { token: req.params.token });
     if (!bundle || bundle.estimate.status === 'draft') return res.status(404).json({ error: 'Estimate not found' });
     const e = bundle.estimate;
+    if (req.body && req.body.sms_consent === true) await grantSmsConsentFromDoc({ customerId: e.customer_id || null, email: e.customer_email || null });
     // Acceptance IS payment: charge the configured deposit, or the full total when
     // no deposit is set. Settling this Checkout accepts + converts to an order.
     const configuredDeposit = parseFloat(e.deposit_amount || 0);
@@ -30331,6 +30351,7 @@ app.post('/api/estimate-view/:token/approve', async (req, res) => {
     const bundle = await getEstimateBundle(pool, { token: req.params.token });
     if (!bundle || bundle.estimate.status === 'draft') return res.status(404).json({ error: 'Estimate not found' });
     const e = bundle.estimate;
+    if (req.body && req.body.sms_consent === true) await grantSmsConsentFromDoc({ customerId: e.customer_id || null, email: e.customer_email || null });
     // Guard: this no-payment path is only for estimates with no deposit due. Any
     // configured deposit (including a draw-schedule first milestone) must be paid.
     if (parseFloat(e.deposit_amount || 0) > 0) {
