@@ -154,7 +154,7 @@
         geo: { '@type': 'GeoCoordinates', latitude: 33.8271, longitude: -117.8827 },
         openingHoursSpecification: [
           { '@type': 'OpeningHoursSpecification', dayOfWeek: ['Monday','Tuesday','Wednesday','Thursday','Friday'], opens: '09:00', closes: '17:00' },
-          { '@type': 'OpeningHoursSpecification', dayOfWeek: 'Saturday', opens: '10:00', closes: '15:00' }
+          { '@type': 'OpeningHoursSpecification', dayOfWeek: 'Saturday', opens: '10:00', closes: '17:00' }
         ],
         areaServed: [
           ...SERVICE_AREAS.flatMap(a => a.cities.map(c => ({ '@type': 'City', name: c }))),
@@ -8096,6 +8096,15 @@
         document.body.style.overflow = 'hidden';
         return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
       }, [go, onClose]);
+      // Warm every full-size gallery image as soon as the viewer opens. Without this,
+      // clicking "next" left the previous image frozen on screen for a second or two
+      // while the cold 1600px variant streamed in — navigation looked broken. Keyed on
+      // a value-equal url string so it runs once per gallery, not on every re-render.
+      const galleryKey = images.map(m => m.url).join('|');
+      useEffect(() => {
+        images.forEach(m => { const p = new Image(); p.src = optimizeImg(m.url, 1600); });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [galleryKey]);
       const img = images[index] || images[0];
       if (!img) return null;
       // Portal: the PDP container animates with fill-mode:both, which leaves it a
@@ -8108,6 +8117,10 @@
             <button className="pdp-lightbox-arrow prev" aria-label="Previous image" onClick={e => { e.stopPropagation(); go(-1); }}>&lsaquo;</button>
           )}
           <img
+            key={img.url}
+            className="pdp-lightbox-img"
+            ref={el => { if (el && el.complete && el.naturalWidth > 0) el.classList.add('is-loaded'); }}
+            onLoad={e => e.currentTarget.classList.add('is-loaded')}
             src={optimizeImg(img.url, 1600)}
             alt={alt || ''}
             onClick={e => e.stopPropagation()}

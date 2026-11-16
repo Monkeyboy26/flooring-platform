@@ -140,7 +140,7 @@
       geo: { "@type": "GeoCoordinates", latitude: 33.8271, longitude: -117.8827 },
       openingHoursSpecification: [
         { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], opens: "09:00", closes: "17:00" },
-        { "@type": "OpeningHoursSpecification", dayOfWeek: "Saturday", opens: "10:00", closes: "15:00" }
+        { "@type": "OpeningHoursSpecification", dayOfWeek: "Saturday", opens: "10:00", closes: "17:00" }
       ],
       areaServed: [
         ...SERVICE_AREAS.flatMap((a) => a.cities.map((c) => ({ "@type": "City", name: c }))),
@@ -6025,6 +6025,13 @@
         document.body.style.overflow = "";
       };
     }, [go, onClose]);
+    const galleryKey = images.map((m) => m.url).join("|");
+    useEffect(() => {
+      images.forEach((m) => {
+        const p = new Image();
+        p.src = optimizeImg(m.url, 1600);
+      });
+    }, [galleryKey]);
     const img = images[index] || images[0];
     if (!img) return null;
     return ReactDOM.createPortal(
@@ -6034,6 +6041,12 @@
       } }, "\u2039"), /* @__PURE__ */ React.createElement(
         "img",
         {
+          key: img.url,
+          className: "pdp-lightbox-img",
+          ref: (el) => {
+            if (el && el.complete && el.naturalWidth > 0) el.classList.add("is-loaded");
+          },
+          onLoad: (e) => e.currentTarget.classList.add("is-loaded"),
           src: optimizeImg(img.url, 1600),
           alt: alt || "",
           onClick: (e) => e.stopPropagation(),

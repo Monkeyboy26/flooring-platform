@@ -1052,7 +1052,7 @@ function installationBusinessNode() {
     geo: { '@type': 'GeoCoordinates', latitude: 33.8271, longitude: -117.8827 },
     openingHoursSpecification: [
       { '@type': 'OpeningHoursSpecification', dayOfWeek: ['Monday','Tuesday','Wednesday','Thursday','Friday'], opens: '09:00', closes: '17:00' },
-      { '@type': 'OpeningHoursSpecification', dayOfWeek: 'Saturday', opens: '10:00', closes: '15:00' }
+      { '@type': 'OpeningHoursSpecification', dayOfWeek: 'Saturday', opens: '10:00', closes: '17:00' }
     ],
     areaServed: [
       ...SERVICE_AREAS.flatMap(a => a.cities.map(c => ({ '@type': 'City', name: c }))),
@@ -1460,7 +1460,7 @@ function renderStaticPage(page) {
     },
     openingHoursSpecification: [
       { '@type': 'OpeningHoursSpecification', dayOfWeek: ['Monday','Tuesday','Wednesday','Thursday','Friday'], opens: '09:00', closes: '17:00' },
-      { '@type': 'OpeningHoursSpecification', dayOfWeek: 'Saturday', opens: '10:00', closes: '15:00' }
+      { '@type': 'OpeningHoursSpecification', dayOfWeek: 'Saturday', opens: '10:00', closes: '17:00' }
     ]
   }] : {
     '@context': 'https://schema.org',
