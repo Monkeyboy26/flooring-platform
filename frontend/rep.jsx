@@ -16157,8 +16157,20 @@
       const savedTimer = useRef(null);
       const flagSaved = (m) => {
         setSavedMsg(m || 'Saved');
+        setErrorMsg(null);
         if (savedTimer.current) clearTimeout(savedTimer.current);
         savedTimer.current = setTimeout(() => setSavedMsg(null), 4000);
+      };
+      // Inline error shown in the same action bar — used instead of a native
+      // alert() so a backend rejection (e.g. "line not fully received") can't
+      // wedge the page behind a modal dialog.
+      const [errorMsg, setErrorMsg] = useState(null);
+      const errorTimer = useRef(null);
+      const flagError = (m) => {
+        setErrorMsg(m || 'Something went wrong');
+        setSavedMsg(null);
+        if (errorTimer.current) clearTimeout(errorTimer.current);
+        errorTimer.current = setTimeout(() => setErrorMsg(null), 6000);
       };
       const [items, setItems] = useState([]);
       const [adjustments, setAdjustments] = useState([]);
@@ -16860,7 +16872,7 @@
           setShowCancelForm(false);
           setCancelReason('');
           setTrackingData({ tracking_number: '', carrier: '', shipped_at: new Date().toISOString().slice(0, 10) });
-        } catch (err) { alert(err.message || 'Failed to update status'); }
+        } catch (err) { flagError(err.message || 'Failed to update status'); }
         setUpdating(false);
       };
 
@@ -18782,6 +18794,9 @@
               </span>
               {savedMsg && (
                 <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7fb98f' }}>{'✓'} {savedMsg}</span>
+              )}
+              {errorMsg && (
+                <span style={{ font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#d98162' }}>{'⚠'} {errorMsg}</span>
               )}
             </div>
             {!hasUnreleasedMaterials && (

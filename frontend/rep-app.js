@@ -10360,8 +10360,17 @@
     const savedTimer = useRef(null);
     const flagSaved = (m) => {
       setSavedMsg(m || "Saved");
+      setErrorMsg(null);
       if (savedTimer.current) clearTimeout(savedTimer.current);
       savedTimer.current = setTimeout(() => setSavedMsg(null), 4e3);
+    };
+    const [errorMsg, setErrorMsg] = useState(null);
+    const errorTimer = useRef(null);
+    const flagError = (m) => {
+      setErrorMsg(m || "Something went wrong");
+      setSavedMsg(null);
+      if (errorTimer.current) clearTimeout(errorTimer.current);
+      errorTimer.current = setTimeout(() => setErrorMsg(null), 6e3);
     };
     const [items, setItems] = useState([]);
     const [adjustments, setAdjustments] = useState([]);
@@ -11108,7 +11117,7 @@
         setCancelReason("");
         setTrackingData({ tracking_number: "", carrier: "", shipped_at: (/* @__PURE__ */ new Date()).toISOString().slice(0, 10) });
       } catch (err) {
-        alert(err.message || "Failed to update status");
+        flagError(err.message || "Failed to update status");
       }
       setUpdating(false);
     };
@@ -12290,7 +12299,7 @@
       items.length + " line" + (items.length !== 1 ? "s" : ""),
       isWillCall ? "Will-call" : isPickup ? "Pickup" : "Shipping",
       balanceInfo && balanceInfo.balance > 0 ? "Balance $" + balanceInfo.balance.toLocaleString(void 0, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "Paid in full"
-    ].filter(Boolean).join(" \xB7 ")), savedMsg && /* @__PURE__ */ React.createElement("span", { style: { font: "500 9px/1 ui-monospace, monospace", letterSpacing: "0.14em", textTransform: "uppercase", color: "#7fb98f" } }, "\u2713", " ", savedMsg)), !hasUnreleasedMaterials && /* @__PURE__ */ React.createElement("button", { className: "rof-btn rof-btn-primary", onClick: () => navigate("orders") }, "Save & close"), order.status === "cancelled" && !order.stripe_refund_id && /* @__PURE__ */ React.createElement("button", { className: "rof-btn", onClick: () => {
+    ].filter(Boolean).join(" \xB7 ")), savedMsg && /* @__PURE__ */ React.createElement("span", { style: { font: "500 9px/1 ui-monospace, monospace", letterSpacing: "0.14em", textTransform: "uppercase", color: "#7fb98f" } }, "\u2713", " ", savedMsg), errorMsg && /* @__PURE__ */ React.createElement("span", { style: { font: "500 9px/1.4 ui-monospace, monospace", letterSpacing: "0.14em", textTransform: "uppercase", color: "#d98162" } }, "\u26A0", " ", errorMsg)), !hasUnreleasedMaterials && /* @__PURE__ */ React.createElement("button", { className: "rof-btn rof-btn-primary", onClick: () => navigate("orders") }, "Save & close"), order.status === "cancelled" && !order.stripe_refund_id && /* @__PURE__ */ React.createElement("button", { className: "rof-btn", onClick: () => {
       if (confirm("Reopen this order? It will return to Pending status.")) updateStatus("pending");
     }, disabled: updating }, "Reopen")), catalogOpen && ["pending", "confirmed"].includes(order.status) && /* @__PURE__ */ React.createElement(
       RofCatalogModal,
