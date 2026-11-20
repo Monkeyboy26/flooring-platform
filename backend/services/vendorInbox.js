@@ -347,6 +347,45 @@ export async function applyVendorPickup(po, msg, classification, deps) {
   return action;
 }
 
+// Vendor order acknowledgment → PO sent → acknowledged. Internal-only (no
+// customer-facing effects), so this is the lowest-risk auto-action: it stops
+// the watchdog's "chase vendor ack" nag and completes any open unacked task
+// once every PO on the order is acknowledged.
+export async function handleAcknowledgment(po, msg, classification) {
+  if (po.status !== 'sent') return `ack noted — PO already ${po.status}`;
+  const upd = await pool.query(
+    `UPDATE purchase_orders SET status = 'acknowledged', updated_at = CURRENT_TIMESTAMP
+     WHERE id = $1 AND status = 'sent' RETURNING id`, [po.id]);
+  if (!upd.rows.length) return 'ack noted — PO no longer sent';
+  await pool.query(
+    `INSERT INTO po_activity_log (purchase_order_id, action, performer_name, details)
+     VALUES ($1, 'acknowledged', 'Vendor Inbox', $2)`,
+    [po.id, JSON.stringify({ message_id: msg.messageId, from: msg.from, subject: msg.subject, event: 'acknowledgment', confidence: classification.confidence })]);
+  if (po.order_id) {
+    // Shows on the order detail page as "Vendor Confirmed · RDP-xxxxx"
+    // (same action the manual confirmation-upload flow logs).
+    await logOrderActivity(pool, po.order_id, 'po_confirmed', null, 'Vendor Inbox',
+      { po_number: po.po_number, vendor_name: po.vendor_name || null, subject: (msg.subject || '').slice(0, 140), via: 'vendor email' });
+    const o = (await pool.query('SELECT order_number, sales_rep_id FROM orders WHERE id = $1', [po.order_id])).rows[0];
+    if (o && o.sales_rep_id) {
+      setImmediate(() => createRepNotification(pool, o.sales_rep_id, 'po_acknowledged',
+        `Vendor confirmed PO ${po.po_number}`,
+        `${po.vendor_name || 'Vendor'} acknowledged the order for ${o.order_number} (auto-processed from their email).`,
+        'order', po.order_id));
+    }
+    // Every PO on the order acknowledged → the watchdog's chase task is done.
+    const remaining = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM purchase_orders WHERE order_id = $1 AND status = 'sent'`, [po.order_id]);
+    if (remaining.rows[0].n === 0) {
+      await pool.query(
+        `UPDATE rep_tasks SET status = 'completed', completed_at = NOW()
+         WHERE source = 'auto' AND source_type = 'fulfillment_po_unacked' AND source_id = $1 AND status = 'open'`,
+        [String(po.order_id)]);
+    }
+  }
+  return `PO ${po.po_number} → acknowledged`;
+}
+
 // "Ready at vendor" is informational: no status change, but the rep should go
 // collect it (or send the customer for will-call).
 async function handleReadyAtVendor(po, msg, deps) {
@@ -446,7 +485,7 @@ export async function pollVendorInboxes(deps) {
         let action;
         if (!po) {
           action = `no action: ${reason}`;
-        } else if (!['picked_up', 'shipped', 'ready_at_vendor'].includes(classification.event)) {
+        } else if (!['picked_up', 'shipped', 'ready_at_vendor', 'acknowledgment'].includes(classification.event)) {
           action = `no action: event=${classification.event}`;
         } else if (matched_by === 'po_number_uncorroborated') {
           // Number matched but the sender isn't that PO's vendor — likely a
@@ -483,6 +522,9 @@ export async function pollVendorInboxes(deps) {
               action += ' — review task filed';
             }
           }
+        } else if (classification.event === 'acknowledgment') {
+          action = await handleAcknowledgment(po, msg, classification);
+          if (action.endsWith('→ acknowledged')) summary.acted++;
         } else if (classification.event === 'ready_at_vendor') {
           action = await handleReadyAtVendor(po, msg, deps);
         } else {
