@@ -136,24 +136,43 @@ If an email mixes signals (e.g. invoice attached AND says goods were picked up),
   };
 }
 
+// True when the two mail domains belong together (exact or subdomain:
+// email.masterbrand.com ↔ masterbrand.com).
+function domainsRelated(a, b) {
+  if (!a || !b) return false;
+  return a === b || a.endsWith('.' + b) || b.endsWith('.' + a);
+}
+
 /**
  * Resolve the email to exactly one open PO (status sent/acknowledged).
  * Prefers explicit RDP numbers (regex + classifier); falls back to the sender
- * domain when that vendor has exactly one open PO. Returns { po, matched_by }
- * or { po: null, reason }.
+ * domain when that vendor has exactly one open PO. A number match must be
+ * CORROBORATED by the sender's domain belonging to that PO's vendor — the
+ * shop also runs a manual purchasing lane whose bare PO numbers ("po 10250")
+ * the classifier normalizes into RDP form, so an uncorroborated number match
+ * may be about a different lane's purchase entirely. Returns { po, matched_by }
+ * (matched_by 'po_number' only when corroborated; 'po_number_uncorroborated'
+ * otherwise — callers must not auto-act on the latter) or { po: null, reason }.
  */
-async function resolveOpenPo(db, msg, classification) {
+export async function resolveOpenPo(db, msg, classification) {
   const numbers = [...new Set([...extractPoNumbers(msg.subject + ' ' + msg.text), ...classification.po_numbers])];
   if (numbers.length) {
     const r = await db.query(
-      `SELECT po.*, v.name AS vendor_name FROM purchase_orders po
+      `SELECT po.*, v.name AS vendor_name, LOWER(v.email) AS vendor_email,
+        ARRAY(SELECT LOWER(vc.email) FROM vendor_contacts vc WHERE vc.vendor_id = po.vendor_id AND vc.email IS NOT NULL) AS contact_emails
+       FROM purchase_orders po
        JOIN vendors v ON v.id = po.vendor_id
        WHERE po.po_number = ANY($1) AND po.status IN ('sent', 'acknowledged')`,
       [numbers]
     );
-    if (r.rows.length === 1) return { po: r.rows[0], matched_by: 'po_number' };
     if (r.rows.length > 1) return { po: null, reason: `multiple open POs matched (${r.rows.map(p => p.po_number).join(', ')})` };
-    return { po: null, reason: `no open PO for ${numbers.join(', ')}` };
+    if (!r.rows.length) return { po: null, reason: `no open PO for ${numbers.join(', ')}` };
+    const po = r.rows[0];
+    const from = senderDomain(msg.from);
+    const vendorDomains = [po.vendor_email, ...(po.contact_emails || [])]
+      .map(senderDomain).filter(Boolean);
+    const corroborated = vendorDomains.some(d => domainsRelated(from, d));
+    return { po, matched_by: corroborated ? 'po_number' : 'po_number_uncorroborated' };
   }
   const domain = senderDomain(msg.from);
   if (!domain) return { po: null, reason: 'no PO number and unparseable sender' };
@@ -412,8 +431,11 @@ export async function pollVendorInboxes(deps) {
         summary.new++;
         const eventId = claim.rows[0].id;
 
-        // Screen: skip our own outbound/internal mail, require logistics signal.
-        const ownDomain = senderDomain(msg.from) === 'romaflooringdesigns.com';
+        // Screen: skip our own outbound/internal mail (the roma domain and the
+        // configured inbox accounts themselves, e.g. self-sent gmail), require
+        // logistics signal.
+        const ownDomain = senderDomain(msg.from) === 'romaflooringdesigns.com'
+          || getInboxAccounts().some(a => msg.from.toLowerCase().includes(a.user.toLowerCase()));
         const hasPoNumber = extractPoNumbers(msg.subject + ' ' + msg.text).length > 0;
         const looksLogistics = LOGISTICS_RE.test(msg.subject + ' ' + msg.text);
         if (ownDomain || (!hasPoNumber && !looksLogistics)) continue;
@@ -426,6 +448,21 @@ export async function pollVendorInboxes(deps) {
           action = `no action: ${reason}`;
         } else if (!['picked_up', 'shipped', 'ready_at_vendor'].includes(classification.event)) {
           action = `no action: event=${classification.event}`;
+        } else if (matched_by === 'po_number_uncorroborated') {
+          // Number matched but the sender isn't that PO's vendor — likely a
+          // manual-lane PO whose bare number collided, or forwarded mail.
+          // Never auto-act; a confident pickup/ship signal goes to a human.
+          action = `no action: ${po.po_number} matched by number but sender (${senderDomain(msg.from) || 'unknown'}) is not ${po.vendor_name}'s domain`;
+          if (['picked_up', 'shipped'].includes(classification.event) && classification.confidence >= MIN_CONFIDENCE && !DRY_RUN()) {
+            const o = po.order_id ? (await pool.query('SELECT * FROM orders WHERE id = $1', [po.order_id])).rows[0] : null;
+            const repId = await fallbackRepId(pool, o ? o.sales_rep_id : null);
+            if (repId && o) {
+              await createAutoTask(pool, repId, 'vendor_email_review', po.order_id,
+                `Verify vendor email against PO ${po.po_number} — pickup/ship wording but the sender isn't ${po.vendor_name} ("${msg.subject.slice(0, 80)}")`,
+                { priority: 'high', customer_name: o.customer_name, linked_order_id: po.order_id });
+              action += ' — review task filed';
+            }
+          }
         } else if (DRY_RUN()) {
           // Fully read-only (journal aside): report what a live run would do.
           action = classification.confidence < MIN_CONFIDENCE

@@ -5728,7 +5728,15 @@ const RD_FAMILY = [
   ['material_releases', 'release_number', 'REL-'],
 ];
 
-async function nextRdFamilyNumber(db, prefix, floor = 10000) {
+// Floor raised 10000 → 20000 (2026-11-19): the shop's parallel MANUAL
+// purchasing lane (QuickBooks/paper book, bare numbers ~10190+ growing
+// ~70/month) was about to overlap the platform family (~10141), and vendors
+// quote bare numbers in email — the vendor-inbox automation (and humans)
+// could then confuse a manual "po 10250" with platform RDP-10250. All new
+// platform numbers live at 20001+; the manual book stays 5 digits below for
+// ~a decade. Legacy numbers keep their values; bare numbers stay unique
+// across BOTH lanes, which is the family pool's whole point.
+async function nextRdFamilyNumber(db, prefix, floor = 20000) {
   const subqueries = RD_FAMILY.map(([table, column], i) =>
     `SELECT COALESCE(MAX((substring(${column} FROM '([0-9]+)$'))::int), 0) AS n
      FROM ${table} WHERE ${column} LIKE $${i + 1}`
