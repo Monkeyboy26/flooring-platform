@@ -22,6 +22,10 @@ export const PRIORITY_CITY_NAMES = [
   'Costa Mesa', 'Newport Beach', 'Mission Viejo', 'Lake Forest', 'Laguna Hills',
   // Priority LA + Riverside anchors
   'Long Beach', 'Corona', 'Riverside',
+  // Wave 2 (2026-11): LA-county + Eastvale — GSC shows local-service impressions for these
+  // cities landing on the bare hubs with no material subpages to match the query.
+  'Cerritos', 'Lakewood', 'La Mirada', 'Whittier', 'Norwalk',
+  'Downey', 'Diamond Bar', 'West Covina', 'Pomona', 'Eastvale',
 ];
 
 export const PRIORITY_CITIES = SERVICE_CITIES.filter(c => PRIORITY_CITY_NAMES.includes(c.city));
@@ -32,7 +36,9 @@ export const MATERIALS = [
   { slug: 'hardwood',      name: 'Hardwood Flooring',      short: 'Hardwood',       shopCategory: 'hardwood',
     blurb: 'Solid and engineered hardwood — nail-down, glue-down, and floating installs with expert acclimation and moisture control.' },
   { slug: 'luxury-vinyl',  name: 'Luxury Vinyl (LVP/LVT)', short: 'Luxury Vinyl',   shopCategory: 'luxury-vinyl',
-    blurb: 'Waterproof click-lock LVP and glue-down LVT — durable, pet- and kid-friendly floors with meticulous subfloor prep.' },
+    blurb: 'Waterproof click-lock LVP and glue-down LVT — durable, pet- and kid-friendly floors with meticulous subfloor prep.',
+    // Feeds the "Waterproof {material} in {city}" section on the city pages (renderMaterialPage).
+    waterproof: 'Luxury vinyl plank is fully waterproof from the core out, which makes it the go-to choice for kitchens, baths, laundry rooms, and whole-home installs. We carry waterproof vinyl planks in wood and stone looks across every price point, and every install includes the subfloor prep and perimeter detailing that keep the waterproof rating meaningful in real life.' },
   { slug: 'tile',          name: 'Tile & Porcelain',       short: 'Tile',           shopCategory: 'porcelain-tile',
     blurb: 'Porcelain and ceramic tile for floors, walls, showers, and backsplashes — set flat and true with proper waterproofing.' },
   { slug: 'natural-stone', name: 'Natural Stone',          short: 'Natural Stone',  shopCategory: 'natural-stone',
@@ -40,7 +46,8 @@ export const MATERIALS = [
   { slug: 'carpet',        name: 'Carpet',                 short: 'Carpet',         shopCategory: 'carpet',
     blurb: 'Stretch-in and glue-down carpet for bedrooms, stairs, and living areas — clean seams and tight, lasting installs.' },
   { slug: 'laminate',      name: 'Laminate Flooring',      short: 'Laminate',       shopCategory: 'laminate-flooring',
-    blurb: 'Fast, affordable floating laminate with seamless transitions and durable wear layers.' },
+    blurb: 'Fast, affordable floating laminate with seamless transitions and durable wear layers — including waterproof-core options.',
+    waterproof: 'Modern waterproof laminate pairs the dent-resistant wear layer laminate is known for with a water-resistant or fully waterproof core, so it stands up to kitchens, entries, and busy households. We stock waterproof laminate lines in our Anaheim showroom and install them with the tight seams and clean transitions that protect the core where spills actually happen.' },
 ];
 
 // Kitchen & bath remodeling — honest to what Roma actually self-performs: flooring, tile,

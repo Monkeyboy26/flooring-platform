@@ -222,14 +222,17 @@
     // power the human-facing SPA views + matching JSON-LD for /flooring-installation/{city}/{material}
     // and /remodeling/{city}[/{room}]. Keep PRIORITY_CITY_SLUGS / MATERIALS_SVC / REMODEL_ROOMS_SVC
     // identical to the backend catalog.
-    const PRIORITY_CITY_SLUGS = ['anaheim','fullerton','orange','yorba-linda','placentia','brea','irvine','tustin','santa-ana','buena-park','huntington-beach','costa-mesa','newport-beach','mission-viejo','lake-forest','laguna-hills','long-beach','corona','riverside'];
+    const PRIORITY_CITY_SLUGS = ['anaheim','fullerton','orange','yorba-linda','placentia','brea','irvine','tustin','santa-ana','buena-park','huntington-beach','costa-mesa','newport-beach','mission-viejo','lake-forest','laguna-hills','long-beach','corona','riverside',
+      'cerritos','lakewood','la-mirada','whittier','norwalk','downey','diamond-bar','west-covina','pomona','eastvale'];
     const MATERIALS_SVC = [
       { slug:'hardwood', name:'Hardwood Flooring', short:'Hardwood', shopCategory:'hardwood', blurb:'Solid and engineered hardwood — nail-down, glue-down, and floating installs with expert acclimation and moisture control.' },
-      { slug:'luxury-vinyl', name:'Luxury Vinyl (LVP/LVT)', short:'Luxury Vinyl', shopCategory:'luxury-vinyl', blurb:'Waterproof click-lock LVP and glue-down LVT — durable, pet- and kid-friendly floors with meticulous subfloor prep.' },
+      { slug:'luxury-vinyl', name:'Luxury Vinyl (LVP/LVT)', short:'Luxury Vinyl', shopCategory:'luxury-vinyl', blurb:'Waterproof click-lock LVP and glue-down LVT — durable, pet- and kid-friendly floors with meticulous subfloor prep.',
+        waterproof:'Luxury vinyl plank is fully waterproof from the core out, which makes it the go-to choice for kitchens, baths, laundry rooms, and whole-home installs. We carry waterproof vinyl planks in wood and stone looks across every price point, and every install includes the subfloor prep and perimeter detailing that keep the waterproof rating meaningful in real life.' },
       { slug:'tile', name:'Tile & Porcelain', short:'Tile', shopCategory:'porcelain-tile', blurb:'Porcelain and ceramic tile for floors, walls, showers, and backsplashes — set flat and true with proper waterproofing.' },
       { slug:'natural-stone', name:'Natural Stone', short:'Natural Stone', shopCategory:'natural-stone', blurb:'Marble, travertine, slate, and quartzite installed and sealed with the care natural stone demands.' },
       { slug:'carpet', name:'Carpet', short:'Carpet', shopCategory:'carpet', blurb:'Stretch-in and glue-down carpet for bedrooms, stairs, and living areas — clean seams and tight, lasting installs.' },
-      { slug:'laminate', name:'Laminate Flooring', short:'Laminate', shopCategory:'laminate-flooring', blurb:'Fast, affordable floating laminate with seamless transitions and durable wear layers.' },
+      { slug:'laminate', name:'Laminate Flooring', short:'Laminate', shopCategory:'laminate-flooring', blurb:'Fast, affordable floating laminate with seamless transitions and durable wear layers — including waterproof-core options.',
+        waterproof:'Modern waterproof laminate pairs the dent-resistant wear layer laminate is known for with a water-resistant or fully waterproof core, so it stands up to kitchens, entries, and busy households. We stock waterproof laminate lines in our Anaheim showroom and install them with the tight seams and clean transitions that protect the core where spills actually happen.' },
     ];
     const REMODEL_ROOMS_SVC = [
       { slug:'kitchen', name:'Kitchen Remodeling', short:'Kitchen', blurb:'Full kitchen surfaces: flooring, backsplash and wall tile, countertops, and cabinetry — coordinated by one licensed crew.',
@@ -251,6 +254,7 @@
         ['Do you offer free estimates?', 'Yes — free, no-obligation estimates with clear, upfront pricing. Request a quote and we follow up within one business day.'],
         ['Do you remove and dispose of the old floor?', 'Yes. Demolition, subfloor prep, haul-away, and cleanup are part of our full-service installation.'],
       ];
+      if (material.waterproof) faq.push([`Do you install waterproof ${material.short.toLowerCase()} in ${city.city}?`, `Yes. ${material.waterproof}`]);
       return { '@context':'https://schema.org', '@graph': [
         business,
         { '@type':'Service', name:`${material.name} Installation in ${city.city}`, serviceType:`${material.name} installation`,
@@ -18545,7 +18549,9 @@
             {SERVICE_AREAS.map(a => (
               <div key={a.county} className="install-area-group">
                 <h3>{a.county}</h3>
-                <p className="install-area-cities">{a.cities.join(' · ')}</p>
+                <p className="install-area-cities">{a.cities.map((c, i) => (
+                  <React.Fragment key={c}>{i > 0 && ' · '}<a href={`/flooring-installation/${citySlugify(c)}`}>{c}</a></React.Fragment>
+                ))}</p>
               </div>
             ))}
             <p className="install-area-nap">Showroom: 1440 S. State College Blvd #6M, Anaheim, CA 92806 · <a href="tel:+17149990009">(714) 999-0009</a></p>
@@ -18588,6 +18594,7 @@
         { q: 'Do you remove and dispose of the old floor?', a: 'Yes. Demolition, subfloor prep, haul-away, and cleanup are part of our full-service installation.' },
         { q: `Can I shop ${material.short.toLowerCase()} at your showroom?`, a: `Yes. Browse ${material.name.toLowerCase()} online or visit our Anaheim showroom, and we handle supply and installation for your ${city.city} project under one roof.` },
       ];
+      if (material.waterproof) faq.splice(1, 0, { q: `Do you install waterproof ${material.short.toLowerCase()} in ${city.city}?`, a: `Yes. ${material.waterproof}` });
       return (
         <div className="installation-page">
           <div className="install-hero">
@@ -18620,6 +18627,13 @@
               <div className="benefit-card"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg><h3>Supply + Install</h3><p>Shop {material.short.toLowerCase()} in our showroom and we install it — one point of accountability.</p></div>
             </div>
           </div>
+
+          {material.waterproof && (
+            <div className="install-benefits">
+              <h2>Waterproof {material.short} in {city.city}, CA</h2>
+              <p style={{ maxWidth: 720, margin: '0 auto', textAlign: 'center' }}>{material.waterproof}</p>
+            </div>
+          )}
 
           <div className="svc-explore">
             <h2>Shop &amp; Explore</h2>

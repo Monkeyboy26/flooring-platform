@@ -1825,6 +1825,9 @@ function renderMaterialPage(city, material, row) {
     { q: 'Do you offer free estimates?', a: 'Yes — free, no-obligation estimates with clear, upfront pricing. Request a quote and we follow up within one business day.' },
     { q: 'Do you remove and dispose of the old floor?', a: 'Yes. Demolition, subfloor prep, haul-away, and cleanup are part of our full-service installation.' },
   ];
+  if (material.waterproof && !faqList.some(f => /waterproof/i.test(f.q))) {
+    faqList.push({ q: `Do you install waterproof ${material.short.toLowerCase()} in ${city.city}?`, a: `Yes. ${material.waterproof}` });
+  }
 
   const jsonLd = { '@context': 'https://schema.org', '@graph': [
     installationBusinessNode(),
@@ -1855,6 +1858,7 @@ function renderMaterialPage(city, material, row) {
     <h1>${escapeHtml(h1)}</h1>
     <section class="local-intro">${introHtml}</section>
     ${contentHtml}
+    ${material.waterproof ? `<h2>Waterproof ${escapeHtml(material.short)} in ${escapeHtml(city.city)}, CA</h2><p>${escapeHtml(material.waterproof)} <a href="/shop?category=${escapeHtml(material.shopCategory)}">Browse waterproof ${escapeHtml(material.short.toLowerCase())}</a> or visit the Anaheim showroom to see the options in person.</p>` : ''}
     <h2>Frequently Asked Questions</h2>
     ${faqHtml}
     ${footerHtml}
